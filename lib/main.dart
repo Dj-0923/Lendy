@@ -1,27 +1,19 @@
 import 'package:flutter/material.dart';
+import 'login_screen.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const Lendy());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class Lendy extends StatelessWidget {
+  const Lendy({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lendy',
       debugShowCheckedModeBanner: false,
-      home: Home(),
+      title: 'Lendy',
+      home: const LoginScreen(),
     );
-  }
-}
-
-class Home extends StatelessWidget {
-  const Home({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: Text('IRISH')));
   }
 }
