@@ -1,30 +1,37 @@
-// This is a basic Flutter widget test.
+// ════════════════════════════════════════════════════════════════════════════
+//  TEST FILE — this is NOT part of the running app.
 //
+//  Everything in the test/ folder is only executed when you type
+//  `flutter test` in the terminal. It is never compiled into the APK, so it
+//  cannot change anything you see on your phone.
+//
+//  What this file checks:
+//    The app starts without throwing, and the splash screen finishes its
+//    animation and navigates away instead of leaving a timer running.
+//
+//  Run just this file:  flutter test test/widget_test.dart
+//  Run every test:      flutter test
+// ════════════════════════════════════════════════════════════════════════════
+
 // To perform an interaction with a widget in your test, use the WidgetTester
 // utility in the flutter_test package. For example, you can send tap and scroll
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:practice/main.dart';
+import 'package:lendy/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const Lendy());
+  testWidgets('app starts successfully', (WidgetTester tester) async {
+    await tester.pumpWidget(const SmartClassroomApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.byType(SmartClassroomApp), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // The splash chains Future.delayed gaps, which schedule no frames, so
+    // pumpAndSettle would return before its timers fire. Step time instead.
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
   });
 }

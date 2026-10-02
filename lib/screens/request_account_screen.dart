@@ -1,0 +1,363 @@
+// lib/screens/request_account_screen.dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/user_model.dart';
+import '../providers/auth_provider.dart';
+import '../theme/app_colors.dart';
+import '../widgets/app_text_field.dart';
+import '../widgets/primary_button.dart';
+import 'login_screen.dart';
+
+/// Lets a Student/Faculty request an account by submitting their basic
+/// details. Simulates what an Admin would do on the (out-of-scope) web
+/// system: creates the account and issues a temporary password.
+///
+/// Since this is a prototype with no real email server, the generated
+/// temporary password is shown directly on screen instead of being emailed.
+class RequestAccountScreen extends StatefulWidget {
+  const RequestAccountScreen({super.key});
+
+  @override
+  State<RequestAccountScreen> createState() => _RequestAccountScreenState();
+}
+
+class _RequestAccountScreenState extends State<RequestAccountScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _fullNameController = TextEditingController();
+  final _idNumberController = TextEditingController();
+  final _emailController = TextEditingController();
+
+  UserRole _selectedRole = UserRole.student;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _idNumberController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  String? _required(String? value, String fieldName) {
+    if (value == null || value.trim().isEmpty) return '$fieldName is required';
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Email is required';
+    final emailRegex = RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) return 'Enter a valid email';
+    return null;
+  }
+
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    final result = await context.read<AuthProvider>().requestAccount(
+      fullName: _fullNameController.text,
+      email: _emailController.text,
+      role: _selectedRole,
+      idNumber: _idNumberController.text,
+    );
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error!),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // Show the generated temp password — standing in for the email an
+    // Admin would normally send in a real deployment.
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Account created!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'In a real deployment, this would be emailed to you by the Admin. '
+              'For this prototype, here is your temporary password:',
+              style: TextStyle(fontSize: 13.5),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.fieldFill,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.fieldBorder),
+              ),
+              child: Text(
+                result.tempPassword!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "You'll be asked to set your own password on first login.",
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: PrimaryButton(
+              label: 'Go to Login',
+              onPressed: () {
+                Navigator.of(context).pop(); // close dialog
+                Navigator.of(context).pop(); // back to Login screen
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ----- Header -----
+            Container(
+              width: double.infinity,
+              // The left padding moves onto the title block so the chevron's 44pt
+              // tap target can start at the screen edge, putting the glyph 7pt
+              // in — exactly where the forgot password header puts it.
+              padding: EdgeInsets.fromLTRB(0, statusBarHeight, 24, 24),
+              color: AppColors.primary,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Center(
+                        child: Icon(
+                          Icons.chevron_left_rounded,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Request Account',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8, top: 6, right: 24),
+                          child: Text(
+                            "Submit your details and we'll set up your account with a temporary password.",
+                            style: TextStyle(
+                                color: Colors.white70, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ----- Form -----
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'I am a...',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _RoleCard(
+                            label: 'Student',
+                            icon: Icons.school_outlined,
+                            selected: _selectedRole == UserRole.student,
+                            onTap: () => setState(
+                              () => _selectedRole = UserRole.student,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _RoleCard(
+                            label: 'Faculty',
+                            icon: Icons.badge_outlined,
+                            selected: _selectedRole == UserRole.faculty,
+                            onTap: () => setState(
+                              () => _selectedRole = UserRole.faculty,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'Full name',
+                      hint: 'e.g. Juan Dela Cruz',
+                      icon: Icons.person_outline,
+                      controller: _fullNameController,
+                      validator: (v) => _required(v, 'Full name'),
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: _selectedRole == UserRole.student
+                          ? 'Student ID Number'
+                          : 'Faculty ID Number',
+                      hint: 'e.g. 20243781',
+                      icon: Icons.badge_outlined,
+                      controller: _idNumberController,
+                      validator: (v) => _required(v, 'ID number'),
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'Email',
+                      hint: 'e.g. username@gmail.com',
+                      icon: Icons.email_outlined,
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: _validateEmail,
+                    ),
+                    const SizedBox(height: 24),
+                    PrimaryButton(
+                      label: 'Submit Request',
+                      isLoading: _isLoading,
+                      onPressed: _handleSubmit,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('Already have an account? '),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const LoginScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Sign in',
+                            style: TextStyle(
+                              color: AppColors.primaryLight,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _RoleCard({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryLight.withValues(alpha: 0.08)
+              : AppColors.fieldFill,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? AppColors.primaryLight : AppColors.fieldBorder,
+            width: selected ? 1.4 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: selected ? AppColors.primaryLight : Colors.grey,
+              size: 22,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: selected
+                    ? AppColors.primaryLight
+                    : AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
