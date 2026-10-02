@@ -147,31 +147,22 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
             // ----- Header -----
             Container(
               width: double.infinity,
-              // The left padding moves onto the title block so the chevron's 44pt
-              // tap target can start at the screen edge, putting the glyph 7pt
-              // in — exactly where the forgot password header puts it.
-              padding: EdgeInsets.fromLTRB(0, statusBarHeight, 24, 24),
+              padding: EdgeInsets.fromLTRB(8, statusBarHeight, 24, 24),
               color: AppColors.primary,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: Center(
-                        child: Icon(
-                          Icons.chevron_left_rounded,
-                          color: Colors.white,
-                          size: 30,
-                        ),
-                      ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 48,
+                      height: 48,
                     ),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(left: 16),
+                    padding: const EdgeInsets.only(left: 8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -188,7 +179,9 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                           child: Text(
                             "Submit your details and we'll set up your account with a temporary password.",
                             style: TextStyle(
-                                color: Colors.white70, fontSize: 13),
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],

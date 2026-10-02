@@ -156,12 +156,12 @@ const double _brandDy =
 // ─────────────────────────────────────────────────────────────────────────────
 // Timeline (matches the video, t = 0 when the small circle appears)
 //
-//   0.15 – 1.25  circle falls, grows, bounces and settles in the centre
-//   1.40 – 1.70  logo fades in inside the circle
-//   1.90 – 2.40  circle shrinks + slides left, "Lendy" slides in from the right
-//   2.75         cross-fade to the welcome page
+//   0.30 – 1.40  circle falls, grows, bounces and settles in the centre
+//   1.55 – 1.85  logo fades in inside the circle
+//   2.05 – 2.55  circle shrinks + slides left, "Lendy" slides in from the right
+//   2.90         cross-fade to the welcome page
 // ─────────────────────────────────────────────────────────────────────────────
-const Duration _pauseBeforeDrop = Duration(milliseconds: 3150);
+const Duration _pauseBeforeDrop = Duration(milliseconds: 300);
 const Duration _dropDuration = Duration(milliseconds: 1100);
 const Duration _pauseAfterDrop = Duration(milliseconds: 150);
 const Duration _logoFadeDuration = Duration(milliseconds: 300);
