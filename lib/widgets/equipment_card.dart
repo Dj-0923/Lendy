@@ -56,7 +56,13 @@ class EquipmentCard extends StatelessWidget {
             style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 10),
-          StatusBadge(style: equipmentStatusStyle(equipment.status), uppercase: true),
+          Align(
+            alignment: Alignment.centerRight,
+            child: StatusBadge(
+              style: equipmentStatusStyle(equipment.status),
+              uppercase: true,
+            ),
+          ),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,

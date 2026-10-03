@@ -26,6 +26,7 @@ class SplashColors {
 
   /// "Welcome!" title, "Create account" label and its outline.
   static const Color title = Color(0xFF0F4844);
+  static const Color welcomeTitle = Colors.black;
 
   /// Grey body copy.
   static const Color body = Color(0xFF585870);
@@ -65,7 +66,7 @@ class AppTextStyles {
     fontSize: size,
     fontWeight: FontWeight.w700,
     height: 1.2,
-    color: SplashColors.title,
+    color: SplashColors.welcomeTitle,
   );
 
   /// Sub-title and the "Borrow the things you need…" tagline.
@@ -412,7 +413,7 @@ const double _headerBottom = 245.0; // used as the off-screen start distance
 const double _illustrationTop = 270.3;
 const double _illustrationWidth = 400;
 const double _illustrationHeight = 340;
-const double _illustrationToTagline = 0.2;
+const double _illustrationToTagline = 42;
 
 // Buttons (slide UP from the bottom edge)
 const double _sideMargin = 48;
@@ -626,12 +627,14 @@ class _IllustrationBlock extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(height: _illustrationToTagline * s),
-        Text(
-          'Borrow the things you need,\n'
-          'share with trust.',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.body(_bodySize * s),
+        Transform.translate(
+          offset: Offset(0, -_illustrationToTagline * s),
+          child: Text(
+            'Borrow the things you need,\n'
+            'share with trust.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.body(_bodySize * s),
+          ),
         ),
       ],
     );

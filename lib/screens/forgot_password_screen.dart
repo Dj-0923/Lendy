@@ -126,6 +126,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             validator: _validateEmail,
                             decoration: InputDecoration(
                               hintText: 'e.g. username@gmail.com',
+                              hintStyle: const TextStyle(color: _body),
                               prefixIcon: const Icon(
                                 Icons.mail_outline_rounded,
                                 color: _teal,
@@ -296,25 +297,14 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
-        // 44pt tap target centred on the 30pt glyph, so it stays reachable
-        // for back navigation without shifting the icon.
         Positioned(
-          left: 7,
-          top: 7,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.pop(context),
-            child: const SizedBox(
-              width: 44,
-              height: 44,
-              child: Center(
-                child: Icon(
-                  Icons.chevron_left_rounded,
-                  color: Colors.white,
-                  size: 30,
-                ),
-              ),
-            ),
+          left: 8,
+          top: 0,
+          child: IconButton(
+            onPressed: () => Navigator.pop(context),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
           ),
         ),
 
@@ -326,8 +316,8 @@ class _Header extends StatelessWidget {
         // above the circle.
         const Positioned(
           left: 0,
-          right: 0,
-          bottom: 130,
+          right: -40,
+          bottom: 110,
           child: Center(child: _DotGrid()),
         ),
 

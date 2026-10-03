@@ -1,5 +1,6 @@
 // lib/screens/request_account_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
@@ -76,60 +77,92 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
 
     // Show the generated temp password — standing in for the email an
     // Admin would normally send in a real deployment.
+    var passwordCopied = false;
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Account created!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'In a real deployment, this would be emailed to you by the Admin. '
-              'For this prototype, here is your temporary password:',
-              style: TextStyle(fontSize: 13.5),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.fieldFill,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.fieldBorder),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('Account created!'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'In a real deployment, this would be emailed to you by the Admin. '
+                'For this prototype, here is your temporary password:',
+                style: TextStyle(fontSize: 13.5),
               ),
-              child: Text(
-                result.tempPassword!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                  color: AppColors.primary,
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.fieldFill,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.fieldBorder),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        result.tempPassword!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Copy password',
+                      icon: Icon(
+                        passwordCopied ? Icons.check : Icons.copy,
+                        color: AppColors.primary,
+                      ),
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: result.tempPassword!),
+                        );
+                        setDialogState(() => passwordCopied = true);
+                      },
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              "You'll be asked to set your own password on first login.",
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              if (passwordCopied) ...[
+                const SizedBox(height: 6),
+                const Text(
+                  'Password copied',
+                  style: TextStyle(fontSize: 12, color: AppColors.primary),
+                ),
+              ],
+              const SizedBox(height: 12),
+              const Text(
+                "You'll be asked to set your own password on first login.",
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: PrimaryButton(
+                label: 'Go to Login',
+                onPressed: () {
+                  final navigator = Navigator.of(dialogContext);
+                  navigator.pop();
+                  navigator.pushNamedAndRemoveUntil('/login', (_) => false);
+                },
+              ),
             ),
           ],
         ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: PrimaryButton(
-              label: 'Go to Login',
-              onPressed: () {
-                Navigator.of(context).pop(); // close dialog
-                Navigator.of(context).pop(); // back to Login screen
-              },
-            ),
-          ),
-        ],
       ),
     );
   }

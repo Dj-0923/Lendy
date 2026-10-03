@@ -227,7 +227,7 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       _InfoRow(
                         label: 'Account role',
-                        value: user.role.name,
+                        value: user.role.label,
                         helper:
                             'This is the role you selected when you signed in.',
                       ),
