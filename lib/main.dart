@@ -1,4 +1,3 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
@@ -11,6 +10,7 @@ import 'screens/login_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/set_new_password_screen.dart';
 import 'screens/main_shell.dart';
+import 'utils/responsive_layout.dart';
 
 void main() {
   runApp(const SmartClassroomApp());
@@ -36,6 +36,10 @@ class SmartClassroomApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Lendy',
         debugShowCheckedModeBanner: false,
+        // See lib/utils/responsive_layout.dart for app-wide responsive sizing
+        // and its breakpoints.
+        builder: (context, child) =>
+            ResponsiveAppFrame(child: child ?? const SizedBox.shrink()),
         theme: ThemeData(
           primaryColor: AppColors.primary,
           scaffoldBackgroundColor: AppColors.background,

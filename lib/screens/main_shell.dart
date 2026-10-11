@@ -5,6 +5,7 @@ import 'browse_screen.dart';
 import 'my_requests_screen.dart';
 import 'notification_screen.dart';
 import 'profile_screen.dart';
+import '../utils/responsive_layout.dart';
 
 /// Hosts the bottom navigation bar and switches between the four main
 /// dashboard tabs. Used by both Student and Faculty roles — the dashboard
@@ -36,11 +37,54 @@ class _MainShellState extends State<MainShell> {
 
     final isOnProfileTab = _currentIndex == _profileTabIndex;
 
+    final useNavigationRail =
+        MediaQuery.sizeOf(context).width >= ResponsiveAppFrame.wideBreakpoint;
+
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: screens),
-      // Profile has its own back arrow, so the bottom nav is hidden while
-      // viewing it — it reappears once the user navigates to another tab.
-      bottomNavigationBar: isOnProfileTab
+      body: useNavigationRail
+          ? Row(
+              children: [
+                SafeArea(
+                  child: NavigationRail(
+                    selectedIndex: _currentIndex,
+                    onDestinationSelected: _goToTab,
+                    labelType: NavigationRailLabelType.all,
+                    selectedIconTheme: const IconThemeData(
+                      color: AppColors.primaryLight,
+                    ),
+                    unselectedIconTheme: const IconThemeData(color: Colors.grey),
+                    selectedLabelTextStyle: const TextStyle(
+                      color: AppColors.primaryLight,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    destinations: const [
+                      NavigationRailDestination(
+                        icon: Icon(Icons.home_outlined),
+                        label: Text('Home'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(Icons.bookmark_outline),
+                        label: Text('Request'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(Icons.notifications_outlined),
+                        label: Text('Notification'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(Icons.person_outline),
+                        label: Text('Profile'),
+                      ),
+                    ],
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(child: IndexedStack(index: _currentIndex, children: screens)),
+              ],
+            )
+          : IndexedStack(index: _currentIndex, children: screens),
+      // Compact screens use bottom navigation; the profile retains its back
+      // arrow, while wide screens use the persistent navigation rail above.
+      bottomNavigationBar: useNavigationRail || isOnProfileTab
           ? null
           : TooltipVisibility(
               visible: false,

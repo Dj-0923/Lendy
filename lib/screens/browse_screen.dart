@@ -141,19 +141,37 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     ),
                   )
                 else
-                  ...equipmentList.map(
-                    (equipment) => EquipmentCard(
-                      equipment: equipment,
-                      onRequest: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                RequestFormScreen(equipment: equipment),
-                          ),
-                        );
-                      },
-                    ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final useGrid = constraints.maxWidth >= 760;
+                      final cardWidth = useGrid
+                          ? (constraints.maxWidth - 16) / 2
+                          : constraints.maxWidth;
+
+                      return Wrap(
+                        spacing: 16,
+                        children: equipmentList
+                            .map(
+                              (equipment) => SizedBox(
+                                width: cardWidth,
+                                child: EquipmentCard(
+                                  equipment: equipment,
+                                  onRequest: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => RequestFormScreen(
+                                          equipment: equipment,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      );
+                    },
                   ),
               ],
             ),

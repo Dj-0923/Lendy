@@ -84,80 +84,93 @@ class _QrScanScreenState extends State<QrScanScreen> {
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
-              ),
-            ),
-            const SizedBox(height: 40),
-
-            // ----- Camera viewfinder -----
-            Padding(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 520;
+            final cameraView = Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: SizedBox(
-                  height: 560,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ImageFiltered(
-                        imageFilter: ui.ImageFilter.blur(
-                          sigmaX: _state == _ScanState.scanning ? 5 : 0,
-                          sigmaY: _state == _ScanState.scanning ? 5 : 0,
-                        ),
-                        child: MobileScanner(
-                          controller: _controller,
-                          onDetect: _onDetect,
-                        ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ImageFiltered(
+                            imageFilter: ui.ImageFilter.blur(
+                              sigmaX: _state == _ScanState.scanning ? 5 : 0,
+                              sigmaY: _state == _ScanState.scanning ? 5 : 0,
+                            ),
+                            child: MobileScanner(
+                              controller: _controller,
+                              onDetect: _onDetect,
+                            ),
+                          ),
+                          QrScannerOverlay(
+                            showScanLine: _state == _ScanState.scanning,
+                          ),
+                        ],
                       ),
-                      QrScannerOverlay(
-                        showScanLine: _state == _ScanState.scanning,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+            );
 
-            // ----- Caption -----
-            Text(
-              switch (_state) {
-                _ScanState.ready => 'Ready to scan',
-                _ScanState.scanning => 'Scanning...',
-                _ScanState.complete => 'Scan complete',
-              },
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(switch (_state) {
-              _ScanState.ready => '',
-              _ScanState.scanning => 'Please hold steady',
-              _ScanState.complete => 'Item is ready',
-            }, style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
-
-            const SizedBox(height: 20),
-
-            // ----- Result card -----
-            if (_state == _ScanState.complete && _scannedEquipment != null)
-              Expanded(child: _buildResultCard(context, _scannedEquipment!))
-            else
-              const Spacer(),
-
-            const SizedBox(height: 32),
-          ],
+            return Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(12, compact ? 4 : 12, 12, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    ),
+                  ),
+                ),
+                if (_state == _ScanState.complete && _scannedEquipment != null)
+                  Expanded(flex: 3, child: Center(child: cameraView))
+                else
+                  Expanded(child: Center(child: cameraView)),
+                SizedBox(height: compact ? 4 : 12),
+                Text(
+                  switch (_state) {
+                    _ScanState.ready => 'Ready to scan',
+                    _ScanState.scanning => 'Scanning...',
+                    _ScanState.complete => 'Scan complete',
+                  },
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  switch (_state) {
+                    _ScanState.ready => '',
+                    _ScanState.scanning => 'Please hold steady',
+                    _ScanState.complete => 'Item is ready',
+                  },
+                  style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                ),
+                if (_state == _ScanState.complete && _scannedEquipment != null)
+                  Expanded(
+                    flex: 2,
+                    child: SingleChildScrollView(
+                      child: _buildResultCard(context, _scannedEquipment!),
+                    ),
+                  )
+                else
+                  const Spacer(),
+                SizedBox(height: compact ? 8 : 16),
+              ],
+            );
+          },
         ),
       ),
     );

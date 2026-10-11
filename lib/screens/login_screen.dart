@@ -1,4 +1,6 @@
 // lib/screens/login_screen.dart
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,7 +16,6 @@ const Color _hintColor = Color(0xFF9AA0A6);
 const Color _borderColor = Color(0xFFD5D9DD);
 const Color _mutedText = Color(0xFF6B7280);
 
-const double _formSidePadding = 49;
 const double _formTopPadding = 54;
 const double _fieldHeight = 42;
 const double _fieldRadius = 8;
@@ -126,9 +127,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final headerHeight = screenHeight * 4 / 10; // matches flex 4:6 below
-
     return PopScope(
       canPop: false, // never go back to the welcome page
       onPopInvokedWithResult: (didPop, result) {
@@ -137,95 +135,126 @@ class _LoginScreenState extends State<LoginScreen> {
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        body: Stack(
-          children: [
-            Column(
-              children: [
-                // Dark green header ---------
-                Expanded(
-                  flex: 4,
-                  child: Container(
-                    width: double.infinity,
-                    color: const Color(0xFF0F4844),
-                    child: Stack(
-                      children: [
-                        // SMALL CIRCLE (overlaps big circle, clipped by bottom edge)
-                        Positioned(
-                          top: 272,
-                          right: 25,
-                          child: _decorCircle(140),
-                        ),
-                        // BIG CIRCLE (bleeds slightly off the right edge)
-                        Positioned(
-                          top: 180,
-                          right: 43,
-                          child: _decorCircle(180),
-                        ),
-                        // HALF CIRCLE (clipped by left AND bottom edges)
-                        Positioned(
-                          top: 270,
-                          left: -70,
-                          child: _decorCircle(200),
-                        ),
-                        // Dot pattern
-                        Positioned(
-                          top: -15,
-                          right: -15,
-                          child: _buildDotGrid(),
-                        ),
-                        // TEXT BLOCK
-                        Positioned(
-                          top: 150,
-                          left: 34,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Welcome to',
-                                style: GoogleFonts.inter(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                  height: 1.0,
-                                ),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final frameWidth = constraints.maxWidth
+                .clamp(0.0, 620.0)
+                .toDouble();
+            final headerHeight = constraints.maxHeight * .4;
+            final scale = math
+                .min(
+                  (frameWidth / 393).clamp(.58, 1.0).toDouble(),
+                  (headerHeight / 341).clamp(.55, 1.0).toDouble(),
+                )
+                .toDouble();
+            final sidePadding = (frameWidth * .125)
+                .clamp(24.0, 49.0)
+                .toDouble();
+
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 620),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: constraints.maxHeight,
+                  child: Stack(
+                    children: [
+                      Column(
+                        children: [
+                          Expanded(
+                            flex: 4,
+                            child: Container(
+                              width: double.infinity,
+                              color: const Color(0xFF0F4844),
+                              child: Stack(
+                                clipBehavior: Clip.hardEdge,
+                                children: [
+                                  Positioned(
+                                    top: headerHeight * .8,
+                                    right: 25 * scale,
+                                    child: _decorCircle(140 * scale),
+                                  ),
+                                  Positioned(
+                                    top: headerHeight * .53,
+                                    right: 43 * scale,
+                                    child: _decorCircle(180 * scale),
+                                  ),
+                                  Positioned(
+                                    top: headerHeight * .79,
+                                    left: -70 * scale,
+                                    child: _decorCircle(200 * scale),
+                                  ),
+                                  Positioned(
+                                    top: -15 * scale,
+                                    right: -15 * scale,
+                                    child: Transform.scale(
+                                      scale: scale,
+                                      alignment: Alignment.topRight,
+                                      child: _buildDotGrid(),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: headerHeight * .44,
+                                    left: 34 * scale,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Welcome to',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 20 * scale,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                            height: 1,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Lendy',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 60 * scale,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                            height: .9,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Campus Access',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 28 * scale,
+                                            fontWeight: FontWeight.w400,
+                                            color: Colors.white,
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                'Lendy',
-                                style: GoogleFonts.inter(
-                                  fontSize: 60,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  height: 0.9,
-                                ),
-                              ),
-                              Text(
-                                'Campus Access',
-                                style: GoogleFonts.inter(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.white,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          Expanded(
+                            flex: 6,
+                            child: _buildFormSection(
+                              sidePadding: sidePadding,
+                              scale: scale,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Positioned(
+                        top: headerHeight - 100 * scale,
+                        right: 35 * scale,
+                        child: _buildLogoBadge(scale),
+                      ),
+                    ],
                   ),
                 ),
-                // White form section ------------
-                Expanded(flex: 6, child: _buildFormSection()),
-              ],
-            ),
-            // LOGO BADGE — sits on the seam between both sections
-            Positioned(
-              top: headerHeight - 100,
-              right: 35,
-              child: _buildLogoBadge(),
-            ),
-          ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -234,7 +263,10 @@ class _LoginScreenState extends State<LoginScreen> {
   // ════════════════════════════════
   // LOGIN FORM
   // ════════════════════════════════
-  Widget _buildFormSection() {
+  Widget _buildFormSection({
+    required double sidePadding,
+    required double scale,
+  }) {
     final keyboard = MediaQuery.of(context).viewInsets.bottom;
 
     return Material(
@@ -250,9 +282,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: EdgeInsets.fromLTRB(
-                    _formSidePadding,
-                    _formTopPadding,
-                    _formSidePadding,
+                    sidePadding,
+                    _formTopPadding * scale,
+                    sidePadding,
                     16 + keyboard,
                   ),
                   child: Form(
@@ -341,7 +373,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: _rowGap - 8),
+                        SizedBox(height: (_rowGap - 8) * scale),
 
                         // ── Keep me signed in ──
                         _buildKeepSignedIn(),
@@ -556,10 +588,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildLogoBadge() {
+  Widget _buildLogoBadge(double scale) {
     return Container(
-      width: 144,
-      height: 144,
+      width: 144 * scale,
+      height: 144 * scale,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
@@ -573,8 +605,8 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Center(
         child: SizedBox(
-          width: 120,
-          height: 120,
+          width: 120 * scale,
+          height: 120 * scale,
           child: Image.asset('assets/images/Lendy.png'),
         ),
       ),
