@@ -1,4 +1,4 @@
-# practice
+# Lendy
 
 A new Flutter project.
 
