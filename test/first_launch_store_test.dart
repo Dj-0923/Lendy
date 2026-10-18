@@ -17,4 +17,22 @@ void main() {
 
     expect(await FirstLaunchStore.takeWelcomePage(), isFalse);
   });
+
+  test('existing accounts never see first-launch welcome', () async {
+    SharedPreferences.setMockInitialValues({});
+
+    expect(
+      await FirstLaunchStore.takeWelcomePage(hasExistingAccount: true),
+      isFalse,
+    );
+    expect(await FirstLaunchStore.takeWelcomePage(), isFalse);
+  });
+
+  test('successful account use permanently marks welcome as seen', () async {
+    SharedPreferences.setMockInitialValues({});
+
+    await FirstLaunchStore.markWelcomeSeen();
+
+    expect(await FirstLaunchStore.takeWelcomePage(), isFalse);
+  });
 }

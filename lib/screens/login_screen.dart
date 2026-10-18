@@ -114,6 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final error = await auth.login(
       _emailController.text.trim(),
       _passwordController.text,
+      keepSignedIn: _keepSignedIn,
     );
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -124,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       return;
     }
+    if (auth.accountRequestData != null) return;
 
     // Accounts marked for a password change must update it before continuing.
     if (auth.currentUser!.mustChangePassword) {

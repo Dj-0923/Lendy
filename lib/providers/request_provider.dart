@@ -1,71 +1,134 @@
 // lib/providers/request_provider.dart
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/borrow_request_model.dart';
 import '../models/equipment_model.dart';
 import 'equipment_provider.dart';
 
-/// Manages the in-memory list of borrow requests.
-///
-/// ALL status-changing logic lives in this single provider (specifically in
-/// [updateRequestStatus]) rather than being scattered across screens, so
-/// swapping this out for real Firebase logic later only requires touching
-/// this file.
+/// Streams borrower requests from the same Firestore collection used by admin.
 class RequestProvider extends ChangeNotifier {
+  RequestProvider(this._equipmentProvider, {FirebaseFirestore? firestore})
+    : _firestore = firestore;
+
+  final FirebaseFirestore? _firestore;
   EquipmentProvider _equipmentProvider;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _requestSubscription;
+  String? _userId;
+  String? _errorMessage;
 
-  RequestProvider(this._equipmentProvider);
-
-  /// Called by the ProxyProvider whenever EquipmentProvider rebuilds.
+  /// Called by the ProxyProviders whenever a dependency changes.
   void updateEquipmentProvider(EquipmentProvider equipmentProvider) {
     _equipmentProvider = equipmentProvider;
   }
 
-  // Database integration point: load persisted borrow requests here.
+  String? get errorMessage => _errorMessage;
+
   final List<BorrowRequestModel> _requests = [];
+
+  void updateAuthentication({required String? userId}) {
+    if (_userId == userId) return;
+
+    _userId = userId;
+    _requestSubscription?.cancel();
+    _requestSubscription = null;
+    _requests.clear();
+    _errorMessage = null;
+
+    if (userId != null && _firestore != null) {
+      _requestSubscription = _firestore
+          .collection('loans')
+          .where('borrowerUid', isEqualTo: userId)
+          .snapshots()
+          .listen(
+            (snapshot) {
+              try {
+                final requests = snapshot.docs
+                    .map(_requestFromDocument)
+                    .toList();
+                _requests
+                  ..clear()
+                  ..addAll(requests);
+                _errorMessage = null;
+              } on FormatException catch (error) {
+                _errorMessage = 'Could not read your loan data: $error';
+              } on TypeError catch (error) {
+                _errorMessage = 'Could not read your loan data: $error';
+              }
+              notifyListeners();
+            },
+            onError: (Object error) {
+              _errorMessage = 'Could not load your requests: $error';
+              notifyListeners();
+            },
+          );
+    }
+    notifyListeners();
+  }
 
   List<BorrowRequestModel> requestsForUser(String userId) =>
       _requests.where((r) => r.studentOrFacultyId == userId).toList();
 
-  List<BorrowRequestModel> activeRequests(String userId) => requestsForUser(userId)
-      .where((r) => r.status == RequestStatus.approved || r.status == RequestStatus.borrowed)
-      .toList();
+  List<BorrowRequestModel> activeRequests(String userId) =>
+      requestsForUser(userId)
+          .where(
+            (r) =>
+                r.status == RequestStatus.approved ||
+                r.status == RequestStatus.borrowed,
+          )
+          .toList();
 
-  List<BorrowRequestModel> pendingRequests(String userId) => requestsForUser(userId)
-      .where((r) => r.status == RequestStatus.pending)
-      .toList();
+  List<BorrowRequestModel> pendingRequests(String userId) => requestsForUser(
+    userId,
+  ).where((r) => r.status == RequestStatus.pending).toList();
 
-  List<BorrowRequestModel> historyRequests(String userId) => requestsForUser(userId)
-      .where((r) =>
-          r.status == RequestStatus.rejected ||
-          r.status == RequestStatus.returned ||
-          r.status == RequestStatus.cancelled)
-      .toList();
+  List<BorrowRequestModel> historyRequests(String userId) =>
+      requestsForUser(userId)
+          .where(
+            (r) =>
+                r.status == RequestStatus.rejected ||
+                r.status == RequestStatus.returned ||
+                r.status == RequestStatus.cancelled,
+          )
+          .toList();
 
   /// Requests that have actually been picked up at some point (Borrowed or
   /// Returned), most recent first — used for the "Recent Borrowings" list.
   List<BorrowRequestModel> recentBorrowings(String userId, {int limit = 5}) {
-    final list = requestsForUser(userId)
-        .where((r) => r.status == RequestStatus.borrowed || r.status == RequestStatus.returned)
-        .toList()
-      ..sort((a, b) {
-        final aDate = a.returnedDate ?? a.checkedOutDate ?? a.requestDate;
-        final bDate = b.returnedDate ?? b.checkedOutDate ?? b.requestDate;
-        return bDate.compareTo(aDate);
-      });
+    final list =
+        requestsForUser(userId)
+            .where(
+              (r) =>
+                  r.status == RequestStatus.borrowed ||
+                  r.status == RequestStatus.returned,
+            )
+            .toList()
+          ..sort((a, b) {
+            final aDate = a.returnedDate ?? a.checkedOutDate ?? a.requestDate;
+            final bDate = b.returnedDate ?? b.checkedOutDate ?? b.requestDate;
+            return bDate.compareTo(aDate);
+          });
     return list.take(limit).toList();
   }
 
   // ----- Borrowing summary counts (used on the Profile screen) -----
 
   int totalBorrowedCount(String userId) => requestsForUser(userId)
-      .where((r) => r.status == RequestStatus.borrowed || r.status == RequestStatus.returned)
+      .where(
+        (r) =>
+            r.status == RequestStatus.borrowed ||
+            r.status == RequestStatus.returned,
+      )
       .length;
 
-  int currentBorrowedCount(String userId) =>
-      requestsForUser(userId).where((r) => r.status == RequestStatus.borrowed).length;
+  int currentBorrowedCount(String userId) => requestsForUser(
+    userId,
+  ).where((r) => r.status == RequestStatus.borrowed).length;
 
-  int returnedCount(String userId) =>
-      requestsForUser(userId).where((r) => r.status == RequestStatus.returned).length;
+  int returnedCount(String userId) => requestsForUser(
+    userId,
+  ).where((r) => r.status == RequestStatus.returned).length;
 
   /// Items currently borrowed with a return date within the next 3 days
   /// (including already-overdue items).
@@ -79,81 +142,141 @@ class RequestProvider extends ChangeNotifier {
 
   /// Submits a new borrow request. Equipment stays "Available" until the
   /// request is Approved — per the system's lifecycle rules.
-  void submitRequest({
+  Future<void> submitRequest({
     required String userId,
     required String equipmentId,
+    required String equipmentName,
+    required String borrowerName,
     required DateTime borrowDate,
     required DateTime returnDate,
-  }) {
-    _requests.add(BorrowRequestModel(
-      id: 'r${_requests.length + 1}_${DateTime.now().millisecondsSinceEpoch}',
-      studentOrFacultyId: userId,
-      equipmentId: equipmentId,
-      requestedBorrowDate: borrowDate,
-      requestedReturnDate: returnDate,
-      requestDate: DateTime.now(),
-      status: RequestStatus.pending,
-    ));
-    notifyListeners();
+  }) async {
+    final now = DateTime.now();
+    if (_firestore == null) {
+      _requests.add(
+        BorrowRequestModel(
+          id: 'r${_requests.length + 1}_${now.millisecondsSinceEpoch}',
+          studentOrFacultyId: userId,
+          borrowerName: borrowerName,
+          equipmentId: equipmentId,
+          requestedBorrowDate: borrowDate,
+          requestedReturnDate: returnDate,
+          requestDate: now,
+          status: RequestStatus.pending,
+        ),
+      );
+      notifyListeners();
+      return;
+    }
+
+    final document = _firestore.collection('loans').doc();
+    await document.set({
+      'id': document.id,
+      'borrowerUid': userId,
+      'equipmentId': equipmentId,
+      'name': equipmentName,
+      'borrower': borrowerName,
+      'start': _dateOnly(borrowDate),
+      'end': _dateOnly(returnDate),
+      'status': 'pending',
+      'returnedOn': null,
+      'updatedAt': now.millisecondsSinceEpoch,
+    });
   }
 
-  /// SINGLE source of truth for every status transition in the app.
-  /// Keeps the linked equipment's status in sync automatically:
-  ///   pending  -> approved   : equipment becomes Reserved
-  ///   pending  -> rejected   : equipment stays Available
-  ///   pending  -> cancelled  : equipment stays Available
-  ///   approved -> borrowed   : equipment becomes Borrowed (checked out)
-  ///   borrowed -> returned   : equipment becomes Available again
-  void updateRequestStatus(String requestId, RequestStatus newStatus) {
+  Future<void> checkOut(String requestId) async {
     final request = _requests.firstWhere((r) => r.id == requestId);
     final now = DateTime.now();
 
-    switch (newStatus) {
-      case RequestStatus.approved:
-        request.approvedDate = now;
-        _equipmentProvider.setStatus(request.equipmentId, EquipmentStatus.reserved);
-        break;
-      case RequestStatus.rejected:
-        // No equipment change — it was never reserved.
-        break;
-      case RequestStatus.cancelled:
-        // No equipment change — cancelling before approval.
-        break;
-      case RequestStatus.borrowed:
-        request.checkedOutDate = now;
-        _equipmentProvider.setStatus(request.equipmentId, EquipmentStatus.borrowed);
-        break;
-      case RequestStatus.returned:
-        request.returnedDate = now;
-        _equipmentProvider.setStatus(request.equipmentId, EquipmentStatus.available);
-        break;
-      case RequestStatus.pending:
-        break; // requests always start pending; not re-entered here
+    if (_firestore != null) {
+      await _firestore.collection('loans').doc(requestId).update({
+        'checkedOutAt': now.millisecondsSinceEpoch,
+        'updatedAt': now.millisecondsSinceEpoch,
+      });
+    } else {
+      request.status = RequestStatus.borrowed;
+      request.checkedOutDate = now;
+      _equipmentProvider.setStatus(
+        request.equipmentId,
+        EquipmentStatus.borrowed,
+      );
+      notifyListeners();
     }
-
-    request.status = newStatus;
-    notifyListeners();
   }
 
-  /// Mock admin approval simulation — represents the decision that, in the
-  /// real system, is made on the separate admin web platform.
-  void simulateAdminApproval(String requestId, bool approve) {
-    updateRequestStatus(requestId, approve ? RequestStatus.approved : RequestStatus.rejected);
+  Future<void> cancelRequest(String requestId) async {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    if (_firestore != null) {
+      await _firestore.collection('loans').doc(requestId).update({
+        'status': 'cancelled',
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      });
+    } else {
+      request.status = RequestStatus.cancelled;
+      notifyListeners();
+    }
   }
 
-  void cancelRequest(String requestId) {
-    updateRequestStatus(requestId, RequestStatus.cancelled);
+  Future<void> reportReturn(String requestId) async {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    final now = DateTime.now();
+    if (_firestore != null) {
+      await _firestore.collection('loans').doc(requestId).update({
+        'status': 'returned',
+        'returnedOn': _dateOnly(now),
+        'updatedAt': now.millisecondsSinceEpoch,
+      });
+    } else {
+      request.status = RequestStatus.returned;
+      request.returnedDate = now;
+      _equipmentProvider.setStatus(
+        request.equipmentId,
+        EquipmentStatus.available,
+      );
+      notifyListeners();
+    }
   }
 
-  /// TEMPORARY manual check-out (no camera scan yet).
-  /// Replace with real QR-validated check-out once the QR flow is finalized.
-  void checkOut(String requestId) {
-    updateRequestStatus(requestId, RequestStatus.borrowed);
+  BorrowRequestModel _requestFromDocument(
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+  ) {
+    final data = document.data();
+    final status = switch (data['status']) {
+      'pending' => RequestStatus.pending,
+      'approved' when data['checkedOutAt'] is int => RequestStatus.borrowed,
+      'approved' => RequestStatus.approved,
+      'rejected' => RequestStatus.rejected,
+      'returned' => RequestStatus.returned,
+      'cancelled' => RequestStatus.cancelled,
+      final value => throw FormatException('Unknown loan status: $value'),
+    };
+    return BorrowRequestModel(
+      id: document.id,
+      studentOrFacultyId: data['borrowerUid'] as String,
+      borrowerName: data['borrower'] as String? ?? '',
+      equipmentId: data['equipmentId'] as String,
+      requestedBorrowDate: DateTime.parse(data['start'] as String),
+      requestedReturnDate: DateTime.parse(data['end'] as String),
+      requestDate: DateTime.fromMillisecondsSinceEpoch(
+        data['updatedAt'] as int? ?? 0,
+      ),
+      checkedOutDate: data['checkedOutAt'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(data['checkedOutAt'] as int)
+          : null,
+      returnedDate: data['returnedOn'] is String
+          ? DateTime.tryParse(data['returnedOn'] as String)
+          : null,
+      status: status,
+    );
   }
 
-  /// TEMPORARY manual check-in / report-return (no camera scan yet).
-  /// Replace with real QR-validated check-in once the QR flow is finalized.
-  void reportReturn(String requestId) {
-    updateRequestStatus(requestId, RequestStatus.returned);
+  String _dateOnly(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+
+  @override
+  void dispose() {
+    _requestSubscription?.cancel();
+    super.dispose();
   }
 }

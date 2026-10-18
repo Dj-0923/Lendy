@@ -3,7 +3,14 @@
 /// Status progression of a borrow request:
 /// pending -> approved / rejected -> borrowed -> returned
 /// (or pending -> cancelled, by the user themselves before approval)
-enum RequestStatus { pending, approved, rejected, borrowed, returned, cancelled }
+enum RequestStatus {
+  pending,
+  approved,
+  rejected,
+  borrowed,
+  returned,
+  cancelled,
+}
 
 extension RequestStatusX on RequestStatus {
   String get label {
@@ -30,6 +37,7 @@ extension RequestStatusX on RequestStatus {
 class BorrowRequestModel {
   final String id;
   final String studentOrFacultyId; // the logged-in user's id
+  final String borrowerName;
   final String equipmentId;
   final DateTime requestedBorrowDate;
   final DateTime requestedReturnDate;
@@ -42,6 +50,7 @@ class BorrowRequestModel {
   BorrowRequestModel({
     required this.id,
     required this.studentOrFacultyId,
+    required this.borrowerName,
     required this.equipmentId,
     required this.requestedBorrowDate,
     required this.requestedReturnDate,

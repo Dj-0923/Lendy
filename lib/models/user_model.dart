@@ -1,6 +1,7 @@
 // lib/models/user_model.dart
 
 import 'dart:typed_data';
+import 'dart:convert';
 
 /// Role of a user in the system.
 /// Only Student and Faculty exist in this mobile app (no Admin role here —
@@ -42,6 +43,7 @@ class UserModel {
     this.college,
     this.block,
     this.gender,
+    this.profileImageBytes,
   });
 
   factory UserModel.fromMap({
@@ -62,6 +64,16 @@ class UserModel {
       college: data['college'] as String? ?? data['course'] as String?,
       block: data['block'] as String?,
       gender: data['gender'] as String?,
+      profileImageBytes: _decodeProfileImage(data['profileImage']),
     );
+  }
+
+  static Uint8List? _decodeProfileImage(Object? value) {
+    if (value is! String || !value.startsWith('data:image/')) return null;
+    final separator = value.indexOf(',');
+    if (separator < 0) {
+      throw const FormatException('Invalid profile image data URI.');
+    }
+    return base64Decode(value.substring(separator + 1));
   }
 }

@@ -44,28 +44,49 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
   Future<void> _handleSubmit() async {
     if (_borrowDate == null || _returnDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select both borrow and return dates.')),
+        const SnackBar(
+          content: Text('Please select both borrow and return dates.'),
+        ),
       );
       return;
     }
     if (_returnDate!.isBefore(_borrowDate!)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Return date cannot be before the borrow date.')),
+        const SnackBar(
+          content: Text('Return date cannot be before the borrow date.'),
+        ),
       );
       return;
     }
 
     setState(() => _isSubmitting = true);
-    final userId = context.read<AuthProvider>().currentUser!.id;
-
-    context.read<RequestProvider>().submitRequest(
-          userId: userId,
-          equipmentId: widget.equipment.id,
-          borrowDate: _borrowDate!,
-          returnDate: _returnDate!,
-        );
-
-    await Future.delayed(const Duration(milliseconds: 300)); // brief mock latency
+    final user = context.read<AuthProvider>().currentUser;
+    if (user == null) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please sign in before requesting an item.'),
+        ),
+      );
+      return;
+    }
+    try {
+      await context.read<RequestProvider>().submitRequest(
+        userId: user.id,
+        borrowerName: user.fullName,
+        equipmentId: widget.equipment.id,
+        equipmentName: widget.equipment.name,
+        borrowDate: _borrowDate!,
+        returnDate: _returnDate!,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not submit your request: $error')),
+      );
+      return;
+    }
     if (!mounted) return;
 
     setState(() => _isSubmitting = false);
@@ -115,12 +136,18 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
                   const SizedBox(height: 4),
                   Text(
                     widget.equipment.name,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${widget.equipment.location}  •  ${widget.equipment.id}',
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -133,7 +160,9 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
             ),
             const SizedBox(height: 6),
             _DatePickerField(
-              label: _borrowDate == null ? 'Select date' : formatShortDate(_borrowDate!),
+              label: _borrowDate == null
+                  ? 'Select date'
+                  : formatShortDate(_borrowDate!),
               onTap: () => _pickDate(isBorrowDate: true),
             ),
             const SizedBox(height: 16),
@@ -144,7 +173,9 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
             ),
             const SizedBox(height: 6),
             _DatePickerField(
-              label: _returnDate == null ? 'Select date' : formatShortDate(_returnDate!),
+              label: _returnDate == null
+                  ? 'Select date'
+                  : formatShortDate(_returnDate!),
               onTap: () => _pickDate(isBorrowDate: false),
             ),
             const SizedBox(height: 28),
@@ -181,7 +212,11 @@ class _DatePickerField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_today_outlined, size: 18, color: AppColors.primaryLight),
+            const Icon(
+              Icons.calendar_today_outlined,
+              size: 18,
+              color: AppColors.primaryLight,
+            ),
             const SizedBox(width: 10),
             Text(label, style: const TextStyle(fontSize: 14)),
           ],

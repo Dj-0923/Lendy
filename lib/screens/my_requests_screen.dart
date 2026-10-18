@@ -63,6 +63,14 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (requestProvider.errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      requestProvider.errorMessage!,
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  ),
 
                 // ----- Tab selector -----
                 Row(
@@ -113,16 +121,20 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
 
                     if (_selectedTab == _RequestTab.pending) {
                       actionLabel = 'Cancel';
-                      onAction = () =>
-                          requestProvider.cancelRequest(request.id);
+                      onAction = () => _runRequestAction(
+                        () => requestProvider.cancelRequest(request.id),
+                      );
                     } else if (_selectedTab == _RequestTab.active) {
                       if (request.status == RequestStatus.approved) {
                         actionLabel = 'Check Out';
-                        onAction = () => requestProvider.checkOut(request.id);
+                        onAction = () => _runRequestAction(
+                          () => requestProvider.checkOut(request.id),
+                        );
                       } else if (request.status == RequestStatus.borrowed) {
                         actionLabel = 'Report Return';
-                        onAction = () =>
-                            requestProvider.reportReturn(request.id);
+                        onAction = () => _runRequestAction(
+                          () => requestProvider.reportReturn(request.id),
+                        );
                       }
                     }
                     // History tab: no action button (actionLabel stays null).
@@ -140,6 +152,17 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _runRequestAction(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update this request: $error')),
+      );
+    }
   }
 }
 

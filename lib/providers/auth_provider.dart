@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 
 import '../models/user_model.dart';
+import '../utils/first_launch_store.dart';
+import '../utils/session_preference_store.dart';
 
 class RequestAccountResult {
   final bool success;
@@ -80,10 +82,10 @@ class AuthProvider extends ChangeNotifier {
           .limit(1)
           .get();
       if (requests.docs.isNotEmpty) {
-        _approvalRequestId = requests.docs.first.id;
-        _watchAccountRequest(requests.docs.first.reference);
         final data = requests.docs.first.data();
         if (data['status'] == 'pending' || data['status'] == 'rejected') {
+          _approvalRequestId = requests.docs.first.id;
+          _watchAccountRequest(requests.docs.first.reference);
           _accountRequestData = data;
           _currentUser = null;
           _authError = null;
@@ -97,19 +99,20 @@ class AuthProvider extends ChangeNotifier {
               .get();
           if (account.data()?['status'] == 'active' &&
               account.data()?['mustChangePassword'] == true) {
+            _approvalRequestId = requests.docs.first.id;
+            _watchAccountRequest(requests.docs.first.reference);
             _accountRequestData = data;
             _currentUser = null;
             _authError = null;
             return;
           }
-        } else {
-          _approvalRequestId = null;
         }
       }
-      final account = await _loadActiveAccount(user);
       await _accountRequestSubscription?.cancel();
       _accountRequestSubscription = null;
+      _approvalRequestId = null;
       _accountRequestData = null;
+      final account = await _loadActiveAccount(user);
       _currentUser = account;
       _authError = null;
     } catch (error) {
@@ -130,9 +133,23 @@ class AuthProvider extends ChangeNotifier {
       (snapshot) {
         if (!snapshot.exists) {
           _accountRequestData = null;
+          _approvalRequestId = null;
           _authError = 'The account request could not be found.';
         } else {
-          _accountRequestData = snapshot.data();
+          final data = snapshot.data()!;
+          final isWaiting =
+              data['status'] == 'pending' || data['status'] == 'rejected';
+          final hasTemporaryPassword =
+              data['status'] == 'approved' &&
+              data['temporaryPassword'] is String;
+          if (isWaiting || hasTemporaryPassword) {
+            _accountRequestData = data;
+          } else {
+            _accountRequestData = null;
+            _approvalRequestId = null;
+            _accountRequestSubscription?.cancel();
+            _accountRequestSubscription = null;
+          }
         }
         notifyListeners();
       },
@@ -165,13 +182,31 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  void updateProfilePhoto(Uint8List imageBytes) {
-    if (_currentUser == null) return;
-    _currentUser!.profileImageBytes = imageBytes;
+  Future<String?> updateProfilePhoto(Uint8List imageBytes) async {
+    final currentUser = _currentUser;
+    if (currentUser == null) return 'No user is currently logged in.';
+    if (imageBytes.length > 500000) {
+      return 'Choose a smaller photo and try again.';
+    }
+    if (!_forTesting) {
+      try {
+        await _firestore!.collection('accounts').doc(currentUser.id).update({
+          'profileImage': 'data:image/jpeg;base64,${base64Encode(imageBytes)}',
+        });
+      } catch (error) {
+        return _errorMessage(error);
+      }
+    }
+    currentUser.profileImageBytes = imageBytes;
     notifyListeners();
+    return null;
   }
 
-  Future<String?> login(String email, String password) async {
+  Future<String?> login(
+    String email,
+    String password, {
+    bool keepSignedIn = false,
+  }) async {
     if (_forTesting) return 'Invalid email or password.';
 
     _loginInProgress = true;
@@ -187,13 +222,45 @@ class AuthProvider extends ChangeNotifier {
           .where('authUid', isEqualTo: user.uid)
           .limit(1)
           .get();
-      _approvalRequestId = requests.docs.isEmpty
-          ? null
-          : requests.docs.first.id;
       await _accountRequestSubscription?.cancel();
       _accountRequestSubscription = null;
       _accountRequestData = null;
+      _approvalRequestId = null;
+
+      if (requests.docs.isNotEmpty) {
+        final request = requests.docs.first;
+        final data = request.data();
+        if (data['status'] == 'pending' || data['status'] == 'rejected') {
+          _approvalRequestId = request.id;
+          _watchAccountRequest(request.reference);
+          _accountRequestData = data;
+          await SessionPreferenceStore.setKeepSignedIn(keepSignedIn);
+          await FirstLaunchStore.markWelcomeSeen();
+          _authError = null;
+          notifyListeners();
+          return null;
+        }
+        if (data['status'] == 'approved' &&
+            data['temporaryPassword'] is String) {
+          final account = await _firestore
+              .collection('accounts')
+              .doc(user.uid)
+              .get();
+          if (account.data()?['status'] == 'active' &&
+              account.data()?['mustChangePassword'] == true) {
+            _approvalRequestId = request.id;
+            _currentUser = await _loadActiveAccount(user);
+            await SessionPreferenceStore.setKeepSignedIn(keepSignedIn);
+            await FirstLaunchStore.markWelcomeSeen();
+            _authError = null;
+            notifyListeners();
+            return null;
+          }
+        }
+      }
       _currentUser = await _loadActiveAccount(user);
+      await SessionPreferenceStore.setKeepSignedIn(keepSignedIn);
+      await FirstLaunchStore.markWelcomeSeen();
       _authError = null;
       notifyListeners();
       return null;
@@ -299,6 +366,8 @@ class AuthProvider extends ChangeNotifier {
         });
         _approvalRequestId = null;
       }
+      await _accountRequestSubscription?.cancel();
+      _accountRequestSubscription = null;
       _accountRequestData = null;
       _currentUser!.mustChangePassword = false;
       notifyListeners();
@@ -399,7 +468,10 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     await _accountRequestSubscription?.cancel();
     _accountRequestSubscription = null;
-    if (!_forTesting) await _auth!.signOut();
+    if (!_forTesting) {
+      await _auth!.signOut();
+      await SessionPreferenceStore.setKeepSignedIn(false);
+    }
     _currentUser = null;
     _accountRequestData = null;
     notifyListeners();

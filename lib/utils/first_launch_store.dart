@@ -5,12 +5,19 @@ class FirstLaunchStore {
 
   static const _welcomeSeenKey = 'welcome_page_seen';
 
-  static Future<bool> takeWelcomePage() async {
+  static Future<bool> takeWelcomePage({bool hasExistingAccount = false}) async {
     final preferences = await SharedPreferences.getInstance();
     if (preferences.getBool(_welcomeSeenKey) ?? false) return false;
     if (!await preferences.setBool(_welcomeSeenKey, true)) {
       throw StateError('Could not save the first-launch welcome state.');
     }
-    return true;
+    return !hasExistingAccount;
+  }
+
+  static Future<void> markWelcomeSeen() async {
+    final preferences = await SharedPreferences.getInstance();
+    if (!await preferences.setBool(_welcomeSeenKey, true)) {
+      throw StateError('Could not save the first-launch welcome state.');
+    }
   }
 }

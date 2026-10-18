@@ -34,9 +34,9 @@ class ProfileScreen extends StatelessWidget {
     try {
       final image = await ImagePicker().pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1200,
-        maxHeight: 1200,
+        imageQuality: 75,
+        maxWidth: 512,
+        maxHeight: 512,
       );
       if (image == null) return;
       if (!context.mounted) return;
@@ -45,7 +45,7 @@ class ProfileScreen extends StatelessWidget {
         sourcePath: image.path,
         aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
         compressFormat: ImageCompressFormat.jpg,
-        compressQuality: 85,
+        compressQuality: 75,
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Adjust profile photo',
@@ -73,8 +73,15 @@ class ProfileScreen extends StatelessWidget {
       );
       if (croppedImage == null) return;
 
-      auth.updateProfilePhoto(await croppedImage.readAsBytes());
-    } catch (_) {
+      final error = await auth.updateProfilePhoto(
+        await croppedImage.readAsBytes(),
+      );
+      if (error != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save profile photo: $error')),
+        );
+      }
+    } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
