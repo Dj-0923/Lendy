@@ -1,20 +1,15 @@
 // lib/screens/request_account_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/primary_button.dart';
+import 'account_request_status_screen.dart';
 import 'login_screen.dart';
 
-/// Lets a Student/Faculty request an account by submitting their basic
-/// details. Simulates what an Admin would do on the (out-of-scope) web
-/// system: creates the account and issues a temporary password.
-///
-/// Since this is a prototype with no real email server, the generated
-/// temporary password is shown directly on screen instead of being emailed.
+/// Lets a Student/Faculty request an account and wait for admin approval.
 class RequestAccountScreen extends StatefulWidget {
   const RequestAccountScreen({super.key});
 
@@ -30,6 +25,8 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
 
   UserRole _selectedRole = UserRole.student;
   bool _isLoading = false;
+  bool _submitted = false;
+  String? _requestEmail;
 
   @override
   void dispose() {
@@ -61,9 +58,8 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
       role: _selectedRole,
       idNumber: _idNumberController.text,
     );
-    setState(() => _isLoading = false);
-
     if (!mounted) return;
+    setState(() => _isLoading = false);
 
     if (!result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,101 +71,33 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
       return;
     }
 
-    // Show the generated temp password — standing in for the email an
-    // Admin would normally send in a real deployment.
-    var passwordCopied = false;
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text('Account created!'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'In a real deployment, this would be emailed to you by the Admin. '
-                'For this prototype, here is your temporary password:',
-                style: TextStyle(fontSize: 13.5),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.fieldFill,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.fieldBorder),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: SelectableText(
-                        result.tempPassword!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Copy password',
-                      icon: Icon(
-                        passwordCopied ? Icons.check : Icons.copy,
-                        color: AppColors.primary,
-                      ),
-                      onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: result.tempPassword!),
-                        );
-                        setDialogState(() => passwordCopied = true);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              if (passwordCopied) ...[
-                const SizedBox(height: 6),
-                const Text(
-                  'Password copied',
-                  style: TextStyle(fontSize: 12, color: AppColors.primary),
-                ),
-              ],
-              const SizedBox(height: 12),
-              const Text(
-                "You'll be asked to set your own password on first login.",
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: PrimaryButton(
-                label: 'Go to Login',
-                onPressed: () {
-                  final navigator = Navigator.of(dialogContext);
-                  navigator.pop();
-                  navigator.pushNamedAndRemoveUntil('/login', (_) => false);
-                },
-              ),
-            ),
-          ],
-        ),
+    setState(() {
+      _submitted = true;
+      _requestEmail = _emailController.text.trim();
+    });
+  }
+
+  Future<void> _goToLogin() async {
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => LoginScreen(initialEmail: _requestEmail ?? ''),
       ),
+      (_) => false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
+
+    if (_submitted) {
+      return AccountRequestStatusScreen(
+        email: _requestEmail ?? _emailController.text.trim(),
+        onContinueToLogin: _goToLogin,
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -210,7 +138,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                         const Padding(
                           padding: EdgeInsets.only(left: 8, top: 6, right: 24),
                           child: Text(
-                            "Submit your details and we'll set up your account with a temporary password.",
+                            "Submit your details. An admin will review your request. If approved, your temporary password will appear here in the app.",
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 13,

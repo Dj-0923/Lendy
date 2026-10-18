@@ -1,16 +1,12 @@
-# Lendy
+# Lendy Mobile
 
-A new Flutter project.
+Flutter client for the Lendy borrowing system.
 
-## Getting Started
+User requests, authentication, and approved user profiles use the shared
+Firebase project described in [`../FIREBASE_SETUP.md`](../FIREBASE_SETUP.md).
+An admin must approve a request and provide a temporary password before the
+user can sign in.
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The equipment catalog, borrow requests, and notifications are still held in
+memory in the mobile app. Those features do not yet sync with the admin
+dashboard.

@@ -10,7 +10,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       ChangeNotifierProvider(
-        create: (_) => AuthProvider(),
+        create: (_) => AuthProvider.forTesting(),
         child: const MaterialApp(home: SetNewPasswordScreen()),
       ),
     );

@@ -33,7 +33,7 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => AuthProvider.forTesting()),
           ChangeNotifierProvider(
             create: (_) => equipment = EquipmentProvider(),
           ),

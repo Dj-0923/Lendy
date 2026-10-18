@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'forgot_password_screen.dart';
 import 'request_account_screen.dart';
+import 'account_request_status_screen.dart';
 
 const Color _teal = Color(0xFF1F7F74);
 const Color _labelColor = Color(0xFF1A1A1A);
@@ -26,7 +27,9 @@ const double _fieldGap =
 const double _buttonHeight = 42;
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String initialEmail;
+
+  const LoginScreen({super.key, this.initialEmail = ''});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -40,9 +43,16 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _keepSignedIn = false;
   bool _isLoading = false;
+  bool _allowExistingSessionRedirect = true;
 
   // "Tap again to exit" (double-back-to-exit)
   DateTime? _lastBackPress;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.text = widget.initialEmail;
+  }
 
   @override
   void dispose() {
@@ -99,6 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isLoading = true);
+    _allowExistingSessionRedirect = false;
     final auth = context.read<AuthProvider>();
     final error = await auth.login(
       _emailController.text.trim(),
@@ -114,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Admin-issued temporary passwords must be changed before continuing.
+    // Accounts marked for a password change must update it before continuing.
     if (auth.currentUser!.mustChangePassword) {
       Navigator.of(
         context,
@@ -125,8 +136,44 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _returnToLogin(String email) async {
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => LoginScreen(initialEmail: email)),
+      (_) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final accountRequest = auth.accountRequestData;
+    if (accountRequest != null) {
+      final requestEmail =
+          accountRequest['email'] as String? ?? widget.initialEmail;
+      return AccountRequestStatusScreen(
+        email: requestEmail,
+        onContinueToLogin: () => _returnToLogin(requestEmail),
+      );
+    }
+    if (_allowExistingSessionRedirect &&
+        auth.isReady &&
+        auth.currentUser != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          auth.currentUser!.mustChangePassword ? '/set-new-password' : '/home',
+          (_) => false,
+        );
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!auth.isReady && _allowExistingSessionRedirect) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return PopScope(
       canPop: false, // never go back to the welcome page
       onPopInvokedWithResult: (didPop, result) {

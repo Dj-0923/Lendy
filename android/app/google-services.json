@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "325712193434",
+    "project_id": "borrowing-system-lendy",
+    "storage_bucket": "borrowing-system-lendy.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:325712193434:android:8177cdd6ae201806b97c23",
+        "android_client_info": {
+          "package_name": "com.example.practice"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDinUSHOhY0Zh-cPYzFkEaorCLRMazd7Ts"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

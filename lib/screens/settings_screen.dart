@@ -125,7 +125,9 @@ class SettingsScreen extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      context.read<AuthProvider>().logout();
+      final authProvider = context.read<AuthProvider>();
+      await authProvider.logout();
+      if (!context.mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
     }
   }

@@ -200,7 +200,7 @@ void main() {
     Future<void> pumpScreen(WidgetTester tester, {AuthProvider? auth}) async {
       await tester.pumpWidget(
         ChangeNotifierProvider<AuthProvider>(
-          create: (_) => auth ?? AuthProvider(),
+          create: (_) => auth ?? AuthProvider.forTesting(),
           child: const MaterialApp(home: AccountInfoScreen()),
         ),
       );
@@ -384,20 +384,15 @@ void main() {
     testWidgets('faculty Account Info hides year level and block', (
       tester,
     ) async {
-      final auth = AuthProvider();
-      const email = 'faculty@example.com';
-      final accountFuture = auth.requestAccount(
-        fullName: 'Faculty User',
-        email: email,
-        role: UserRole.faculty,
-        idNumber: 'FAC-001',
+      final auth = AuthProvider.forTesting(
+        currentUser: UserModel(
+          id: 'faculty-1',
+          fullName: 'Faculty User',
+          email: 'faculty@example.com',
+          role: UserRole.faculty,
+          idNumber: 'FAC-001',
+        ),
       );
-      await tester.pump(const Duration(milliseconds: 600));
-      final accountResult = await accountFuture;
-
-      final loginFuture = auth.login(email, accountResult.tempPassword!);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(await loginFuture, isNull);
 
       await pumpScreen(tester, auth: auth);
 

@@ -3,12 +3,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lendy/models/user_model.dart';
 import 'package:lendy/providers/auth_provider.dart';
 import 'package:lendy/providers/equipment_provider.dart';
+import 'package:lendy/providers/notification_provider.dart';
 import 'package:lendy/providers/request_provider.dart';
 import 'package:lendy/screens/profile_screen.dart';
 import 'package:provider/provider.dart';
 
 void main() {
   late EquipmentProvider equipment;
+
+  test('providers start without preloaded sample data', () async {
+    final auth = AuthProvider.forTesting();
+    final equipment = EquipmentProvider();
+    final requests = RequestProvider(equipment);
+    final notifications = NotificationProvider();
+
+    expect(equipment.filteredEquipment, isEmpty);
+    expect(requests.requestsForUser('u1'), isEmpty);
+    expect(notifications.notifications, isEmpty);
+    expect(
+      await auth.login('user@example.invalid', 'not-a-real-password'),
+      'Invalid email or password.',
+    );
+  });
 
   Future<void> pumpProfile(WidgetTester tester, AuthProvider auth) async {
     equipment = EquipmentProvider();
@@ -28,44 +44,30 @@ void main() {
   }
 
   Future<AuthProvider> loginFaculty(WidgetTester tester) async {
-    final auth = AuthProvider();
-    final requestFuture = auth.requestAccount(
-      fullName: 'Jane Doe',
-      email: 'jane.faculty@example.com',
-      role: UserRole.faculty,
-      idNumber: 'FAC-001',
+    final auth = AuthProvider.forTesting(
+      currentUser: UserModel(
+        id: 'faculty-1',
+        fullName: 'Jane Doe',
+        email: 'jane.faculty@example.com',
+        role: UserRole.faculty,
+        idNumber: 'FAC-001',
+      ),
     );
-    await tester.pump(const Duration(milliseconds: 600));
-    final accountResult = await requestFuture;
-
-    final loginFuture = auth.login(
-      'jane.faculty@example.com',
-      accountResult.tempPassword!,
-    );
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(await loginFuture, isNull);
-
     auth.currentUser!.college = 'BSIT';
     auth.currentUser!.gender = 'Female';
     return auth;
   }
 
   Future<AuthProvider> loginStudent(WidgetTester tester) async {
-    final auth = AuthProvider();
-    const email = 'student@example.com';
-    final accountFuture = auth.requestAccount(
-      fullName: 'Student User',
-      email: email,
-      role: UserRole.student,
-      idNumber: 'STU-001',
+    return AuthProvider.forTesting(
+      currentUser: UserModel(
+        id: 'student-1',
+        fullName: 'Student User',
+        email: 'student@example.com',
+        role: UserRole.student,
+        idNumber: 'STU-001',
+      ),
     );
-    await tester.pump(const Duration(milliseconds: 600));
-    final accountResult = await accountFuture;
-
-    final loginFuture = auth.login(email, accountResult.tempPassword!);
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(await loginFuture, isNull);
-    return auth;
   }
 
   testWidgets('Faculty sees only role, department, and gender details', (

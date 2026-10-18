@@ -21,10 +21,13 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lendy/main.dart';
+import 'package:lendy/providers/auth_provider.dart';
 
 void main() {
   testWidgets('app starts successfully', (WidgetTester tester) async {
-    await tester.pumpWidget(const SmartClassroomApp());
+    await tester.pumpWidget(
+      SmartClassroomApp(authProvider: AuthProvider.forTesting()),
+    );
 
     expect(find.byType(SmartClassroomApp), findsOneWidget);
 
@@ -33,5 +36,7 @@ void main() {
     for (var i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+
+    expect(find.text('Welcome!'), findsOneWidget);
   });
 }

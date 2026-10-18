@@ -1,130 +1,311 @@
-// lib/providers/auth_provider.dart
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
+
 import '../models/user_model.dart';
 
-/// Result of a Request Account submission.
-/// Since this is a prototype with no real email server, the generated
-/// temporary password is returned directly so the UI can display it
-/// (standing in for "the email the Admin would have sent").
 class RequestAccountResult {
   final bool success;
   final String? error;
-  final String? tempPassword;
 
-  RequestAccountResult.success(this.tempPassword)
-    : success = true,
-      error = null;
+  RequestAccountResult.success() : success = true, error = null;
 
-  RequestAccountResult.failure(this.error)
-    : success = false,
-      tempPassword = null;
+  RequestAccountResult.failure(this.error) : success = false;
 }
 
-/// Handles authentication using in-memory data.
-/// No backend/Firebase yet — everything lives in RAM for this prototype.
-///
-/// In a real deployment, an Admin would create accounts on a separate web
-/// system and email the temporary password. Since this is a school project
-/// prototype (not deployed to a real school), Request Account below
-/// simulates that same account-creation step directly in the mobile app,
-/// generating a temporary password instead of actually sending an email.
 class AuthProvider extends ChangeNotifier {
-  // Database integration point: load persisted users into this collection.
-  final List<UserModel> _users = [];
+  AuthProvider()
+    : _auth = firebase_auth.FirebaseAuth.instance,
+      _firestore = FirebaseFirestore.instance,
+      _forTesting = false,
+      _isReady = false {
+    _authStateSubscription = _auth!.authStateChanges().listen(
+      _handleAuthStateChanged,
+      onError: (Object error) {
+        _authError = _errorMessage(error);
+        _isReady = true;
+        notifyListeners();
+      },
+    );
+  }
 
+  AuthProvider.forTesting({UserModel? currentUser})
+    : _auth = null,
+      _firestore = null,
+      _forTesting = true,
+      _isReady = true,
+      _currentUser = currentUser;
+
+  final firebase_auth.FirebaseAuth? _auth;
+  final FirebaseFirestore? _firestore;
+  final bool _forTesting;
+  StreamSubscription<firebase_auth.User?>? _authStateSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _accountRequestSubscription;
   UserModel? _currentUser;
+  Map<String, dynamic>? _accountRequestData;
+  String? _approvalRequestId;
+  bool _isReady;
+  String? _authError;
+  bool _accountRequestInProgress = false;
+  bool _loginInProgress = false;
+
   UserModel? get currentUser => _currentUser;
+  Map<String, dynamic>? get accountRequestData => _accountRequestData;
   bool get isLoggedIn => _currentUser != null;
+  bool get isReady => _isReady;
+  String? get authError => _authError;
+
+  Future<void> _handleAuthStateChanged(firebase_auth.User? user) async {
+    if (_accountRequestInProgress || _loginInProgress) return;
+    if (user == null) {
+      await _accountRequestSubscription?.cancel();
+      _accountRequestSubscription = null;
+      _currentUser = null;
+      _accountRequestData = null;
+      _isReady = true;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final requests = await _firestore!
+          .collection('accountRequests')
+          .where('authUid', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+      if (requests.docs.isNotEmpty) {
+        _approvalRequestId = requests.docs.first.id;
+        _watchAccountRequest(requests.docs.first.reference);
+        final data = requests.docs.first.data();
+        if (data['status'] == 'pending' || data['status'] == 'rejected') {
+          _accountRequestData = data;
+          _currentUser = null;
+          _authError = null;
+          return;
+        }
+        if (data['status'] == 'approved' &&
+            data['temporaryPassword'] is String) {
+          final account = await _firestore
+              .collection('accounts')
+              .doc(user.uid)
+              .get();
+          if (account.data()?['status'] == 'active' &&
+              account.data()?['mustChangePassword'] == true) {
+            _accountRequestData = data;
+            _currentUser = null;
+            _authError = null;
+            return;
+          }
+        } else {
+          _approvalRequestId = null;
+        }
+      }
+      final account = await _loadActiveAccount(user);
+      await _accountRequestSubscription?.cancel();
+      _accountRequestSubscription = null;
+      _accountRequestData = null;
+      _currentUser = account;
+      _authError = null;
+    } catch (error) {
+      _authError = _errorMessage(error);
+      _currentUser = null;
+      await _auth!.signOut();
+    } finally {
+      _isReady = true;
+      notifyListeners();
+    }
+  }
+
+  void _watchAccountRequest(
+    DocumentReference<Map<String, dynamic>> requestReference,
+  ) {
+    if (_accountRequestSubscription != null) return;
+    _accountRequestSubscription = requestReference.snapshots().listen(
+      (snapshot) {
+        if (!snapshot.exists) {
+          _accountRequestData = null;
+          _authError = 'The account request could not be found.';
+        } else {
+          _accountRequestData = snapshot.data();
+        }
+        notifyListeners();
+      },
+      onError: (Object error) {
+        _authError = _errorMessage(error);
+        notifyListeners();
+      },
+    );
+  }
+
+  Future<UserModel> _loadActiveAccount(firebase_auth.User user) async {
+    final snapshot = await _firestore!
+        .collection('accounts')
+        .doc(user.uid)
+        .get();
+    if (!snapshot.exists) {
+      throw StateError('This account has not been approved yet.');
+    }
+    final data = snapshot.data()!;
+    if (data['status'] != 'active') {
+      throw StateError('This account is disabled. Contact an administrator.');
+    }
+    if (user.email != null && data['email'] != user.email) {
+      await snapshot.reference.update({'email': user.email});
+    }
+
+    return UserModel.fromMap(
+      id: user.uid,
+      data: {...data, 'email': user.email ?? data['email']},
+    );
+  }
 
   void updateProfilePhoto(Uint8List imageBytes) {
     if (_currentUser == null) return;
-
     _currentUser!.profileImageBytes = imageBytes;
     notifyListeners();
   }
 
-  /// Attempts to log a user in against the in-memory list.
-  /// Returns null on success, or an error message string on failure.
   Future<String?> login(String email, String password) async {
-    await Future.delayed(const Duration(milliseconds: 400)); // simulate latency
+    if (_forTesting) return 'Invalid email or password.';
 
-    final matches = _users.where(
-      (u) =>
-          u.email.toLowerCase() == email.trim().toLowerCase() &&
-          u.password == password,
-    );
-
-    if (matches.isEmpty) return 'Invalid email or password.';
-
-    _currentUser = matches.first;
-    notifyListeners();
-    return null;
+    _loginInProgress = true;
+    try {
+      final credential = await _auth!.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final user = credential.user;
+      if (user == null) return 'Sign-in failed. Please try again.';
+      final requests = await _firestore!
+          .collection('accountRequests')
+          .where('authUid', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+      _approvalRequestId = requests.docs.isEmpty
+          ? null
+          : requests.docs.first.id;
+      await _accountRequestSubscription?.cancel();
+      _accountRequestSubscription = null;
+      _accountRequestData = null;
+      _currentUser = await _loadActiveAccount(user);
+      _authError = null;
+      notifyListeners();
+      return null;
+    } catch (error) {
+      if (_auth!.currentUser != null) await _auth.signOut();
+      return _errorMessage(error);
+    } finally {
+      _loginInProgress = false;
+    }
   }
 
-  /// Simulates the Admin creating an account and emailing a temporary
-  /// password. Generates the account here (with a random temp password)
-  /// since this prototype has no real email server to send it through.
   Future<RequestAccountResult> requestAccount({
     required String fullName,
     required String email,
     required UserRole role,
     required String idNumber,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    final alreadyExists = _users.any(
-      (u) => u.email.toLowerCase() == email.trim().toLowerCase(),
-    );
-    if (alreadyExists) {
-      return RequestAccountResult.failure(
-        'An account with that email already exists.',
-      );
+    if (_forTesting) {
+      return RequestAccountResult.success();
     }
 
-    final tempPassword = _generateTempPassword();
-
-    _users.add(
-      UserModel(
-        id: 'u${_users.length + 1}',
-        fullName: fullName.trim(),
-        email: email.trim(),
-        password: tempPassword,
-        role: role,
-        idNumber: idNumber.trim(),
-        mustChangePassword: true, // must be changed on first login
-      ),
-    );
-
-    notifyListeners();
-    return RequestAccountResult.success(tempPassword);
+    _accountRequestInProgress = true;
+    firebase_auth.User? createdUser;
+    try {
+      final random = Random.secure();
+      final randomPassword = base64UrlEncode(
+        List<int>.generate(32, (_) => random.nextInt(256)),
+      );
+      final credential = await _auth!.createUserWithEmailAndPassword(
+        email: email.trim().toLowerCase(),
+        password: randomPassword,
+      );
+      createdUser = credential.user;
+      if (createdUser == null) {
+        throw StateError('Could not create the authentication account.');
+      }
+      await createdUser.updateDisplayName(fullName.trim());
+      final request = _firestore!.collection('accountRequests').doc();
+      await request.set({
+        'id': request.id,
+        'authUid': createdUser.uid,
+        'name': fullName.trim(),
+        'email': email.trim().toLowerCase(),
+        'role': role.name,
+        'idNumber': idNumber.trim(),
+        'status': 'pending',
+        'submittedAt': DateTime.now().millisecondsSinceEpoch,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      });
+      _accountRequestData = {
+        'id': request.id,
+        'authUid': createdUser.uid,
+        'name': fullName.trim(),
+        'email': email.trim().toLowerCase(),
+        'status': 'pending',
+      };
+      _approvalRequestId = request.id;
+      _watchAccountRequest(request);
+      return RequestAccountResult.success();
+    } catch (error) {
+      if (createdUser != null) {
+        try {
+          await createdUser.delete();
+        } catch (cleanupError) {
+          _accountRequestInProgress = false;
+          return RequestAccountResult.failure(
+            '${_errorMessage(error)} The sign-in account was created but could '
+            'not be removed; contact an administrator before retrying '
+            '(${_errorMessage(cleanupError)}).',
+          );
+        }
+      }
+      return RequestAccountResult.failure(_errorMessage(error));
+    } finally {
+      _accountRequestInProgress = false;
+      _isReady = true;
+      notifyListeners();
+    }
   }
 
-  /// Generates an 8-character random temporary password.
-  /// Excludes visually-confusing characters (0/O, 1/l/I).
-  String _generateTempPassword() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-    final rand = Random();
-    return List.generate(8, (_) => chars[rand.nextInt(chars.length)]).join();
-  }
-
-  /// Sets a new password for the currently logged-in user and clears their
-  /// "must change password" flag. Called from SetNewPasswordScreen after a
-  /// temporary-password login.
   Future<String?> setNewPassword(String newPassword) async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    if (_forTesting) {
+      _currentUser?.mustChangePassword = false;
+      notifyListeners();
+      return null;
+    }
 
-    if (_currentUser == null) return 'No user is currently logged in.';
+    final user = _auth!.currentUser;
+    if (user == null || _currentUser == null) {
+      return 'No user is currently logged in.';
+    }
 
-    _currentUser!.password = newPassword;
-    _currentUser!.mustChangePassword = false;
-    notifyListeners();
-    return null;
+    try {
+      await user.updatePassword(newPassword);
+      await _firestore!.collection('accounts').doc(user.uid).update({
+        'mustChangePassword': false,
+      });
+      if (_approvalRequestId case final requestId?) {
+        await _firestore.collection('accountRequests').doc(requestId).update({
+          'temporaryPassword': FieldValue.delete(),
+        });
+        _approvalRequestId = null;
+      }
+      _accountRequestData = null;
+      _currentUser!.mustChangePassword = false;
+      notifyListeners();
+      return null;
+    } catch (error) {
+      return _errorMessage(error);
+    }
   }
 
-  /// Updates the currently logged-in user's editable profile fields.
-  /// Called from the Account Info screen.
   Future<String?> updateProfile({
     required String fullName,
     required String email,
@@ -133,61 +314,124 @@ class AuthProvider extends ChangeNotifier {
     String? yearLevel,
     String? block,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-
     if (_currentUser == null) return 'No user is currently logged in.';
 
-    final emailTaken = _users.any(
-      (u) =>
-          u.id != _currentUser!.id &&
-          u.email.toLowerCase() == email.trim().toLowerCase(),
-    );
-    if (emailTaken) return 'That email is already used by another account.';
+    if (_forTesting) {
+      _currentUser!
+        ..fullName = fullName.trim()
+        ..email = email.trim()
+        ..gender = gender
+        ..college = college
+        ..yearLevel = yearLevel
+        ..block = block;
+      notifyListeners();
+      return null;
+    }
 
-    _currentUser!.fullName = fullName.trim();
-    _currentUser!.email = email.trim();
-    _currentUser!.gender = gender;
-    _currentUser!.college = college;
-    _currentUser!.yearLevel = yearLevel;
-    _currentUser!.block = block;
-    notifyListeners();
-    return null;
+    final user = _auth!.currentUser;
+    if (user == null) return 'No user is currently logged in.';
+
+    try {
+      final normalizedEmail = email.trim().toLowerCase();
+      if (normalizedEmail != user.email?.toLowerCase()) {
+        await user.verifyBeforeUpdateEmail(normalizedEmail);
+      }
+
+      await _firestore!.collection('accounts').doc(user.uid).update({
+        'name': fullName.trim(),
+        'gender': gender,
+        'college': college,
+        'course': college ?? '',
+        'yearLevel': yearLevel,
+        'block': block,
+        'profileUpdatedAt': DateTime.now().millisecondsSinceEpoch,
+      });
+      _currentUser!
+        ..fullName = fullName.trim()
+        ..gender = gender
+        ..college = college
+        ..yearLevel = yearLevel
+        ..block = block;
+      notifyListeners();
+      return null;
+    } catch (error) {
+      return _errorMessage(error);
+    }
   }
 
-  /// Voluntary password change from the Settings screen — different from
-  /// setNewPassword(), which is only used for the forced first-login flow.
-  /// Requires the user's current password to be entered correctly.
   Future<String?> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    if (_forTesting) return null;
 
-    if (_currentUser == null) return 'No user is currently logged in.';
-    if (_currentUser!.password != currentPassword) {
-      return 'Current password is incorrect.';
+    final user = _auth!.currentUser;
+    if (user == null || user.email == null) {
+      return 'No user is currently logged in.';
     }
 
-    _currentUser!.password = newPassword;
-    notifyListeners();
-    return null;
+    try {
+      final credential = firebase_auth.EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+      return null;
+    } catch (error) {
+      return _errorMessage(error);
+    }
   }
 
-  /// Mock "forgot password" flow. Since there's no real email/backend
-  /// service yet, this just checks whether the email exists and pretends
-  /// to send a reset link.
   Future<String?> sendPasswordReset(String email) async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    if (_forTesting) return null;
 
-    final exists = _users.any(
-      (u) => u.email.toLowerCase() == email.trim().toLowerCase(),
-    );
-    if (!exists) return 'No account found with that email address.';
-    return null;
+    try {
+      await _auth!.sendPasswordResetEmail(email: email.trim());
+      return null;
+    } catch (error) {
+      return _errorMessage(error);
+    }
   }
 
-  void logout() {
+  Future<void> logout() async {
+    await _accountRequestSubscription?.cancel();
+    _accountRequestSubscription = null;
+    if (!_forTesting) await _auth!.signOut();
     _currentUser = null;
+    _accountRequestData = null;
     notifyListeners();
+  }
+
+  static String _errorMessage(Object error) {
+    if (error is firebase_auth.FirebaseAuthException) {
+      switch (error.code) {
+        case 'invalid-credential':
+        case 'wrong-password':
+        case 'user-not-found':
+          return 'Invalid email or password.';
+        case 'email-already-in-use':
+          return 'An account with that email already exists.';
+        case 'requires-recent-login':
+          return 'Please sign in again before changing your password or email.';
+        case 'weak-password':
+          return 'Choose a stronger password.';
+        case 'network-request-failed':
+          return 'Could not connect. Check your internet connection and try again.';
+      }
+      return error.message ?? 'Authentication failed.';
+    }
+    if (error is FirebaseException) {
+      return error.message ?? 'Could not connect to the account database.';
+    }
+    if (error is StateError) return error.message;
+    return 'Something went wrong. Please try again.';
+  }
+
+  @override
+  void dispose() {
+    _authStateSubscription?.cancel();
+    _accountRequestSubscription?.cancel();
+    super.dispose();
   }
 }

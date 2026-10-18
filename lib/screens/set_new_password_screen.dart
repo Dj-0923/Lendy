@@ -6,8 +6,7 @@ import '../theme/app_colors.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/primary_button.dart';
 
-/// Shown right after a successful login when the user is still using an
-/// Admin-issued temporary password (UserModel.mustChangePassword == true).
+/// Shown after login when the account requires a password change.
 /// The system back button is disabled — setting a new password is required
 /// before continuing into the app.
 class SetNewPasswordScreen extends StatefulWidget {
@@ -117,7 +116,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      "You're using a temporary password. Please set a new one to continue.",
+                      "For account security, please set a new password to continue.",
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),

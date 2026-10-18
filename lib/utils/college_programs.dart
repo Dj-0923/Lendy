@@ -144,7 +144,7 @@ const int collegeDisplayLimit = 22;
 /// record is left untouched, so switching back to the full title stays possible.
 String collegeDisplay(String? saved) {
   final value = saved?.trim() ?? '';
-  if (value.isEmpty) return 'N/A';
+  if (value.isEmpty) return '';
 
   if (countLetters(value) <= collegeDisplayLimit) return value;
 

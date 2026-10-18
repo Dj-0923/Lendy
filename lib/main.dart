@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/equipment_provider.dart';
 import 'providers/request_provider.dart';
@@ -12,18 +14,26 @@ import 'screens/set_new_password_screen.dart';
 import 'screens/main_shell.dart';
 import 'utils/responsive_layout.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const SmartClassroomApp());
 }
 
 class SmartClassroomApp extends StatelessWidget {
-  const SmartClassroomApp({super.key});
+  const SmartClassroomApp({super.key, this.authProvider});
+
+  final AuthProvider? authProvider;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(
+          create: (_) => authProvider ?? AuthProvider(),
+        ),
         ChangeNotifierProvider(create: (_) => EquipmentProvider()),
         ChangeNotifierProxyProvider<EquipmentProvider, RequestProvider>(
           create: (context) =>

@@ -12,18 +12,14 @@ extension UserRoleX on UserRole {
   String get label => this == UserRole.student ? 'Student' : 'Faculty';
 }
 
-/// Represents a user account. Accounts are created by an Admin on the
-/// separate web system (not this mobile app) — the Admin emails the user a
-/// temporary password, and [mustChangePassword] stays true until the user
-/// sets their own password after their first login.
+/// Represents an approved user account shared by the mobile and admin apps.
 class UserModel {
   final String id;
   String fullName; // editable via Account Info
   String email; // editable via Account Info
-  String
-  password; // mutable — updated via AuthProvider.setNewPassword()/changePassword()
   final UserRole role;
   final String idNumber;
+  final String status;
   bool mustChangePassword;
 
   // Optional profile fields, editable via Account Info.
@@ -38,13 +34,34 @@ class UserModel {
     required this.id,
     required this.fullName,
     required this.email,
-    required this.password,
     required this.role,
     required this.idNumber,
+    this.status = 'active',
     this.mustChangePassword = true,
     this.yearLevel,
     this.college,
     this.block,
     this.gender,
   });
+
+  factory UserModel.fromMap({
+    required String id,
+    required Map<String, dynamic> data,
+  }) {
+    return UserModel(
+      id: id,
+      fullName: data['name'] as String? ?? '',
+      email: data['email'] as String? ?? '',
+      role: data['role'] == UserRole.faculty.name
+          ? UserRole.faculty
+          : UserRole.student,
+      idNumber: data['idNumber'] as String? ?? '',
+      status: data['status'] as String? ?? 'active',
+      mustChangePassword: data['mustChangePassword'] as bool? ?? false,
+      yearLevel: data['yearLevel'] as String?,
+      college: data['college'] as String? ?? data['course'] as String?,
+      block: data['block'] as String?,
+      gender: data['gender'] as String?,
+    );
+  }
 }
