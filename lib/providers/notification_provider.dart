@@ -5,18 +5,8 @@ import '../models/notification_model.dart';
 /// Manages the in-memory list of notifications, plus the user's
 /// notification preference toggles (Notification Settings screen).
 class NotificationProvider extends ChangeNotifier {
-  final List<NotificationModel> _notifications = [
-    NotificationModel(
-      id: 'n1',
-      message: 'Your request for Canon DSLR Camera is pending approval.',
-      timestamp: DateTime.now(),
-    ),
-    NotificationModel(
-      id: 'n2',
-      message: 'Dell Latitude Laptop is due back tomorrow.',
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-  ];
+  // Database integration point: load persisted notifications here.
+  final List<NotificationModel> _notifications = [];
 
   List<NotificationModel> get notifications {
     final list = List<NotificationModel>.from(_notifications);

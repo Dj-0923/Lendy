@@ -2,69 +2,12 @@
 import 'package:flutter/material.dart';
 import '../models/equipment_model.dart';
 
-/// Manages the in-memory list of equipment: seeding, searching, filtering,
+/// Manages the in-memory list of equipment: searching, filtering,
 /// and applying status changes (called internally by RequestProvider as
 /// requests move through their lifecycle).
 class EquipmentProvider extends ChangeNotifier {
-  final List<EquipmentModel> _equipment = [
-    EquipmentModel(
-      id: 'EQ-001',
-      name: 'Dell Latitude Laptop',
-      category: EquipmentCategory.laptop,
-      location: 'IT Lab, Rm 204',
-      status: EquipmentStatus.available,
-    ),
-    EquipmentModel(
-      id: 'EQ-002',
-      name: 'iPad Air Tablet',
-      category: EquipmentCategory.tablet,
-      location: 'AV Storage, Rm 101',
-      status: EquipmentStatus.available,
-    ),
-    EquipmentModel(
-      id: 'EQ-003',
-      name: 'BenQ Ceiling Projector',
-      category: EquipmentCategory.projector,
-      location: 'AV Storage, Rm 101',
-      status: EquipmentStatus.borrowed,
-    ),
-    EquipmentModel(
-      id: 'EQ-004',
-      name: 'Canon EOS DSLR Camera',
-      category: EquipmentCategory.camera,
-      location: 'Media Room',
-      status: EquipmentStatus.reserved,
-    ),
-    EquipmentModel(
-      id: 'EQ-005',
-      name: 'Digital Multimeter Set',
-      category: EquipmentCategory.labEquipment,
-      location: 'Physics Lab',
-      status: EquipmentStatus.available,
-    ),
-    EquipmentModel(
-      id: 'EQ-006',
-      name: 'HDMI Cable Bundle',
-      category: EquipmentCategory.accessories,
-      location: 'IT Storage',
-      status: EquipmentStatus.maintenance,
-    ),
-    EquipmentModel(
-      id: 'EQ-007',
-      name: 'Epson Projector',
-      category: EquipmentCategory.projector,
-      location: 'Room 203',
-      status: EquipmentStatus.available,
-    ),
-    EquipmentModel(
-      id: 'EQ-008',
-      name: 'Lenovo ThinkPad Laptop',
-      category: EquipmentCategory.laptop,
-      location: 'IT Lab, Rm 204',
-      status: EquipmentStatus.borrowed,
-    ),
-  ];
-
+  // Database integration point: load persisted equipment into this collection.
+  final List<EquipmentModel> _equipment = [];
   String _searchQuery = '';
   EquipmentCategory? _selectedCategory; // null = All categories
   EquipmentStatus? _selectedAvailability; // null = Any availability

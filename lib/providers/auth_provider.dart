@@ -22,7 +22,7 @@ class RequestAccountResult {
       tempPassword = null;
 }
 
-/// Handles authentication using in-memory mock data.
+/// Handles authentication using in-memory data.
 /// No backend/Firebase yet — everything lives in RAM for this prototype.
 ///
 /// In a real deployment, an Admin would create accounts on a separate web
@@ -31,22 +31,8 @@ class RequestAccountResult {
 /// simulates that same account-creation step directly in the mobile app,
 /// generating a temporary password instead of actually sending an email.
 class AuthProvider extends ChangeNotifier {
-  final List<UserModel> _users = [
-    // Temporary account para makapag login agad sa app.
-    UserModel(
-      id: 'u1',
-      fullName: 'Ardy',
-      email: 'ardy@gmail.com',
-      password: 'Ardy123',
-      role: UserRole.student,
-      idNumber: '2023-00123',
-      mustChangePassword: false,
-      yearLevel: '1st year',
-      college: 'BSIT',
-      block: '4',
-      gender: 'Male',
-    ),
-  ];
+  // Database integration point: load persisted users into this collection.
+  final List<UserModel> _users = [];
 
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;

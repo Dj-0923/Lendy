@@ -52,7 +52,17 @@ void main() {
 
   Future<AuthProvider> loginStudent(WidgetTester tester) async {
     final auth = AuthProvider();
-    final loginFuture = auth.login('ardy@gmail.com', 'Ardy123');
+    const email = 'student@example.com';
+    final accountFuture = auth.requestAccount(
+      fullName: 'Student User',
+      email: email,
+      role: UserRole.student,
+      idNumber: 'STU-001',
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    final accountResult = await accountFuture;
+
+    final loginFuture = auth.login(email, accountResult.tempPassword!);
     await tester.pump(const Duration(milliseconds: 500));
     expect(await loginFuture, isNull);
     return auth;

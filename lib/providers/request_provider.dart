@@ -13,82 +13,15 @@ import 'equipment_provider.dart';
 class RequestProvider extends ChangeNotifier {
   EquipmentProvider _equipmentProvider;
 
-  RequestProvider(this._equipmentProvider) {
-    _seedMockRequests();
-  }
+  RequestProvider(this._equipmentProvider);
 
   /// Called by the ProxyProvider whenever EquipmentProvider rebuilds.
   void updateEquipmentProvider(EquipmentProvider equipmentProvider) {
     _equipmentProvider = equipmentProvider;
   }
 
+  // Database integration point: load persisted borrow requests here.
   final List<BorrowRequestModel> _requests = [];
-
-  void _seedMockRequests() {
-    final now = DateTime.now();
-    _requests.addAll([
-      BorrowRequestModel(
-        id: 'r1',
-        studentOrFacultyId: 'u1',
-        equipmentId: 'EQ-003',
-        requestedBorrowDate: DateTime(now.year, 8, 19),
-        requestedReturnDate: DateTime(now.year, 8, 23),
-        requestDate: now.subtract(const Duration(days: 2)),
-        status: RequestStatus.pending,
-      ),
-      BorrowRequestModel(
-        id: 'r2',
-        studentOrFacultyId: 'u1',
-        equipmentId: 'EQ-007',
-        requestedBorrowDate: DateTime(now.year, 9, 1),
-        requestedReturnDate: DateTime(now.year, 9, 3),
-        requestDate: now.subtract(const Duration(days: 1)),
-        status: RequestStatus.pending,
-      ),
-      BorrowRequestModel(
-        id: 'r3',
-        studentOrFacultyId: 'u1',
-        equipmentId: 'EQ-001',
-        requestedBorrowDate: DateTime(now.year, 8, 10),
-        requestedReturnDate: DateTime(now.year, 8, 15),
-        requestDate: now.subtract(const Duration(days: 10)),
-        approvedDate: now.subtract(const Duration(days: 9)),
-        status: RequestStatus.approved,
-      ),
-      BorrowRequestModel(
-        id: 'r4',
-        studentOrFacultyId: 'u1',
-        equipmentId: 'EQ-002',
-        requestedBorrowDate: DateTime(now.year, 8, 5),
-        requestedReturnDate: now.add(const Duration(days: 2)),
-        requestDate: now.subtract(const Duration(days: 14)),
-        approvedDate: now.subtract(const Duration(days: 13)),
-        checkedOutDate: now.subtract(const Duration(days: 12)),
-        status: RequestStatus.borrowed,
-      ),
-      BorrowRequestModel(
-        id: 'r5',
-        studentOrFacultyId: 'u1',
-        equipmentId: 'EQ-004',
-        requestedBorrowDate: DateTime(now.year, 7, 20),
-        requestedReturnDate: DateTime(now.year, 7, 22),
-        requestDate: now.subtract(const Duration(days: 20)),
-        status: RequestStatus.rejected,
-      ),
-      BorrowRequestModel(
-        id: 'r6',
-        studentOrFacultyId: 'u1',
-        equipmentId: 'EQ-005',
-        requestedBorrowDate: DateTime(now.year, 7, 1),
-        requestedReturnDate: DateTime(now.year, 7, 3),
-        requestDate: now.subtract(const Duration(days: 30)),
-        approvedDate: now.subtract(const Duration(days: 29)),
-        checkedOutDate: now.subtract(const Duration(days: 28)),
-        returnedDate: now.subtract(const Duration(days: 25)),
-        status: RequestStatus.returned,
-      ),
-    ]);
-  }
 
   List<BorrowRequestModel> requestsForUser(String userId) =>
       _requests.where((r) => r.studentOrFacultyId == userId).toList();
