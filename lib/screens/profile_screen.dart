@@ -450,9 +450,12 @@ class _RecentBorrowingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isReturned = request.status == RequestStatus.returned;
+    final displayedStatus = request.status == RequestStatus.approved
+        ? RequestStatus.borrowed
+        : request.status;
 
     final subtitle = isReturned
-        ? 'Returned on ${formatFullDate(request.returnedDate!)}'
+        ? 'Returned on ${formatFullDate(request.returnedDate ?? request.requestDate)}'
         : 'Borrowed on ${formatFullDate(request.checkedOutDate ?? request.requestDate)} - '
               'Due on ${formatFullDate(request.requestedReturnDate)}';
 
@@ -470,7 +473,7 @@ class _RecentBorrowingRow extends StatelessWidget {
                 ),
               ),
             ),
-            StatusBadge(style: requestStatusStyle(request.status)),
+            StatusBadge(style: requestStatusStyle(displayedStatus)),
           ],
         ),
         const SizedBox(height: 4),

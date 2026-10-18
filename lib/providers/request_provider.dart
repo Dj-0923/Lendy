@@ -93,21 +93,19 @@ class RequestProvider extends ChangeNotifier {
           )
           .toList();
 
-  /// Requests that have actually been picked up at some point (Borrowed or
-  /// Returned), most recent first — used for the "Recent Borrowings" list.
-  List<BorrowRequestModel> recentBorrowings(String userId, {int limit = 5}) {
+  /// Borrowed or returned items, most recent first, for the profile history.
+  List<BorrowRequestModel> recentBorrowings(String userId, {int limit = 3}) {
     final list =
         requestsForUser(userId)
             .where(
               (r) =>
+                  r.status == RequestStatus.approved ||
                   r.status == RequestStatus.borrowed ||
                   r.status == RequestStatus.returned,
             )
             .toList()
           ..sort((a, b) {
-            final aDate = a.returnedDate ?? a.checkedOutDate ?? a.requestDate;
-            final bDate = b.returnedDate ?? b.checkedOutDate ?? b.requestDate;
-            return bDate.compareTo(aDate);
+            return b.activityDate.compareTo(a.activityDate);
           });
     return list.take(limit).toList();
   }
@@ -115,30 +113,35 @@ class RequestProvider extends ChangeNotifier {
   // ----- Borrowing summary counts (used on the Profile screen) -----
 
   int totalBorrowedCount(String userId) => requestsForUser(userId)
-      .where(
-        (r) =>
-            r.status == RequestStatus.borrowed ||
-            r.status == RequestStatus.returned,
-      )
+      .where(_isBorrowingOrReturned)
       .length;
 
   int currentBorrowedCount(String userId) => requestsForUser(
     userId,
-  ).where((r) => r.status == RequestStatus.borrowed).length;
+  ).where(_isCurrentlyBorrowed).length;
 
   int returnedCount(String userId) => requestsForUser(
     userId,
   ).where((r) => r.status == RequestStatus.returned).length;
 
-  /// Items currently borrowed with a return date within the next 3 days
-  /// (including already-overdue items).
+  /// Items due today or within the next two days, matching the admin summary.
   int dueSoonCount(String userId) {
-    final now = DateTime.now();
+    final today = DateUtils.dateOnly(DateTime.now());
     return requestsForUser(userId).where((r) {
-      if (r.status != RequestStatus.borrowed) return false;
-      return r.requestedReturnDate.difference(now).inDays <= 3;
+      if (!_isCurrentlyBorrowed(r)) return false;
+      final dueDate = DateUtils.dateOnly(r.requestedReturnDate);
+      final daysUntilDue = dueDate.difference(today).inDays;
+      return daysUntilDue >= 0 && daysUntilDue <= 2;
     }).length;
   }
+
+  bool _isCurrentlyBorrowed(BorrowRequestModel request) =>
+      request.status == RequestStatus.approved ||
+      request.status == RequestStatus.borrowed;
+
+  bool _isBorrowingOrReturned(BorrowRequestModel request) =>
+      _isCurrentlyBorrowed(request) ||
+      request.status == RequestStatus.returned;
 
   /// Submits a new borrow request. Equipment stays "Available" until the
   /// request is Approved — per the system's lifecycle rules.
@@ -195,6 +198,7 @@ class RequestProvider extends ChangeNotifier {
     } else {
       request.status = RequestStatus.borrowed;
       request.checkedOutDate = now;
+      request.activityDate = now;
       _equipmentProvider.setStatus(
         request.equipmentId,
         EquipmentStatus.borrowed,
@@ -228,6 +232,7 @@ class RequestProvider extends ChangeNotifier {
     } else {
       request.status = RequestStatus.returned;
       request.returnedDate = now;
+      request.activityDate = now;
       _equipmentProvider.setStatus(
         request.equipmentId,
         EquipmentStatus.available,
@@ -257,6 +262,9 @@ class RequestProvider extends ChangeNotifier {
       requestedBorrowDate: DateTime.parse(data['start'] as String),
       requestedReturnDate: DateTime.parse(data['end'] as String),
       requestDate: DateTime.fromMillisecondsSinceEpoch(
+        data['updatedAt'] as int? ?? 0,
+      ),
+      activityDate: DateTime.fromMillisecondsSinceEpoch(
         data['updatedAt'] as int? ?? 0,
       ),
       checkedOutDate: data['checkedOutAt'] is int

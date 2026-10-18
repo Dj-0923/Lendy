@@ -42,6 +42,7 @@ class BorrowRequestModel {
   final DateTime requestedBorrowDate;
   final DateTime requestedReturnDate;
   final DateTime requestDate; // when the request was submitted
+  DateTime activityDate;
   DateTime? approvedDate;
   DateTime? checkedOutDate;
   DateTime? returnedDate;
@@ -55,9 +56,10 @@ class BorrowRequestModel {
     required this.requestedBorrowDate,
     required this.requestedReturnDate,
     required this.requestDate,
+    DateTime? activityDate,
     this.approvedDate,
     this.checkedOutDate,
     this.returnedDate,
     this.status = RequestStatus.pending,
-  });
+  }) : activityDate = activityDate ?? requestDate;
 }

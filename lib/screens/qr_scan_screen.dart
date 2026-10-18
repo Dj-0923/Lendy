@@ -8,6 +8,7 @@ import '../providers/equipment_provider.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/status_style.dart';
+import '../utils/equipment_qr_code.dart';
 import '../widgets/qr_scanner_overlay.dart';
 import '../widgets/status_badge.dart';
 import 'request_form_screen.dart';
@@ -53,7 +54,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
     await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
 
-    final equipment = context.read<EquipmentProvider>().findById(code.trim());
+    final equipmentId = equipmentIdFromQrCode(code);
+    final equipment = context.read<EquipmentProvider>().findById(equipmentId);
 
     if (equipment == null) {
       ScaffoldMessenger.of(context).showSnackBar(
