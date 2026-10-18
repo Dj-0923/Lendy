@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/equipment_provider.dart';
@@ -12,29 +13,46 @@ import 'screens/login_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/set_new_password_screen.dart';
 import 'screens/main_shell.dart';
+import 'utils/first_launch_store.dart';
 import 'utils/responsive_layout.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  runApp(const SmartClassroomApp());
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  final showWelcome = await FirstLaunchStore.takeWelcomePage();
+  runApp(SmartClassroomApp(showWelcome: showWelcome));
 }
 
 class SmartClassroomApp extends StatelessWidget {
-  const SmartClassroomApp({super.key, this.authProvider});
+  const SmartClassroomApp({
+    super.key,
+    this.authProvider,
+    this.showWelcome = true,
+  });
 
   final AuthProvider? authProvider;
+  final bool showWelcome;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => authProvider ?? AuthProvider(),
+        ChangeNotifierProvider(create: (_) => authProvider ?? AuthProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, EquipmentProvider>(
+          create: (_) => EquipmentProvider(
+            firestore: authProvider == null ? FirebaseFirestore.instance : null,
+          ),
+          update: (_, auth, equipment) {
+            final provider = equipment!;
+            if (authProvider == null) {
+              provider.updateAuthentication(
+                auth.isLoggedIn,
+                FirebaseFirestore.instance,
+              );
+            }
+            return provider;
+          },
         ),
-        ChangeNotifierProvider(create: (_) => EquipmentProvider()),
         ChangeNotifierProxyProvider<EquipmentProvider, RequestProvider>(
           create: (context) =>
               RequestProvider(context.read<EquipmentProvider>()),
@@ -58,7 +76,7 @@ class SmartClassroomApp extends StatelessWidget {
         ),
         initialRoute: '/splash',
         routes: {
-          '/splash': (_) => const SplashScreen(),
+          '/splash': (_) => SplashScreen(showWelcome: showWelcome),
           '/login': (_) => const LoginScreen(),
           '/forgot-password': (_) => const ForgotPasswordScreen(),
           '/set-new-password': (_) => const SetNewPasswordScreen(),

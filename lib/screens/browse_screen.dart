@@ -130,7 +130,24 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 const SizedBox(height: 16),
 
                 // ----- Equipment list -----
-                if (equipmentList.isEmpty)
+                if (equipmentProvider.isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 40),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (equipmentList.isEmpty &&
+                    equipmentProvider.loadError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 40),
+                    child: Center(
+                      child: Text(
+                        equipmentProvider.loadError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  )
+                else if (equipmentList.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(top: 40),
                     child: Center(
@@ -141,37 +158,52 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     ),
                   )
                 else
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final useGrid = constraints.maxWidth >= 760;
-                      final cardWidth = useGrid
-                          ? (constraints.maxWidth - 16) / 2
-                          : constraints.maxWidth;
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (equipmentProvider.loadError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            equipmentProvider.loadError!,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final useGrid = constraints.maxWidth >= 760;
+                          final cardWidth = useGrid
+                              ? (constraints.maxWidth - 16) / 2
+                              : constraints.maxWidth;
 
-                      return Wrap(
-                        spacing: 16,
-                        children: equipmentList
-                            .map(
-                              (equipment) => SizedBox(
-                                width: cardWidth,
-                                child: EquipmentCard(
-                                  equipment: equipment,
-                                  onRequest: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => RequestFormScreen(
-                                          equipment: equipment,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      );
-                    },
+                          return Wrap(
+                            spacing: 16,
+                            children: equipmentList
+                                .map(
+                                  (equipment) => SizedBox(
+                                    width: cardWidth,
+                                    child: EquipmentCard(
+                                      equipment: equipment,
+                                      onRequest: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => RequestFormScreen(
+                                              equipment: equipment,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        },
+                      ),
+                    ],
                   ),
               ],
             ),

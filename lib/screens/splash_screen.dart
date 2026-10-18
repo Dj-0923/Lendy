@@ -173,7 +173,9 @@ const Duration _pauseAfterLockup = Duration(milliseconds: 350);
 double _lerp(double a, double b, double t) => a + (b - a) * t;
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.showWelcome = true});
+
+  final bool showWelcome;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -254,7 +256,8 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 250),
-        pageBuilder: (_, _, _) => const WelcomeScreen(),
+        pageBuilder: (_, _, _) =>
+            widget.showWelcome ? const WelcomeScreen() : const LoginScreen(),
         transitionsBuilder: (_, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
       ),

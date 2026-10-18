@@ -210,6 +210,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required UserRole role,
     required String idNumber,
+    required String college,
   }) async {
     if (_forTesting) {
       return RequestAccountResult.success();
@@ -239,6 +240,7 @@ class AuthProvider extends ChangeNotifier {
         'email': email.trim().toLowerCase(),
         'role': role.name,
         'idNumber': idNumber.trim(),
+        'college': college.trim(),
         'status': 'pending',
         'submittedAt': DateTime.now().millisecondsSinceEpoch,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,

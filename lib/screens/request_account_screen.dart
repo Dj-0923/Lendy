@@ -21,6 +21,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _idNumberController = TextEditingController();
+  final _collegeController = TextEditingController();
   final _emailController = TextEditingController();
 
   UserRole _selectedRole = UserRole.student;
@@ -32,6 +33,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
   void dispose() {
     _fullNameController.dispose();
     _idNumberController.dispose();
+    _collegeController.dispose();
     _emailController.dispose();
     super.dispose();
   }
@@ -57,6 +59,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
       email: _emailController.text,
       role: _selectedRole,
       idNumber: _idNumberController.text,
+      college: _collegeController.text,
     );
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -211,6 +214,14 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                       icon: Icons.badge_outlined,
                       controller: _idNumberController,
                       validator: (v) => _required(v, 'ID number'),
+                    ),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      label: 'College',
+                      hint: 'e.g. College of Computer Studies',
+                      icon: Icons.school_outlined,
+                      controller: _collegeController,
+                      validator: (v) => _required(v, 'College'),
                     ),
                     const SizedBox(height: 16),
                     AppTextField(

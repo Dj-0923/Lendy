@@ -26,7 +26,10 @@ import 'package:lendy/providers/auth_provider.dart';
 void main() {
   testWidgets('app starts successfully', (WidgetTester tester) async {
     await tester.pumpWidget(
-      SmartClassroomApp(authProvider: AuthProvider.forTesting()),
+      SmartClassroomApp(
+        authProvider: AuthProvider.forTesting(),
+        showWelcome: true,
+      ),
     );
 
     expect(find.byType(SmartClassroomApp), findsOneWidget);
@@ -38,5 +41,23 @@ void main() {
     }
 
     expect(find.text('Welcome!'), findsOneWidget);
+  });
+
+  testWidgets('later launches skip the welcome page and open login', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      SmartClassroomApp(
+        authProvider: AuthProvider.forTesting(),
+        showWelcome: false,
+      ),
+    );
+
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('Welcome!'), findsNothing);
+    expect(find.text('Welcome to'), findsOneWidget);
   });
 }
