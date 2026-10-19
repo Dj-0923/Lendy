@@ -53,7 +53,10 @@ class NotificationSettingsScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
                         notificationProvider.permissionMessage!,
-                        style: const TextStyle(color: Colors.redAccent),
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   if (notificationProvider.errorMessage != null)
@@ -61,7 +64,10 @@ class NotificationSettingsScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
                         notificationProvider.errorMessage!,
-                        style: const TextStyle(color: Colors.redAccent),
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                 ],
@@ -84,7 +90,7 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       title,
       style: const TextStyle(
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.textSecondary,
       ),

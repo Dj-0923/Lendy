@@ -44,4 +44,26 @@ void main() {
       (1600 - ResponsiveAppFrame.maxAppWidth) / 2,
     );
   });
+
+  testWidgets('responsive content stays top-aligned on a phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ResponsiveContent(
+            child: SizedBox(key: Key('content'), width: 200, height: 100),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.getTopLeft(find.byKey(const Key('content'))).dy, 0);
+    expect(tester.getTopLeft(find.byKey(const Key('content'))).dx, 80);
+  });
 }

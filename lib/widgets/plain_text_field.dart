@@ -44,7 +44,11 @@ class PlainTextField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 6),
         TextFormField(
@@ -54,14 +58,17 @@ class PlainTextField extends StatelessWidget {
           textCapitalization: textCapitalization,
           validator: validator,
           inputFormatters: inputFormatters,
-          style: const TextStyle(fontSize: 14),
+          style: const TextStyle(fontSize: 15),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+            hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 14,
+              horizontal: 14,
+            ),
             constraints: const BoxConstraints.tightFor(height: fieldHeight),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -73,7 +80,10 @@ class PlainTextField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.primaryLight, width: 1.4),
+              borderSide: const BorderSide(
+                color: AppColors.primaryLight,
+                width: 1.4,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),

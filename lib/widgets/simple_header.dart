@@ -29,7 +29,11 @@ class SimpleHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],

@@ -314,7 +314,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.totalBorrowedCount(user.id)}',
                                 label: 'Total borrowed',
-                                color: AppColors.primaryLight,
+                                color: AppColors.primary,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -323,7 +323,9 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.dueSoonCount(user.id)}',
                                 label: 'Due soon',
-                                color: Colors.red.shade700,
+                                color: requestProvider.dueSoonCount(user.id) > 0
+                                    ? Colors.red.shade700
+                                    : AppColors.primary,
                               ),
                             ),
                           ],
@@ -336,7 +338,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.returnedCount(user.id)}',
                                 label: 'Returned',
-                                color: AppColors.textPrimary,
+                                color: AppColors.primary,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -345,7 +347,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.currentBorrowedCount(user.id)}',
                                 label: 'Current borrowed',
-                                color: const Color(0xFFB4740E),
+                                color: AppColors.primary,
                               ),
                             ),
                           ],

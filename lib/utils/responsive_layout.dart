@@ -30,8 +30,8 @@ class ResponsiveAppFrame extends StatelessWidget {
   }
 }
 
-/// Centers page content and prevents phone-sized layouts from stretching
-/// edge-to-edge on tablets and desktop-sized viewports.
+/// Keeps page content top-aligned while preventing phone-sized layouts from
+/// stretching edge-to-edge on tablets and desktop-sized viewports.
 class ResponsiveContent extends StatelessWidget {
   const ResponsiveContent({
     super.key,
@@ -44,7 +44,8 @@ class ResponsiveContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return Align(
+      alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: child,
