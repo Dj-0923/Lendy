@@ -6,6 +6,7 @@ import 'package:lendy/providers/equipment_provider.dart';
 import 'package:lendy/providers/notification_provider.dart';
 import 'package:lendy/providers/request_provider.dart';
 import 'package:lendy/screens/profile_screen.dart';
+import 'package:lendy/theme/app_colors.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -70,9 +71,7 @@ void main() {
     );
   }
 
-  testWidgets('Faculty sees college but not student details', (
-    tester,
-  ) async {
+  testWidgets('Faculty sees college but not student details', (tester) async {
     final auth = await loginFaculty(tester);
     await pumpProfile(tester, auth);
 
@@ -98,5 +97,24 @@ void main() {
     expect(find.text('Block'), findsOneWidget);
     expect(find.text('Gender'), findsOneWidget);
     expect(find.text('Department'), findsNothing);
+  });
+
+  testWidgets('zero borrowing summary values use the Admin brand color', (
+    tester,
+  ) async {
+    final auth = await loginStudent(tester);
+    await pumpProfile(tester, auth);
+    await tester.scrollUntilVisible(
+      find.text('Total borrowed'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+
+    final summaryValues = tester.widgetList<Text>(find.text('0'));
+    expect(summaryValues, hasLength(4));
+    for (final value in summaryValues) {
+      expect(value.style?.color, AppColors.brandDeep);
+    }
   });
 }

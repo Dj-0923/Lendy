@@ -314,7 +314,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.totalBorrowedCount(user.id)}',
                                 label: 'Total borrowed',
-                                color: AppColors.primary,
+                                color: AppColors.brandDeep,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -324,8 +324,8 @@ class ProfileScreen extends StatelessWidget {
                                     '${requestProvider.dueSoonCount(user.id)}',
                                 label: 'Due soon',
                                 color: requestProvider.dueSoonCount(user.id) > 0
-                                    ? Colors.red.shade700
-                                    : AppColors.primary,
+                                    ? AppColors.danger
+                                    : AppColors.brandDeep,
                               ),
                             ),
                           ],
@@ -338,7 +338,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.returnedCount(user.id)}',
                                 label: 'Returned',
-                                color: AppColors.primary,
+                                color: AppColors.brandDeep,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -347,7 +347,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.currentBorrowedCount(user.id)}',
                                 label: 'Current borrowed',
-                                color: AppColors.primary,
+                                color: AppColors.brandDeep,
                               ),
                             ),
                           ],
@@ -509,9 +509,9 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-        color: AppColors.fieldFill,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.fieldBorder),
+        border: Border.all(color: AppColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,10 +527,7 @@ class _StatBox extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 12, color: AppColors.muted),
           ),
         ],
       ),
