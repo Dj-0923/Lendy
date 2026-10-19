@@ -70,19 +70,19 @@ void main() {
     );
   }
 
-  testWidgets('Faculty sees only role, department, and gender details', (
+  testWidgets('Faculty sees college but not student details', (
     tester,
   ) async {
     final auth = await loginFaculty(tester);
     await pumpProfile(tester, auth);
 
     expect(find.text('Account role'), findsOneWidget);
-    expect(find.text('Department'), findsOneWidget);
+    expect(find.text('College'), findsOneWidget);
     expect(find.text('BSIT'), findsOneWidget);
     expect(find.text('Gender'), findsOneWidget);
     expect(find.text('Female'), findsOneWidget);
     expect(find.text('Year Level'), findsNothing);
-    expect(find.text('College'), findsNothing);
+    expect(find.text('Department'), findsNothing);
     expect(find.text('Block'), findsNothing);
   });
 

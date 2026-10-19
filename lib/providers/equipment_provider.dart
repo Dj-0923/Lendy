@@ -76,6 +76,8 @@ class EquipmentProvider extends ChangeNotifier {
 
   void updateAuthentication(bool isAuthenticated, FirebaseFirestore firestore) {
     if (isAuthenticated && _loanSubscription == null) {
+      // This shared stream is only for item availability. Personal borrowing
+      // records are loaded by RequestProvider using the current borrower's UID.
       _loanSubscription = firestore
           .collection('loans')
           .snapshots()

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/responsive_layout.dart';
 import '../utils/text_formatters.dart';
 import '../utils/year_level.dart';
 import '../widgets/simple_header.dart';
@@ -120,78 +121,81 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
         children: [
           const SimpleHeader(title: 'Account Info'),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    PlainTextField(
-                      label: 'Full  name',
-                      hint: 'e.g. Juan Dela Cruz',
-                      controller: _fullNameController,
-                      validator: (v) => _required(v, 'Full name'),
-                    ),
-                    const SizedBox(height: 16),
-                    PlainDropdownField<String>(
-                      label: 'Gender',
-                      hint: 'Select gender',
-                      value: _selectedGender,
-                      options: _genders,
-                      labelOf: (g) => g,
-                      onChanged: (value) =>
-                          setState(() => _selectedGender = value),
-                      validator: (value) =>
-                          value == null ? 'Gender is required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    PlainTextField(
-                      label: 'Email Address',
-                      hint: 'e.g. dhie@gmail.com',
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: _validateEmail,
-                    ),
-                    const SizedBox(height: 16),
-                    // Free text on purpose: the student may type either the
-                    // shortcut or the full title. The 22-letter limit is a
-                    // Profile display rule, not an input rule, so a long title
-                    // can still be entered here and shortened when displayed.
-                    PlainTextField(
-                      label: isFaculty ? 'Department' : 'College',
-                      hint: 'e.g. BSIT or BS Information Technology',
-                      controller: _collegeController,
-                      textCapitalization: TextCapitalization.characters,
-                      inputFormatters: const [UpperCaseTextInputFormatter()],
-                    ),
-                    if (!isFaculty) ...[
-                      const SizedBox(height: 16),
+            child: ResponsiveContent(
+              maxWidth: 620,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       PlainTextField(
-                        label: 'Year level',
-                        hint: 'e.g. 3',
-                        controller: _yearLevelController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(1),
-                        ],
-                        validator: validateYearLevel,
+                        label: 'Full  name',
+                        hint: 'e.g. Juan Dela Cruz',
+                        controller: _fullNameController,
+                        validator: (v) => _required(v, 'Full name'),
+                      ),
+                      const SizedBox(height: 16),
+                      PlainDropdownField<String>(
+                        label: 'Gender',
+                        hint: 'Select gender',
+                        value: _selectedGender,
+                        options: _genders,
+                        labelOf: (g) => g,
+                        onChanged: (value) =>
+                            setState(() => _selectedGender = value),
+                        validator: (value) =>
+                            value == null ? 'Gender is required' : null,
                       ),
                       const SizedBox(height: 16),
                       PlainTextField(
-                        label: 'Block',
-                        hint: 'e.g. 7',
-                        controller: _blockController,
+                        label: 'Email Address',
+                        hint: 'e.g. dhie@gmail.com',
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: _validateEmail,
+                      ),
+                      const SizedBox(height: 16),
+                      // Free text on purpose: the student may type either the
+                      // shortcut or the full title. The 22-letter limit is a
+                      // Profile display rule, not an input rule, so a long title
+                      // can still be entered here and shortened when displayed.
+                      PlainTextField(
+                        label: 'College',
+                        hint: 'e.g. BSIT or BS Information Technology',
+                        controller: _collegeController,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: const [UpperCaseTextInputFormatter()],
+                      ),
+                      if (!isFaculty) ...[
+                        const SizedBox(height: 16),
+                        PlainTextField(
+                          label: 'Year level',
+                          hint: 'e.g. 3',
+                          controller: _yearLevelController,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(1),
+                          ],
+                          validator: validateYearLevel,
+                        ),
+                        const SizedBox(height: 16),
+                        PlainTextField(
+                          label: 'Block',
+                          hint: 'e.g. 7',
+                          controller: _blockController,
+                        ),
+                      ],
+                      const SizedBox(height: 28),
+                      PrimaryButton(
+                        label: 'Save Changes',
+                        isLoading: _isLoading,
+                        onPressed: _handleSave,
                       ),
                     ],
-                    const SizedBox(height: 28),
-                    PrimaryButton(
-                      label: 'Save Changes',
-                      isLoading: _isLoading,
-                      onPressed: _handleSave,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

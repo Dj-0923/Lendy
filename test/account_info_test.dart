@@ -396,8 +396,8 @@ void main() {
 
       await pumpScreen(tester, auth: auth);
 
-      expect(find.text('Department'), findsOneWidget);
-      expect(find.text('College'), findsNothing);
+      expect(find.text('College'), findsOneWidget);
+      expect(find.text('Department'), findsNothing);
       expect(find.text('Year level'), findsNothing);
       expect(find.text('Block'), findsNothing);
       expect(fieldWithHint('e.g. 3'), findsNothing);

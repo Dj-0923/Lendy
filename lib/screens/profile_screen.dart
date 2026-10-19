@@ -13,6 +13,7 @@ import '../theme/app_colors.dart';
 import '../utils/date_utils.dart';
 import '../utils/status_style.dart';
 import '../utils/simple_page_route.dart';
+import '../utils/responsive_layout.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/role_badge.dart';
 import 'settings_screen.dart';
@@ -148,211 +149,214 @@ class ProfileScreen extends StatelessWidget {
 
           // ----- Body -----
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                // Avatar + name + email + role badge
-                Center(
-                  child: Column(
-                    children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 48,
-                            backgroundColor: AppColors.primaryLight,
-                            backgroundImage: user.profileImageBytes == null
-                                ? null
-                                : MemoryImage(user.profileImageBytes!),
-                            child: user.profileImageBytes == null
-                                ? Text(
-                                    _initial(user.fullName),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap: () => _pickProfilePhoto(
-                                context,
-                                context.read<AuthProvider>(),
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt_outlined,
-                                  size: 16,
-                                  color: AppColors.primaryLight,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        user.fullName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        user.email,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      RoleBadge(role: user.role),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Account information card
-                _Card(
-                  title: 'Account information',
-                  child: Column(
-                    children: [
-                      _InfoRow(
-                        label: 'Account role',
-                        value: user.role.label,
-                        helper:
-                            'This is the role you selected when you signed in.',
-                      ),
-                      const Divider(height: 24),
-                      if (user.role == UserRole.faculty) ...[
-                        _InfoRow(
-                          label: 'Department',
-                          value: user.college?.trim().isNotEmpty == true
-                              ? user.college!.trim()
-                              : 'N/A',
-                        ),
-                        const Divider(height: 24),
-                      ] else ...[
-                        _InfoRow(
-                          label: 'Year Level',
-                          value: user.yearLevel ?? 'N/A',
-                        ),
-                        const Divider(height: 24),
-                        _InfoRow(
-                          label: 'College',
-                          value: collegeDisplay(user.college),
-                        ),
-                        const Divider(height: 24),
-                        _InfoRow(label: 'Block', value: user.block ?? 'N/A'),
-                        const Divider(height: 24),
-                      ],
-                      _InfoRow(label: 'Gender', value: user.gender ?? 'N/A'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Recent Borrowings card
-                _Card(
-                  title: 'Recent Borrowings',
-                  child: recent.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            'No borrowing history yet.',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        )
-                      : Column(
+            child: ResponsiveContent(
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  // Avatar + name + email + role badge
+                  Center(
+                    child: Column(
+                      children: [
+                        Stack(
                           children: [
-                            for (int i = 0; i < recent.length; i++) ...[
-                              _RecentBorrowingRow(
-                                request: recent[i],
-                                equipmentName:
-                                    equipmentProvider
-                                        .findById(recent[i].equipmentId)
-                                        ?.name ??
-                                    'Unknown equipment',
+                            CircleAvatar(
+                              radius: 48,
+                              backgroundColor: AppColors.primaryLight,
+                              backgroundImage: user.profileImageBytes == null
+                                  ? null
+                                  : MemoryImage(user.profileImageBytes!),
+                              child: user.profileImageBytes == null
+                                  ? Text(
+                                      _initial(user.fullName),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: () => _pickProfilePhoto(
+                                  context,
+                                  context.read<AuthProvider>(),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_outlined,
+                                    size: 16,
+                                    color: AppColors.primaryLight,
+                                  ),
+                                ),
                               ),
-                              if (i != recent.length - 1)
-                                const Divider(height: 20),
-                            ],
+                            ),
                           ],
                         ),
-                ),
-                const SizedBox(height: 20),
-
-                // Borrowing summary card
-                _Card(
-                  title: 'Borrowing summary',
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _StatBox(
-                              value:
-                                  '${requestProvider.totalBorrowedCount(user.id)}',
-                              label: 'Total borrowed',
-                              color: AppColors.primaryLight,
-                            ),
+                        const SizedBox(height: 12),
+                        Text(
+                          user.fullName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _StatBox(
-                              value: '${requestProvider.dueSoonCount(user.id)}',
-                              label: 'Due soon',
-                              color: Colors.red.shade700,
-                            ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          user.email,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            color: AppColors.textSecondary,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _StatBox(
-                              value:
-                                  '${requestProvider.returnedCount(user.id)}',
-                              label: 'Returned',
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _StatBox(
-                              value:
-                                  '${requestProvider.currentBorrowedCount(user.id)}',
-                              label: 'Current borrowed',
-                              color: const Color(0xFFB4740E),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(height: 10),
+                        RoleBadge(role: user.role),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 24),
 
-                const SizedBox(height: 24),
-              ],
+                  // Account information card
+                  _Card(
+                    title: 'Account information',
+                    child: Column(
+                      children: [
+                        _InfoRow(
+                          label: 'Account role',
+                          value: user.role.label,
+                          helper:
+                              'This is the role you selected when you signed in.',
+                        ),
+                        const Divider(height: 24),
+                        if (user.role == UserRole.faculty) ...[
+                          _InfoRow(
+                            label: 'College',
+                            value: user.college?.trim().isNotEmpty == true
+                                ? user.college!.trim()
+                                : 'N/A',
+                          ),
+                          const Divider(height: 24),
+                        ] else ...[
+                          _InfoRow(
+                            label: 'Year Level',
+                            value: user.yearLevel ?? 'N/A',
+                          ),
+                          const Divider(height: 24),
+                          _InfoRow(
+                            label: 'College',
+                            value: collegeDisplay(user.college),
+                          ),
+                          const Divider(height: 24),
+                          _InfoRow(label: 'Block', value: user.block ?? 'N/A'),
+                          const Divider(height: 24),
+                        ],
+                        _InfoRow(label: 'Gender', value: user.gender ?? 'N/A'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Recent Borrowings card
+                  _Card(
+                    title: 'Recent Borrowings',
+                    child: recent.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'No borrowing history yet.',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          )
+                        : Column(
+                            children: [
+                              for (int i = 0; i < recent.length; i++) ...[
+                                _RecentBorrowingRow(
+                                  request: recent[i],
+                                  equipmentName:
+                                      equipmentProvider
+                                          .findById(recent[i].equipmentId)
+                                          ?.name ??
+                                      'Unknown equipment',
+                                ),
+                                if (i != recent.length - 1)
+                                  const Divider(height: 20),
+                              ],
+                            ],
+                          ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Borrowing summary card
+                  _Card(
+                    title: 'Borrowing summary',
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatBox(
+                                value:
+                                    '${requestProvider.totalBorrowedCount(user.id)}',
+                                label: 'Total borrowed',
+                                color: AppColors.primaryLight,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _StatBox(
+                                value:
+                                    '${requestProvider.dueSoonCount(user.id)}',
+                                label: 'Due soon',
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatBox(
+                                value:
+                                    '${requestProvider.returnedCount(user.id)}',
+                                label: 'Returned',
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _StatBox(
+                                value:
+                                    '${requestProvider.currentBorrowedCount(user.id)}',
+                                label: 'Current borrowed',
+                                color: const Color(0xFFB4740E),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
         ],

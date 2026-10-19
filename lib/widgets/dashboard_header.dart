@@ -26,55 +26,70 @@ class DashboardHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20, statusBarHeight + 20, 20, 20),
+      padding: EdgeInsets.fromLTRB(16, statusBarHeight + 16, 16, 16),
       color: AppColors.primary, // straight edges — no borderRadius
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${user?.fullName ?? ''}  •  ${user?.role.name ?? ''}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            key: const Key('dashboard-profile-avatar'),
-            onPressed: onProfileTap,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-            icon: CircleAvatar(
-              radius: 24,
-              backgroundColor: Colors.white24,
-              backgroundImage: imageBytes == null
-                  ? null
-                  : MemoryImage(imageBytes),
-              child: imageBytes == null
-                  ? Text(
-                      _initial(user?.fullName ?? ''),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
+                        fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
                       ),
-                    )
-                  : null,
-            ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${user?.fullName ?? ''}  •  ${user?.role.name ?? ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                key: const Key('dashboard-profile-avatar'),
+                onPressed: onProfileTap,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 48,
+                  height: 48,
+                ),
+                icon: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.white24,
+                  backgroundImage: imageBytes == null
+                      ? null
+                      : MemoryImage(imageBytes),
+                  child: imageBytes == null
+                      ? Text(
+                          _initial(user?.fullName ?? ''),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

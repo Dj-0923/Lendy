@@ -12,6 +12,7 @@ void main() {
             'name': 'Sony A7 Camera',
             'category': 'Cameras',
             'tag': 'CM-01AB',
+            'location': 'AV Storage, Room 101',
             'image': 'data:image/jpeg;base64,aGVsbG8=',
             'maintenance': false,
           },
@@ -23,6 +24,7 @@ void main() {
         expect(equipment.category, EquipmentCategory.camera);
         expect(equipment.displayCategory, 'Cameras');
         expect(equipment.assetTag, 'CM-01AB');
+        expect(equipment.location, 'AV Storage, Room 101');
         expect(equipment.imageBytes, [104, 101, 108, 108, 111]);
       },
     );

@@ -1,5 +1,7 @@
 // lib/screens/main_shell.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/notification_provider.dart';
 import '../theme/app_colors.dart';
 import 'browse_screen.dart';
 import 'my_requests_screen.dart';
@@ -36,6 +38,7 @@ class _MainShellState extends State<MainShell> {
     ];
 
     final isOnProfileTab = _currentIndex == _profileTabIndex;
+    final unreadCount = context.watch<NotificationProvider>().unreadCount;
 
     final useNavigationRail =
         MediaQuery.sizeOf(context).width >= ResponsiveAppFrame.wideBreakpoint;
@@ -52,12 +55,14 @@ class _MainShellState extends State<MainShell> {
                     selectedIconTheme: const IconThemeData(
                       color: AppColors.primaryLight,
                     ),
-                    unselectedIconTheme: const IconThemeData(color: Colors.grey),
+                    unselectedIconTheme: const IconThemeData(
+                      color: Colors.grey,
+                    ),
                     selectedLabelTextStyle: const TextStyle(
                       color: AppColors.primaryLight,
                       fontWeight: FontWeight.w600,
                     ),
-                    destinations: const [
+                    destinations: [
                       NavigationRailDestination(
                         icon: Icon(Icons.home_outlined),
                         label: Text('Home'),
@@ -67,7 +72,7 @@ class _MainShellState extends State<MainShell> {
                         label: Text('Request'),
                       ),
                       NavigationRailDestination(
-                        icon: Icon(Icons.notifications_outlined),
+                        icon: _NotificationIcon(unreadCount),
                         label: Text('Notification'),
                       ),
                       NavigationRailDestination(
@@ -78,7 +83,9 @@ class _MainShellState extends State<MainShell> {
                   ),
                 ),
                 const VerticalDivider(width: 1),
-                Expanded(child: IndexedStack(index: _currentIndex, children: screens)),
+                Expanded(
+                  child: IndexedStack(index: _currentIndex, children: screens),
+                ),
               ],
             )
           : IndexedStack(index: _currentIndex, children: screens),
@@ -101,7 +108,7 @@ class _MainShellState extends State<MainShell> {
                   fontWeight: FontWeight.w600,
                 ),
                 unselectedLabelStyle: const TextStyle(fontSize: 12),
-                items: const [
+                items: [
                   BottomNavigationBarItem(
                     icon: Icon(Icons.home_outlined),
                     label: 'Home',
@@ -111,7 +118,7 @@ class _MainShellState extends State<MainShell> {
                     label: 'Request',
                   ),
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.notifications_outlined),
+                    icon: _NotificationIcon(unreadCount),
                     label: 'Notification',
                   ),
                   BottomNavigationBarItem(
@@ -121,6 +128,44 @@ class _MainShellState extends State<MainShell> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _NotificationIcon extends StatelessWidget {
+  const _NotificationIcon(this.unreadCount);
+
+  final int unreadCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        const Icon(Icons.notifications_outlined),
+        if (unreadCount > 0)
+          Positioned(
+            top: -4,
+            right: -7,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                color: Colors.redAccent,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                unreadCount > 9 ? '9+' : '$unreadCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

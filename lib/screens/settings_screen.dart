@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/responsive_layout.dart';
 import '../utils/simple_page_route.dart';
 import '../widgets/simple_header.dart';
 import '../widgets/settings_tile.dart';
@@ -22,75 +23,78 @@ class SettingsScreen extends StatelessWidget {
         children: [
           const SimpleHeader(title: 'Settings'),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                SettingsTile(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notification',
-                  subtitle: 'Manage your notification preferences',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      simpleFadeRoute<void>(
-                        (_) => const NotificationSettingsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                SettingsTile(
-                  icon: Icons.person_outline,
-                  title: 'Account Information',
-                  subtitle: 'View and update your account details',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      simpleFadeRoute<void>((_) => const AccountInfoScreen()),
-                    );
-                  },
-                ),
-                SettingsTile(
-                  icon: Icons.lock_outline,
-                  title: 'Change Password',
-                  subtitle: 'Update your password to keep your account secure',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      simpleFadeRoute<void>(
-                        (_) => const ChangePasswordScreen(),
-                      ),
-                    );
-                  },
-                ),
-                SettingsTile(
-                  icon: Icons.info_outline,
-                  title: 'About LENDY',
-                  subtitle: 'Learn more about LENDY',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      simpleFadeRoute<void>((_) => const AboutScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _confirmLogout(context),
-                    icon: const Icon(Icons.logout, size: 18),
-                    label: const Text('Logout'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.redAccent),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+            child: ResponsiveContent(
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  SettingsTile(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notification',
+                    subtitle: 'Manage your notification preferences',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        simpleFadeRoute<void>(
+                          (_) => const NotificationSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  SettingsTile(
+                    icon: Icons.person_outline,
+                    title: 'Account Information',
+                    subtitle: 'View and update your account details',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        simpleFadeRoute<void>((_) => const AccountInfoScreen()),
+                      );
+                    },
+                  ),
+                  SettingsTile(
+                    icon: Icons.lock_outline,
+                    title: 'Change Password',
+                    subtitle:
+                        'Update your password to keep your account secure',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        simpleFadeRoute<void>(
+                          (_) => const ChangePasswordScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  SettingsTile(
+                    icon: Icons.info_outline,
+                    title: 'About LENDY',
+                    subtitle: 'Learn more about LENDY',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        simpleFadeRoute<void>((_) => const AboutScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmLogout(context),
+                      icon: const Icon(Icons.logout, size: 18),
+                      label: const Text('Logout'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.redAccent),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

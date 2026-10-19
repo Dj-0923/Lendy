@@ -37,6 +37,7 @@ class RequestProvider extends ChangeNotifier {
     _errorMessage = null;
 
     if (userId != null && _firestore != null) {
+      // Keep each user's request history scoped to their own Firebase account.
       _requestSubscription = _firestore
           .collection('loans')
           .where('borrowerUid', isEqualTo: userId)
@@ -112,13 +113,11 @@ class RequestProvider extends ChangeNotifier {
 
   // ----- Borrowing summary counts (used on the Profile screen) -----
 
-  int totalBorrowedCount(String userId) => requestsForUser(userId)
-      .where(_isBorrowingOrReturned)
-      .length;
+  int totalBorrowedCount(String userId) =>
+      requestsForUser(userId).where(_isBorrowingOrReturned).length;
 
-  int currentBorrowedCount(String userId) => requestsForUser(
-    userId,
-  ).where(_isCurrentlyBorrowed).length;
+  int currentBorrowedCount(String userId) =>
+      requestsForUser(userId).where(_isCurrentlyBorrowed).length;
 
   int returnedCount(String userId) => requestsForUser(
     userId,
@@ -140,8 +139,7 @@ class RequestProvider extends ChangeNotifier {
       request.status == RequestStatus.borrowed;
 
   bool _isBorrowingOrReturned(BorrowRequestModel request) =>
-      _isCurrentlyBorrowed(request) ||
-      request.status == RequestStatus.returned;
+      _isCurrentlyBorrowed(request) || request.status == RequestStatus.returned;
 
   /// Submits a new borrow request. Equipment stays "Available" until the
   /// request is Approved — per the system's lifecycle rules.

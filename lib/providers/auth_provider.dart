@@ -403,13 +403,14 @@ class AuthProvider extends ChangeNotifier {
     if (user == null) return 'No user is currently logged in.';
 
     try {
+      final normalizedName = fullName.trim();
       final normalizedEmail = email.trim().toLowerCase();
       if (normalizedEmail != user.email?.toLowerCase()) {
         await user.verifyBeforeUpdateEmail(normalizedEmail);
       }
 
       await _firestore!.collection('accounts').doc(user.uid).update({
-        'name': fullName.trim(),
+        'name': normalizedName,
         'gender': gender,
         'college': college,
         'course': college ?? '',
@@ -418,12 +419,15 @@ class AuthProvider extends ChangeNotifier {
         'profileUpdatedAt': DateTime.now().millisecondsSinceEpoch,
       });
       _currentUser!
-        ..fullName = fullName.trim()
+        ..fullName = normalizedName
         ..gender = gender
         ..college = college
         ..yearLevel = yearLevel
         ..block = block;
       notifyListeners();
+      if (user.displayName != normalizedName) {
+        await user.updateDisplayName(normalizedName);
+      }
       return null;
     } catch (error) {
       return _errorMessage(error);

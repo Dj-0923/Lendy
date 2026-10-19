@@ -52,9 +52,34 @@ class EquipmentCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            equipment.name,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  equipment.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  equipment.assetTag?.isNotEmpty == true
+                      ? equipment.assetTag!
+                      : equipment.id,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
           if (equipment.location.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -66,27 +91,21 @@ class EquipmentCard extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  equipment.location,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.textSecondary,
+                Expanded(
+                  child: Text(
+                    equipment.location,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
             ),
           ],
-          const SizedBox(height: 2),
-          Text(
-            equipment.assetTag?.isNotEmpty == true
-                ? equipment.assetTag!
-                : equipment.id,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
             child: StatusBadge(

@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/request_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/date_utils.dart';
+import '../utils/responsive_layout.dart';
 import '../widgets/primary_button.dart';
 
 class RequestFormScreen extends StatefulWidget {
@@ -109,83 +110,89 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
         title: const Text('Request Equipment'),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ----- Equipment summary card -----
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.fieldFill,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.fieldBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.equipment.category.label.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                      letterSpacing: 0.6,
-                    ),
+        padding: const EdgeInsets.all(16),
+        child: ResponsiveContent(
+          maxWidth: 620,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ----- Equipment summary card -----
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.fieldFill,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.fieldBorder),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.equipment.name,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.equipment.category.label.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.equipment.name,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${widget.equipment.location}  •  ${widget.equipment.id}',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${widget.equipment.location}  •  ${widget.equipment.id}',
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+                ),
+                const SizedBox(height: 24),
 
-            const Text(
-              'Preferred Borrow Date',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-            ),
-            const SizedBox(height: 6),
-            _DatePickerField(
-              label: _borrowDate == null
-                  ? 'Select date'
-                  : formatShortDate(_borrowDate!),
-              onTap: () => _pickDate(isBorrowDate: true),
-            ),
-            const SizedBox(height: 16),
+                const Text(
+                  'Preferred Borrow Date',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                _DatePickerField(
+                  label: _borrowDate == null
+                      ? 'Select date'
+                      : formatShortDate(_borrowDate!),
+                  onTap: () => _pickDate(isBorrowDate: true),
+                ),
+                const SizedBox(height: 16),
 
-            const Text(
-              'Preferred Return Date',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-            ),
-            const SizedBox(height: 6),
-            _DatePickerField(
-              label: _returnDate == null
-                  ? 'Select date'
-                  : formatShortDate(_returnDate!),
-              onTap: () => _pickDate(isBorrowDate: false),
-            ),
-            const SizedBox(height: 28),
+                const Text(
+                  'Preferred Return Date',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                _DatePickerField(
+                  label: _returnDate == null
+                      ? 'Select date'
+                      : formatShortDate(_returnDate!),
+                  onTap: () => _pickDate(isBorrowDate: false),
+                ),
+                const SizedBox(height: 28),
 
-            PrimaryButton(
-              label: 'Submit Request',
-              isLoading: _isSubmitting,
-              onPressed: _handleSubmit,
+                PrimaryButton(
+                  label: 'Submit Request',
+                  isLoading: _isSubmitting,
+                  onPressed: _handleSubmit,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

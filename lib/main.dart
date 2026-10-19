@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/equipment_provider.dart';
@@ -21,6 +24,26 @@ import 'utils/responsive_layout.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  const notificationChannel = AndroidNotificationChannel(
+    'lendy_alerts',
+    'Lendy alerts',
+    description: 'Borrowing requests and return reminders',
+    importance: Importance.high,
+  );
+  final localNotifications = FlutterLocalNotificationsPlugin();
+  if (!kIsWeb) {
+    await localNotifications.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(),
+      ),
+    );
+    await localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(notificationChannel);
+  }
   final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
   final showWelcome = await FirstLaunchStore.takeWelcomePage(
     hasExistingAccount: firebaseUser != null,
@@ -90,7 +113,25 @@ class SmartClassroomApp extends StatelessWidget {
             return provider;
           },
         ),
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, NotificationProvider>(
+          create: (_) => NotificationProvider(
+            firestore: authProvider == null ? FirebaseFirestore.instance : null,
+            messaging: authProvider == null && !kIsWeb
+                ? FirebaseMessaging.instance
+                : null,
+            localNotifications: authProvider == null && !kIsWeb
+                ? FlutterLocalNotificationsPlugin()
+                : null,
+          ),
+          update: (_, auth, notifications) {
+            final user = auth.currentUser;
+            final accountReady = user != null && !user.mustChangePassword;
+            notifications!.updateAuthentication(
+              userId: accountReady ? user.id : null,
+            );
+            return notifications;
+          },
+        ),
       ],
       child: MaterialApp(
         title: 'Lendy',

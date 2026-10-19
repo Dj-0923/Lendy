@@ -83,4 +83,32 @@ void main() {
       ids[2],
     ]);
   });
+
+  test(
+    'borrowing records belong only to the user who submitted them',
+    () async {
+      await requests.submitRequest(
+        userId: 'borrower-1',
+        equipmentId: 'equipment-1',
+        equipmentName: 'Equipment',
+        borrowerName: 'First Borrower',
+        borrowDate: DateTime.now(),
+        returnDate: DateTime.now().add(const Duration(days: 3)),
+      );
+      final requestId = requests.requestsForUser('borrower-1').single.id;
+      await requests.checkOut(requestId);
+
+      expect(requests.activeRequests('borrower-1'), hasLength(1));
+      expect(
+        requests.activeRequests('borrower-2'),
+        isEmpty,
+        reason:
+            'Other users see shared item availability, not this loan record.',
+      );
+      expect(
+        requests.requestsForUser('borrower-1').single.studentOrFacultyId,
+        'borrower-1',
+      );
+    },
+  );
 }

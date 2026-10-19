@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/equipment_model.dart';
 import '../providers/equipment_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/responsive_layout.dart';
 import '../widgets/dashboard_header.dart';
 import '../widgets/equipment_card.dart';
 import 'request_form_screen.dart';
@@ -57,155 +58,160 @@ class _BrowseScreenState extends State<BrowseScreen> {
             onProfileTap: widget.onProfileTap,
           ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-              children: [
-                const Text(
-                  "Check what's on the shelf and request what you need.",
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ----- Search field -----
-                TextField(
-                  controller: _searchController,
-                  onChanged: equipmentProvider.setSearchQuery,
-                  decoration: InputDecoration(
-                    hintText: 'Search by name or assets code...',
-                    hintStyle: const TextStyle(
-                      color: Colors.grey,
+            child: ResponsiveContent(
+              maxWidth: 980,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                children: [
+                  const Text(
+                    "Check what's on the shelf and request what you need.",
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
                       fontSize: 13.5,
                     ),
-                    prefixIcon: const Icon(
-                      Icons.search,
-                      color: AppColors.textSecondary,
-                      size: 20,
-                    ),
-                    filled: true,
-                    fillColor: AppColors.fieldFill,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: AppColors.fieldBorder,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ----- Search field -----
+                  TextField(
+                    controller: _searchController,
+                    onChanged: equipmentProvider.setSearchQuery,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name or assets code...',
+                      hintStyle: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 13.5,
                       ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: AppColors.fieldBorder,
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: AppColors.textSecondary,
+                        size: 20,
                       ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: AppColors.primaryLight,
+                      filled: true,
+                      fillColor: AppColors.fieldFill,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: AppColors.fieldBorder,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: AppColors.fieldBorder,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: AppColors.primaryLight,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                // ----- Category filter -----
-                _FilterDropdown<EquipmentCategory?>(
-                  value: equipmentProvider.selectedCategory,
-                  hint: 'All categories',
-                  options: [null, ...EquipmentCategory.values],
-                  labelOf: (c) => c?.label ?? 'All categories',
-                  onChanged: equipmentProvider.setCategory,
-                ),
-                const SizedBox(height: 12),
+                  // ----- Category filter -----
+                  _FilterDropdown<EquipmentCategory?>(
+                    value: equipmentProvider.selectedCategory,
+                    hint: 'All categories',
+                    options: [null, ...EquipmentCategory.values],
+                    labelOf: (c) => c?.label ?? 'All categories',
+                    onChanged: equipmentProvider.setCategory,
+                  ),
+                  const SizedBox(height: 12),
 
-                // ----- Availability filter -----
-                _FilterDropdown<EquipmentStatus?>(
-                  value: equipmentProvider.selectedAvailability,
-                  hint: 'Any availability',
-                  options: [null, ...EquipmentStatus.values],
-                  labelOf: (s) => s?.label ?? 'Any availability',
-                  onChanged: equipmentProvider.setAvailability,
-                ),
-                const SizedBox(height: 16),
+                  // ----- Availability filter -----
+                  _FilterDropdown<EquipmentStatus?>(
+                    value: equipmentProvider.selectedAvailability,
+                    hint: 'Any availability',
+                    options: [null, ...EquipmentStatus.values],
+                    labelOf: (s) => s?.label ?? 'Any availability',
+                    onChanged: equipmentProvider.setAvailability,
+                  ),
+                  const SizedBox(height: 16),
 
-                // ----- Equipment list -----
-                if (equipmentProvider.isLoading)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 40),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (equipmentList.isEmpty &&
-                    equipmentProvider.loadError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 40),
-                    child: Center(
-                      child: Text(
-                        equipmentProvider.loadError!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.textSecondary),
-                      ),
-                    ),
-                  )
-                else if (equipmentList.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 40),
-                    child: Center(
-                      child: Text(
-                        'No equipment matches your filters.',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                    ),
-                  )
-                else
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (equipmentProvider.loadError != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            equipmentProvider.loadError!,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                            ),
+                  // ----- Equipment list -----
+                  if (equipmentProvider.isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (equipmentList.isEmpty &&
+                      equipmentProvider.loadError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: Center(
+                        child: Text(
+                          equipmentProvider.loadError!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
                           ),
                         ),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final useGrid = constraints.maxWidth >= 760;
-                          final cardWidth = useGrid
-                              ? (constraints.maxWidth - 16) / 2
-                              : constraints.maxWidth;
-
-                          return Wrap(
-                            spacing: 16,
-                            children: equipmentList
-                                .map(
-                                  (equipment) => SizedBox(
-                                    width: cardWidth,
-                                    child: EquipmentCard(
-                                      equipment: equipment,
-                                      onRequest: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => RequestFormScreen(
-                                              equipment: equipment,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          );
-                        },
                       ),
-                    ],
-                  ),
-              ],
+                    )
+                  else if (equipmentList.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Center(
+                        child: Text(
+                          'No equipment matches your filters.',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ),
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (equipmentProvider.loadError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              equipmentProvider.loadError!,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final useGrid = constraints.maxWidth >= 760;
+                            final cardWidth = useGrid
+                                ? (constraints.maxWidth - 16) / 2
+                                : constraints.maxWidth;
+
+                            return Wrap(
+                              spacing: 16,
+                              children: equipmentList
+                                  .map(
+                                    (equipment) => SizedBox(
+                                      width: cardWidth,
+                                      child: EquipmentCard(
+                                        equipment: equipment,
+                                        onRequest: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => RequestFormScreen(
+                                                equipment: equipment,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
         ],

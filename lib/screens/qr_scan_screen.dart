@@ -134,41 +134,53 @@ class _QrScanScreenState extends State<QrScanScreen> {
                     ),
                   ),
                 ),
-                if (_state == _ScanState.complete && _scannedEquipment != null)
-                  Expanded(flex: 3, child: Center(child: cameraView))
-                else
-                  Expanded(child: Center(child: cameraView)),
-                SizedBox(height: compact ? 4 : 12),
-                Text(
-                  switch (_state) {
-                    _ScanState.ready => 'Ready to scan',
-                    _ScanState.scanning => 'Scanning...',
-                    _ScanState.complete => 'Scan complete',
-                  },
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  switch (_state) {
-                    _ScanState.ready => '',
-                    _ScanState.scanning => 'Please hold steady',
-                    _ScanState.complete => 'Item is ready',
-                  },
-                  style: const TextStyle(color: Colors.white70, fontSize: 12.5),
-                ),
-                if (_state == _ScanState.complete && _scannedEquipment != null)
-                  Expanded(
-                    flex: 2,
-                    child: SingleChildScrollView(
-                      child: _buildResultCard(context, _scannedEquipment!),
+                if (_state == _ScanState.complete &&
+                    _scannedEquipment != null) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Scan complete',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
-                  )
-                else
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Items are ready',
+                    style: TextStyle(color: Colors.white70, fontSize: 12.5),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: _buildResultCard(context, _scannedEquipment!),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  Expanded(child: Center(child: cameraView)),
+                  SizedBox(height: compact ? 4 : 12),
+                  Text(
+                    _state == _ScanState.ready
+                        ? 'Ready to scan'
+                        : 'Scanning...',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _state == _ScanState.ready ? '' : 'Please hold steady',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12.5,
+                    ),
+                  ),
                   const Spacer(),
+                ],
                 SizedBox(height: compact ? 8 : 16),
               ],
             );
@@ -182,51 +194,63 @@ class _QrScanScreenState extends State<QrScanScreen> {
     return Align(
       alignment: Alignment.topCenter,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        padding: const EdgeInsets.all(18),
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 420),
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
               equipment.id,
               style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
+                fontSize: 29,
+                color: Color(0xFF888888),
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               equipment.name,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              equipment.location,
+              textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 12.5,
-                color: AppColors.textSecondary,
+                fontSize: 20,
+                color: Color(0xFF555555),
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 10),
+            if (equipment.location.isNotEmpty)
+              Text(
+                equipment.location,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            const SizedBox(height: 8),
             StatusBadge(style: equipmentStatusStyle(equipment.status)),
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
               height: 44,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RequestFormScreen(equipment: equipment),
-                    ),
-                  );
-                },
+                onPressed: equipment.status == EquipmentStatus.available
+                    ? () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                RequestFormScreen(equipment: equipment),
+                          ),
+                        );
+                      }
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryLight,
                   foregroundColor: Colors.white,
