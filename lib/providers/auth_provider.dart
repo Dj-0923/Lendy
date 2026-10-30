@@ -278,6 +278,9 @@ class AuthProvider extends ChangeNotifier {
     required UserRole role,
     required String idNumber,
     required String college,
+    required String gender,
+    String? yearLevel,
+    String? block,
   }) async {
     if (_forTesting) {
       return RequestAccountResult.success();
@@ -300,7 +303,7 @@ class AuthProvider extends ChangeNotifier {
       }
       await createdUser.updateDisplayName(fullName.trim());
       final request = _firestore!.collection('accountRequests').doc();
-      await request.set({
+      final requestData = <String, dynamic>{
         'id': request.id,
         'authUid': createdUser.uid,
         'name': fullName.trim(),
@@ -308,10 +311,16 @@ class AuthProvider extends ChangeNotifier {
         'role': role.name,
         'idNumber': idNumber.trim(),
         'college': college.trim(),
+        'gender': gender,
         'status': 'pending',
         'submittedAt': DateTime.now().millisecondsSinceEpoch,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      });
+      };
+      if (role == UserRole.student) {
+        requestData['yearLevel'] = yearLevel;
+        requestData['block'] = block;
+      }
+      await request.set(requestData);
       _accountRequestData = {
         'id': request.id,
         'authUid': createdUser.uid,

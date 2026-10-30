@@ -22,13 +22,25 @@ class EquipmentProvider extends ChangeNotifier {
   String? _equipmentLoadError;
   String? _loanLoadError;
   String _searchQuery = '';
-  EquipmentCategory? _selectedCategory; // null = All categories
+  String? _selectedCategory; // null = All categories
   EquipmentStatus? _selectedAvailability; // null = Any availability
 
   bool get isLoading => _isLoading;
   String? get loadError => _equipmentLoadError ?? _loanLoadError;
   String get searchQuery => _searchQuery;
-  EquipmentCategory? get selectedCategory => _selectedCategory;
+  String? get selectedCategory => _selectedCategory;
+  List<String> get categories {
+    final categoriesByKey = <String, String>{};
+    for (final equipment in _equipment) {
+      final category = equipment.displayCategory.trim();
+      if (category.isNotEmpty) {
+        categoriesByKey.putIfAbsent(category.toLowerCase(), () => category);
+      }
+    }
+    return categoriesByKey.values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }
+
   EquipmentStatus? get selectedAvailability => _selectedAvailability;
 
   void _watchEquipment(FirebaseFirestore firestore) {
@@ -61,6 +73,19 @@ class EquipmentProvider extends ChangeNotifier {
               ..sort(
                 (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
               );
+            final selectedCategory = _selectedCategory;
+            if (selectedCategory != null) {
+              final matchingCategories = categories
+                  .where(
+                    (category) =>
+                        category.toLowerCase() ==
+                        selectedCategory.toLowerCase(),
+                  )
+                  .toList();
+              _selectedCategory = matchingCategories.isEmpty
+                  ? null
+                  : matchingCategories.first;
+            }
             _isLoading = false;
             _equipmentLoadError = null;
             notifyListeners();
@@ -134,7 +159,9 @@ class EquipmentProvider extends ChangeNotifier {
           (e.assetTag?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
               false);
       final matchesCategory =
-          _selectedCategory == null || e.category == _selectedCategory;
+          _selectedCategory == null ||
+          e.displayCategory.trim().toLowerCase() ==
+              _selectedCategory!.toLowerCase();
       final matchesAvailability =
           _selectedAvailability == null || e.status == _selectedAvailability;
       return matchesSearch && matchesCategory && matchesAvailability;
@@ -154,7 +181,7 @@ class EquipmentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setCategory(EquipmentCategory? category) {
+  void setCategory(String? category) {
     _selectedCategory = category;
     notifyListeners();
   }

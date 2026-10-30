@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/year_level.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/plain_dropdown_field.dart';
 import '../widgets/primary_button.dart';
 import 'account_request_status_screen.dart';
 import 'login_screen.dart';
@@ -24,7 +26,17 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
   final _collegeController = TextEditingController();
   final _emailController = TextEditingController();
 
+  static const List<String> _genders = ['Male', 'Female'];
+  static const List<String> _yearLevels = ['1', '2', '3', '4', '5'];
+  static final List<String> _blocks = List.generate(
+    11,
+    (index) => '${index + 1}',
+  );
+
   UserRole _selectedRole = UserRole.student;
+  String? _selectedGender;
+  String? _selectedYearLevel;
+  String? _selectedBlock;
   bool _isLoading = false;
   bool _submitted = false;
   String? _requestEmail;
@@ -60,6 +72,11 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
       role: _selectedRole,
       idNumber: _idNumberController.text,
       college: _collegeController.text,
+      gender: _selectedGender!,
+      yearLevel: _selectedRole == UserRole.student
+          ? yearLevelToLabel(_selectedYearLevel)
+          : null,
+      block: _selectedRole == UserRole.student ? _selectedBlock : null,
     );
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -206,15 +223,73 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                       validator: (v) => _required(v, 'Full name'),
                     ),
                     const SizedBox(height: 16),
-                    AppTextField(
-                      label: _selectedRole == UserRole.student
-                          ? 'Student ID Number'
-                          : 'Faculty ID Number',
-                      hint: 'e.g. 20243781',
-                      icon: Icons.badge_outlined,
-                      controller: _idNumberController,
-                      validator: (v) => _required(v, 'ID number'),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: AppTextField(
+                            label: _selectedRole == UserRole.student
+                                ? 'Student ID No.'
+                                : 'Faculty ID No.',
+                            hint: 'e.g. 20243781',
+                            icon: Icons.badge_outlined,
+                            controller: _idNumberController,
+                            validator: (v) => _required(v, 'ID number'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: PlainDropdownField<String>(
+                            label: 'Gender',
+                            hint: 'Select gender',
+                            value: _selectedGender,
+                            options: _genders,
+                            labelOf: (gender) => gender,
+                            onChanged: (gender) =>
+                                setState(() => _selectedGender = gender),
+                            validator: (gender) =>
+                                gender == null ? 'Gender is required' : null,
+                          ),
+                        ),
+                      ],
                     ),
+                    if (_selectedRole == UserRole.student) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: PlainDropdownField<String>(
+                              label: 'Year level',
+                              hint: 'Select year',
+                              value: _selectedYearLevel,
+                              options: _yearLevels,
+                              labelOf: (yearLevel) => yearLevel,
+                              onChanged: (yearLevel) => setState(
+                                () => _selectedYearLevel = yearLevel,
+                              ),
+                              validator: (yearLevel) => yearLevel == null
+                                  ? 'Year level is required'
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: PlainDropdownField<String>(
+                              label: 'Block',
+                              hint: 'Select block',
+                              value: _selectedBlock,
+                              options: _blocks,
+                              labelOf: (block) => block,
+                              onChanged: (block) =>
+                                  setState(() => _selectedBlock = block),
+                              validator: (block) =>
+                                  block == null ? 'Block is required' : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     AppTextField(
                       label: 'College',

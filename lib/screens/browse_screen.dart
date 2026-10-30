@@ -113,11 +113,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
                   const SizedBox(height: 12),
 
                   // ----- Category filter -----
-                  _FilterDropdown<EquipmentCategory?>(
+                  _FilterDropdown<String?>(
                     value: equipmentProvider.selectedCategory,
                     hint: 'All categories',
-                    options: [null, ...EquipmentCategory.values],
-                    labelOf: (c) => c?.label ?? 'All categories',
+                    options: [null, ...equipmentProvider.categories],
+                    labelOf: (category) => category ?? 'All categories',
                     onChanged: equipmentProvider.setCategory,
                   ),
                   const SizedBox(height: 12),

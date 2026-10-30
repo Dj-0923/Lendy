@@ -12,8 +12,15 @@ import 'account_info_screen.dart';
 import 'change_password_screen.dart';
 import 'about_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _isLoggingOut = false;
 
   @override
   Widget build(BuildContext context) {
@@ -81,9 +88,18 @@ class SettingsScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 48,
                     child: OutlinedButton.icon(
-                      onPressed: () => _confirmLogout(context),
-                      icon: const Icon(Icons.logout, size: 18),
-                      label: const Text('Logout'),
+                      onPressed: _isLoggingOut ? null : _confirmLogout,
+                      icon: _isLoggingOut
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.red,
+                              ),
+                            )
+                          : const Icon(Icons.logout, size: 18),
+                      label: Text(_isLoggingOut ? 'Logging out...' : 'Logout'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.redAccent),
@@ -102,7 +118,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmLogout(BuildContext context) async {
+  Future<void> _confirmLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -128,11 +144,19 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
 
-    if (confirmed == true && context.mounted) {
-      final authProvider = context.read<AuthProvider>();
-      await authProvider.logout();
-      if (!context.mounted) return;
+    if (confirmed != true || !mounted || _isLoggingOut) return;
+
+    setState(() => _isLoggingOut = true);
+    try {
+      await context.read<AuthProvider>().logout();
+      if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoggingOut = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not log out: $error')));
     }
   }
 }

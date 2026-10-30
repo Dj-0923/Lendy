@@ -61,7 +61,7 @@ void main() {
     return tester.getRect(container);
   }
 
-  // Walks through all 6 categories plus the "All categories" reset, and
+  // Walks through category names plus the "All categories" reset, and
   // requires the field's box to stay byte-identical every time.
   testWidgets('category field never changes size or position', (tester) async {
     await pumpBrowse(tester);
@@ -69,7 +69,7 @@ void main() {
     final baseline = fieldRect(tester, 0);
     expect(baseline.height, 48.0);
 
-    for (final category in EquipmentCategory.values) {
+    for (final category in ['Cameras', '3D Printers', 'New category']) {
       equipment.setCategory(category);
       await tester.pump();
       final rect = fieldRect(tester, 0);
@@ -102,26 +102,22 @@ void main() {
     expect(fieldRect(tester, 1), baseline, reason: 'field moved on reset');
   });
 
-  // Opens the menu for real and checks every option row has one fixed height.
-  testWidgets('open menu rows are all the same height', (tester) async {
+  // With no inventory, the only category option is the reset choice.
+  testWidgets('category menu shows the all-categories option', (tester) async {
     await pumpBrowse(tester);
 
-    equipment.setCategory(EquipmentCategory.tablet);
-    await tester.pump();
     await tester.tap(dropdowns.at(0));
     await tester.pumpAndSettle();
 
     expect(
-      tester.getTopLeft(find.text('All categories')).dy,
+      tester.getTopLeft(find.text('All categories').last).dy,
       greaterThanOrEqualTo(fieldRect(tester, 0).bottom),
       reason: 'category choices should open below the filter field',
     );
 
     final menuRows = find.byType(MenuItemButton);
-    expect(menuRows, findsNWidgets(7));
-    for (var index = 0; index < 7; index++) {
-      expect(tester.getSize(menuRows.at(index)).height, 48.0);
-    }
+    expect(menuRows, findsOneWidget);
+    expect(tester.getSize(menuRows.first).height, 48.0);
   });
 
   testWidgets('dashboard avatar opens the profile', (tester) async {
