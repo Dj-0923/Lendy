@@ -124,36 +124,43 @@ class PlainDropdownField<T> extends StatelessWidget {
                     ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        fieldState.value == null
-                            ? ''
-                            : labelOf(fieldState.value as T),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textPrimary,
+                child: SizedBox(
+                  width: constraints.maxWidth,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          fieldState.value == null
+                              ? ''
+                              : labelOf(fieldState.value as T),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: controller.isOpen
-                          ? controller.close
-                          : controller.open,
-                      tooltip: 'Select $label',
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 40,
-                        height: 40,
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          onPressed: controller.isOpen
+                              ? controller.close
+                              : controller.open,
+                          tooltip: 'Select $label',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 40,
+                            height: 40,
+                          ),
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down,
+                            color: AppColors.textSecondary,
+                            size: 20,
+                          ),
+                        ),
                       ),
-                      icon: const Icon(
-                        Icons.keyboard_arrow_down,
-                        color: AppColors.textSecondary,
-                        size: 20,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

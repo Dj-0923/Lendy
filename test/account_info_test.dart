@@ -353,6 +353,18 @@ void main() {
       }
     });
 
+    testWidgets('dropdown arrow stays on the right side of the field', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+
+      final fieldRect = tester.getRect(genderBorder);
+      final arrowRect = tester.getRect(genderArrow);
+
+      expect(arrowRect.center.dx, greaterThan(fieldRect.center.dx));
+      expect(arrowRect.right, lessThanOrEqualTo(fieldRect.right));
+    });
+
     testWidgets('gender menu stays below the field after selecting Female', (
       tester,
     ) async {
