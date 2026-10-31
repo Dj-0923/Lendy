@@ -178,10 +178,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                           ),
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final useGrid = constraints.maxWidth >= 760;
-                            final cardWidth = useGrid
-                                ? (constraints.maxWidth - 16) / 2
-                                : constraints.maxWidth;
+                            final cardWidth = (constraints.maxWidth - 16) / 2;
 
                             return Wrap(
                               spacing: 16,

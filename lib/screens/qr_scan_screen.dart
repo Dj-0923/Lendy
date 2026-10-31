@@ -1,5 +1,6 @@
 // lib/screens/qr_scan_screen.dart
 import 'dart:ui' as ui;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -27,9 +28,12 @@ class QrScanScreen extends StatefulWidget {
 }
 
 class _QrScanScreenState extends State<QrScanScreen> {
-  final MobileScannerController _controller = MobileScannerController();
+  final MobileScannerController _controller = MobileScannerController(
+    returnImage: true,
+  );
   _ScanState _state = _ScanState.ready;
   EquipmentModel? _scannedEquipment;
+  Uint8List? _capturedImage;
 
   @override
   void dispose() {
@@ -43,11 +47,14 @@ class _QrScanScreenState extends State<QrScanScreen> {
         ? capture.barcodes.first.rawValue
         : null;
     if (code == null || code.isEmpty) return;
-    _processCode(code);
+    _processCode(code, capture.image);
   }
 
-  Future<void> _processCode(String code) async {
-    setState(() => _state = _ScanState.scanning);
+  Future<void> _processCode(String code, Uint8List? capturedImage) async {
+    setState(() {
+      _capturedImage = capturedImage;
+      _state = _ScanState.scanning;
+    });
 
     // Brief artificial delay so "Scanning... / Please hold steady" is visible,
     // while the camera session stays active for later scans.
@@ -64,7 +71,10 @@ class _QrScanScreenState extends State<QrScanScreen> {
           backgroundColor: Colors.redAccent,
         ),
       );
-      setState(() => _state = _ScanState.ready);
+      setState(() {
+        _capturedImage = null;
+        _state = _ScanState.ready;
+      });
       return;
     }
 
@@ -78,6 +88,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     setState(() {
       _state = _ScanState.ready;
       _scannedEquipment = null;
+      _capturedImage = null;
     });
   }
 
@@ -103,12 +114,23 @@ class _QrScanScreenState extends State<QrScanScreen> {
                         children: [
                           ImageFiltered(
                             imageFilter: ui.ImageFilter.blur(
-                              sigmaX: _state == _ScanState.scanning ? 5 : 0,
-                              sigmaY: _state == _ScanState.scanning ? 5 : 0,
+                              sigmaX: _state == _ScanState.ready ? 0 : 5,
+                              sigmaY: _state == _ScanState.ready ? 0 : 5,
                             ),
-                            child: MobileScanner(
-                              controller: _controller,
-                              onDetect: _onDetect,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                MobileScanner(
+                                  controller: _controller,
+                                  onDetect: _onDetect,
+                                ),
+                                if (_capturedImage != null)
+                                  Image.memory(
+                                    _capturedImage!,
+                                    fit: BoxFit.cover,
+                                    gaplessPlayback: true,
+                                  ),
+                              ],
                             ),
                           ),
                           QrScannerOverlay(
@@ -136,25 +158,32 @@ class _QrScanScreenState extends State<QrScanScreen> {
                 ),
                 if (_state == _ScanState.complete &&
                     _scannedEquipment != null) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Scan complete',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Items are ready',
-                    style: TextStyle(color: Colors.white70, fontSize: 12.5),
-                  ),
                   Expanded(
-                    child: Center(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: _buildResultCard(context, _scannedEquipment!),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Column(
+                        children: [
+                          cameraView,
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Scan complete',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Items are ready',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildResultCard(context, _scannedEquipment!),
+                        ],
                       ),
                     ),
                   ),

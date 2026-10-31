@@ -18,6 +18,7 @@ class PlainDropdownField<T> extends StatelessWidget {
   final String hint;
   final T? value;
   final List<T> options;
+  final double? menuMaxHeight;
   final String Function(T value) labelOf;
   final ValueChanged<T?>? onChanged;
   final String? Function(T? value)? validator;
@@ -30,6 +31,7 @@ class PlainDropdownField<T> extends StatelessWidget {
     required this.options,
     required this.labelOf,
     required this.onChanged,
+    this.menuMaxHeight,
     this.validator,
   });
 
@@ -56,6 +58,11 @@ class PlainDropdownField<T> extends StatelessWidget {
                 minimumSize: WidgetStatePropertyAll(
                   Size(constraints.maxWidth, 0),
                 ),
+                maximumSize: menuMaxHeight == null
+                    ? null
+                    : WidgetStatePropertyAll(
+                        Size(constraints.maxWidth, menuMaxHeight!),
+                      ),
               ),
               menuChildren: options
                   .map(

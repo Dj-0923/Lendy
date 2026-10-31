@@ -1,6 +1,5 @@
 // lib/screens/account_info_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
@@ -25,15 +24,17 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
   late final TextEditingController _fullNameController;
   late final TextEditingController _emailController;
   late final TextEditingController _collegeController;
-  late final TextEditingController _yearLevelController;
-  late final TextEditingController _blockController;
   bool _isLoading = false;
 
   String? _selectedGender;
+  String? _selectedYearLevel;
+  String? _selectedBlock;
 
   /// The only two choices offered. Kept as a fixed list so the field can never
   /// hold anything else — a dropdown, not a text box, so nothing can be typed.
   static const List<String> _genders = ['Male', 'Female'];
+  static const List<String> _yearLevels = yearLevelOptions;
+  static const List<String> _blocks = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
 
   @override
   void initState() {
@@ -42,10 +43,9 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
     _fullNameController = TextEditingController(text: user?.fullName ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _collegeController = TextEditingController(text: user?.college ?? '');
-    _yearLevelController = TextEditingController(
-      text: yearLevelToDigit(user?.yearLevel) ?? '',
-    );
-    _blockController = TextEditingController(text: user?.block ?? '');
+    _selectedYearLevel = yearLevelToDigit(user?.yearLevel);
+    final savedBlock = user?.block;
+    _selectedBlock = _blocks.contains(savedBlock) ? savedBlock : null;
     // Only keep a stored gender that is still one of the two choices — the
     // dropdown asserts if it is handed a value that is not in its item list.
     final savedGender = user?.gender;
@@ -57,8 +57,6 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
     _fullNameController.dispose();
     _emailController.dispose();
     _collegeController.dispose();
-    _yearLevelController.dispose();
-    _blockController.dispose();
     super.dispose();
   }
 
@@ -85,10 +83,8 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
       college: _collegeController.text.trim().isEmpty
           ? null
           : _collegeController.text.trim(),
-      yearLevel: yearLevelToLabel(_yearLevelController.text),
-      block: _blockController.text.trim().isEmpty
-          ? null
-          : _blockController.text.trim(),
+      yearLevel: yearLevelToLabel(_selectedYearLevel),
+      block: _selectedBlock,
     );
     setState(() => _isLoading = false);
 
@@ -170,22 +166,38 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                       ),
                       if (!isFaculty) ...[
                         const SizedBox(height: 16),
-                        PlainTextField(
-                          label: 'Year level',
-                          hint: 'e.g. 3',
-                          controller: _yearLevelController,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(1),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: PlainDropdownField<String>(
+                                label: 'Year level',
+                                hint: 'Select year',
+                                value: _selectedYearLevel,
+                                options: _yearLevels,
+                                labelOf: (yearLevel) => yearLevel,
+                                onChanged: (yearLevel) => setState(
+                                  () => _selectedYearLevel = yearLevel,
+                                ),
+                                validator: (yearLevel) =>
+                                    validateYearLevel(yearLevel),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: PlainDropdownField<String>(
+                                label: 'Block',
+                                hint: 'Select block',
+                                value: _selectedBlock,
+                                options: _blocks,
+                                menuMaxHeight:
+                                    PlainDropdownField.menuRowHeight * 5,
+                                labelOf: (block) => block,
+                                onChanged: (block) =>
+                                    setState(() => _selectedBlock = block),
+                              ),
+                            ),
                           ],
-                          validator: validateYearLevel,
-                        ),
-                        const SizedBox(height: 16),
-                        PlainTextField(
-                          label: 'Block',
-                          hint: 'e.g. 7',
-                          controller: _blockController,
                         ),
                       ],
                       const SizedBox(height: 28),

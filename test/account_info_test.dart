@@ -6,9 +6,8 @@
 //  cannot change anything you see on your phone.
 //
 //  What this file protects against:
-//    1. The Year level field must only ever hold a single digit 1-5, and must
-//       turn it into "1st year" / "2nd year" / "3rd year" / "4th year" /
-//       "5th year".
+//    1. The Year level and Block dropdowns must sit side by side and only offer
+//       their supported options.
 //    2. The Gender dropdown must look identical to the text fields above it
 //       and must never move when an option is chosen.
 //    3. The College field accepts either the shortcut or the full programme
@@ -165,8 +164,7 @@ void main() {
     });
   });
 
-  // The rest drive the real widget: they type into the fields and measure the
-  // rendered boxes, the same way a person would see them.
+  // The rest drive the real widget and measure the rendered controls.
   group('AccountInfoScreen', () {
     // Finds a text field by the grey hint inside it. Matched loosely so a
     // longer hint can be added later without breaking these tests.
@@ -180,16 +178,23 @@ void main() {
       of: fieldWithHint(hint),
       matching: find.byType(EditableText),
     );
+    Finder dropdownField(String label) {
+      final anchor = find
+          .ancestor(
+            of: find.byTooltip('Select $label'),
+            matching: find.byType(MenuAnchor),
+          )
+          .first;
+      return find
+          .descendant(of: anchor, matching: find.byType(InputDecorator))
+          .first;
+    }
 
     // The gender dropdown is a menu anchored to its decorated field.
-    final genderField = find.byWidgetPredicate(
-      (w) => w is MenuAnchor,
-      description: 'gender dropdown',
-    );
-    final genderArrow = find.descendant(
-      of: genderField,
-      matching: find.byType(IconButton),
-    );
+    final genderArrow = find.byTooltip('Select Gender');
+    final genderField = find
+        .ancestor(of: genderArrow, matching: find.byType(MenuAnchor))
+        .first;
 
     // The bordered box around the gender dropdown.
     final genderBorder = find
@@ -207,46 +212,60 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    // Types letters, then two digits, then one digit: the field must end up
-    // empty, then "1", then "4".
-    testWidgets('year level field only accepts a single digit', (tester) async {
-      await pumpScreen(tester);
-      final field = editableIn('e.g. 3');
-
-      await tester.enterText(field, 'abc');
-      await tester.pump();
-      expect(tester.widget<EditableText>(field).controller.text, '');
-
-      await tester.enterText(field, '12');
-      await tester.pump();
-      expect(tester.widget<EditableText>(field).controller.text, '1');
-
-      await tester.enterText(field, '4');
-      await tester.pump();
-      expect(tester.widget<EditableText>(field).controller.text, '4');
-    });
-
-    // The ordinal must NOT appear under the field — it is only ever shown on
-    // the Profile screen, from the value that gets saved.
-    testWidgets('year level shows no ordinal text under the field', (
+    testWidgets('student year level and block are side-by-side dropdowns', (
       tester,
     ) async {
       await pumpScreen(tester);
-      final field = editableIn('e.g. 3');
+      final yearLevel = find.byTooltip('Select Year level');
+      final block = find.byTooltip('Select Block');
+      final yearLevelAnchor = find
+          .ancestor(of: yearLevel, matching: find.byType(MenuAnchor))
+          .first;
+      final blockAnchor = find
+          .ancestor(of: block, matching: find.byType(MenuAnchor))
+          .first;
 
-      for (final digit in ['1', '2', '3', '4', '5']) {
-        await tester.enterText(field, digit);
-        await tester.pump();
-        for (final label in [
-          '1st year',
-          '2nd year',
-          '3rd year',
-          '4th year',
-          '5th year',
-        ]) {
-          expect(find.text(label), findsNothing, reason: 'for $digit');
-        }
+      expect(yearLevel, findsOneWidget);
+      expect(block, findsOneWidget);
+
+      final yearRect = tester.getRect(yearLevelAnchor);
+      final blockRect = tester.getRect(blockAnchor);
+      expect(yearRect.left, lessThan(blockRect.left));
+      expect(yearRect.top, blockRect.top);
+
+      await tester.tap(yearLevel);
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsNWidgets(5));
+      for (final option in yearLevelOptions) {
+        expect(find.text(option), findsOneWidget);
       }
+
+      await tester.tap(find.text('3').last);
+      await tester.pumpAndSettle();
+      await tester.tap(block);
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsNWidgets(11));
+      for (final option in List.generate(11, (index) => '${index + 1}')) {
+        expect(find.text(option).last, findsOneWidget);
+      }
+
+      final menuViewport = find.byType(SingleChildScrollView).last;
+      final blockField = find
+          .descendant(of: blockAnchor, matching: find.byType(InputDecorator))
+          .first;
+      expect(tester.getSize(menuViewport).height, lessThanOrEqualTo(240));
+      expect(
+        tester.getRect(menuViewport).overlaps(tester.getRect(blockField)),
+        isFalse,
+        reason: 'the Block menu should not cover its field',
+      );
+
+      await tester.ensureVisible(find.text('11').last);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(find.text('11').last).bottom,
+        lessThanOrEqualTo(tester.getRect(menuViewport).bottom),
+      );
     });
 
     // The input takes either the shortcut or the whole title, upper cased, and
@@ -285,8 +304,6 @@ void main() {
         'e.g. Juan Dela Cruz',
         'e.g. dhie@gmail.com',
         'e.g. BSIT',
-        'e.g. 3',
-        'e.g. 7',
       ]) {
         expect(
           tester.getRect(fieldWithHint(hint)).height,
@@ -294,6 +311,15 @@ void main() {
           reason: '"$hint" is not ${PlainTextField.fieldHeight} tall',
         );
       }
+
+      expect(
+        tester.getRect(dropdownField('Year level')).height,
+        PlainTextField.fieldHeight,
+      );
+      expect(
+        tester.getRect(dropdownField('Block')).height,
+        PlainTextField.fieldHeight,
+      );
     });
 
     // Two things at once: the gender field must be exactly as tall as the
@@ -402,6 +428,8 @@ void main() {
       expect(find.text('Block'), findsNothing);
       expect(fieldWithHint('e.g. 3'), findsNothing);
       expect(fieldWithHint('e.g. 7'), findsNothing);
+      expect(find.byTooltip('Select Year level'), findsNothing);
+      expect(find.byTooltip('Select Block'), findsNothing);
     });
   });
 }

@@ -76,6 +76,10 @@ void main() {
     await pumpProfile(tester, auth);
 
     expect(find.text('Account role'), findsOneWidget);
+    expect(
+      find.text('This is the role you selected when you signed in.'),
+      findsNothing,
+    );
     expect(find.text('College'), findsOneWidget);
     expect(find.text('BSIT'), findsOneWidget);
     expect(find.text('Gender'), findsOneWidget);
@@ -99,7 +103,7 @@ void main() {
     expect(find.text('Department'), findsNothing);
   });
 
-  testWidgets('zero borrowing summary values use the Admin brand color', (
+  testWidgets('borrowing summary values use their status colors', (
     tester,
   ) async {
     final auth = await loginStudent(tester);
@@ -111,10 +115,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final summaryValues = tester.widgetList<Text>(find.text('0'));
-    expect(summaryValues, hasLength(4));
-    for (final value in summaryValues) {
-      expect(value.style?.color, AppColors.brandDeep);
+    Color summaryValueColor(String label) {
+      final card = find
+          .ancestor(of: find.text(label), matching: find.byType(Container))
+          .first;
+      final value = find.descendant(of: card, matching: find.text('0'));
+      return tester.widget<Text>(value).style!.color!;
     }
+
+    expect(summaryValueColor('Total borrowed'), AppColors.textPrimary);
+    expect(summaryValueColor('Due soon'), AppColors.danger);
+    expect(summaryValueColor('Returned'), const Color(0xFF2B6A1E));
+    expect(summaryValueColor('Current borrowed'), const Color(0xFFB86200));
   });
 }

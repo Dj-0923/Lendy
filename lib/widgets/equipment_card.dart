@@ -34,9 +34,9 @@ class EquipmentCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: Image.memory(
                 imageBytes,
-                height: 150,
+                height: 140,
                 width: double.infinity,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
             ),
@@ -65,7 +65,8 @@ class EquipmentCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Flexible(
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 120),
                 child: Text(
                   equipment.assetTag?.isNotEmpty == true
                       ? equipment.assetTag!
@@ -111,6 +112,7 @@ class EquipmentCard extends StatelessWidget {
             child: StatusBadge(
               style: equipmentStatusStyle(equipment.status),
               uppercase: true,
+              compact: true,
             ),
           ),
           const SizedBox(height: 12),

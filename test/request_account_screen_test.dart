@@ -66,8 +66,25 @@ void main() {
     await tester.tap(find.byTooltip('Select Block'));
     await tester.pumpAndSettle();
     expect(find.byType(MenuItemButton), findsNWidgets(11));
-    for (final block in List.generate(11, (index) => '${index + 1}')) {
-      expect(find.text(block).last, findsOneWidget);
-    }
+
+    final blockField = find.ancestor(
+      of: find.byTooltip('Select Block'),
+      matching: find.byType(InputDecorator),
+    );
+    final menuViewport = find.byType(SingleChildScrollView).last;
+    expect(tester.getSize(menuViewport).height, lessThanOrEqualTo(240));
+    expect(
+      tester.getRect(menuViewport).overlaps(tester.getRect(blockField)),
+      isFalse,
+      reason: 'the Block menu should not cover its field',
+    );
+
+    await tester.ensureVisible(find.text('11').last);
+    await tester.pumpAndSettle();
+    expect(find.text('11').last, findsOneWidget);
+    expect(
+      tester.getRect(find.text('11').last).bottom,
+      lessThanOrEqualTo(tester.getRect(menuViewport).bottom),
+    );
   });
 }

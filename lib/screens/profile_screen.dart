@@ -14,6 +14,7 @@ import '../utils/date_utils.dart';
 import '../utils/status_style.dart';
 import '../utils/simple_page_route.dart';
 import '../utils/responsive_layout.dart';
+import '../widgets/simple_header.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/role_badge.dart';
 import 'settings_screen.dart';
@@ -94,7 +95,6 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusBarHeight = MediaQuery.of(context).padding.top;
     final user = context.watch<AuthProvider>().currentUser;
     final requestProvider = context.watch<RequestProvider>();
     final equipmentProvider = context.watch<EquipmentProvider>();
@@ -107,43 +107,18 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // ----- Header (back arrow returns to the Notification tab) -----
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(12, statusBarHeight + 20, 12, 20),
-            color: AppColors.primary,
-            child: Row(
-              children: [
-                if (onBack != null)
-                  IconButton(
-                    onPressed: onBack,
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  )
-                else
-                  const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Profile',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      simpleFadeRoute<void>((_) => const SettingsScreen()),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.settings_outlined,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+          SimpleHeader(
+            title: 'Profile',
+            onBack: onBack,
+            showBackButton: onBack != null,
+            trailing: IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  simpleFadeRoute<void>((_) => const SettingsScreen()),
+                );
+              },
+              icon: const Icon(Icons.settings_outlined, color: Colors.white),
             ),
           ),
 
@@ -234,12 +209,7 @@ class ProfileScreen extends StatelessWidget {
                     title: 'Account information',
                     child: Column(
                       children: [
-                        _InfoRow(
-                          label: 'Account role',
-                          value: user.role.label,
-                          helper:
-                              'This is the role you selected when you signed in.',
-                        ),
+                        _InfoRow(label: 'Account role', value: user.role.label),
                         const Divider(height: 24),
                         if (user.role == UserRole.faculty) ...[
                           _InfoRow(
@@ -314,7 +284,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.totalBorrowedCount(user.id)}',
                                 label: 'Total borrowed',
-                                color: AppColors.brandDeep,
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -323,9 +293,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.dueSoonCount(user.id)}',
                                 label: 'Due soon',
-                                color: requestProvider.dueSoonCount(user.id) > 0
-                                    ? AppColors.danger
-                                    : AppColors.brandDeep,
+                                color: AppColors.danger,
                               ),
                             ),
                           ],
@@ -338,7 +306,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.returnedCount(user.id)}',
                                 label: 'Returned',
-                                color: AppColors.brandDeep,
+                                color: const Color(0xFF2B6A1E),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -347,7 +315,7 @@ class ProfileScreen extends StatelessWidget {
                                 value:
                                     '${requestProvider.currentBorrowedCount(user.id)}',
                                 label: 'Current borrowed',
-                                color: AppColors.brandDeep,
+                                color: const Color(0xFFB86200),
                               ),
                             ),
                           ],
@@ -403,9 +371,8 @@ class _Card extends StatelessWidget {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  final String? helper;
 
-  const _InfoRow({required this.label, required this.value, this.helper});
+  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -428,16 +395,6 @@ class _InfoRow extends StatelessWidget {
             ),
           ],
         ),
-        if (helper != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            helper!,
-            style: const TextStyle(
-              fontSize: 11.5,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
       ],
     );
   }

@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
+import 'package:timezone/data/latest.dart' as timezone_data;
+import 'package:timezone/timezone.dart' as tz;
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/equipment_provider.dart';
@@ -23,6 +25,8 @@ import 'utils/responsive_layout.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  timezone_data.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Manila'));
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   const notificationChannel = AndroidNotificationChannel(
     'lendy_alerts',

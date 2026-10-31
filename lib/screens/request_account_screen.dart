@@ -280,6 +280,8 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                               hint: 'Select block',
                               value: _selectedBlock,
                               options: _blocks,
+                              menuMaxHeight:
+                                  PlainDropdownField.menuRowHeight * 5,
                               labelOf: (block) => block,
                               onChanged: (block) =>
                                   setState(() => _selectedBlock = block),

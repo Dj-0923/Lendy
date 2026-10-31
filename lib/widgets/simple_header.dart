@@ -2,15 +2,20 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-/// Flat teal header with a back arrow and title — sized and styled to match
-/// the custom header used on the Profile screen, for visual consistency
-/// across all secondary/detail screens (Settings, About, Account Info,
-/// Change Password, Notification Settings).
+/// Shared teal header for Profile and secondary/detail screens.
 class SimpleHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onBack;
+  final bool showBackButton;
+  final Widget? trailing;
 
-  const SimpleHeader({super.key, required this.title, this.onBack});
+  const SimpleHeader({
+    super.key,
+    required this.title,
+    this.onBack,
+    this.showBackButton = true,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +27,13 @@ class SimpleHeader extends StatelessWidget {
       color: AppColors.primary,
       child: Row(
         children: [
-          IconButton(
-            onPressed: onBack ?? () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-          ),
+          if (showBackButton)
+            IconButton(
+              onPressed: onBack ?? () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+            )
+          else
+            const SizedBox(width: 8),
           Expanded(
             child: Text(
               title,
@@ -36,6 +44,7 @@ class SimpleHeader extends StatelessWidget {
               ),
             ),
           ),
+          ?trailing,
         ],
       ),
     );

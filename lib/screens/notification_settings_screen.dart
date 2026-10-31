@@ -34,7 +34,7 @@ class NotificationSettingsScreen extends StatelessWidget {
                   ),
                   ToggleSettingRow(
                     title: 'Returns reminders',
-                    subtitle: 'Alert me one day before an item is due',
+                    subtitle: 'Get due-soon, overdue, and return alerts',
                     value: notificationProvider.returnRemindersEnabled,
                     onChanged: notificationProvider.setReturnRemindersEnabled,
                   ),

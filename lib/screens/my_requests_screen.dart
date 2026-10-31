@@ -40,7 +40,13 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
         requests = requestProvider.pendingRequests(userId);
         break;
       case _RequestTab.history:
-        requests = requestProvider.historyRequests(userId);
+        requests = requestProvider
+            .historyRequests(userId)
+            .where(
+              (request) =>
+                  equipmentProvider.findById(request.equipmentId) != null,
+            )
+            .toList();
         break;
     }
 

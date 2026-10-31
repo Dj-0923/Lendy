@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lendy/models/borrow_request_model.dart';
 import 'package:lendy/providers/equipment_provider.dart';
 import 'package:lendy/providers/request_provider.dart';
 
@@ -111,4 +112,32 @@ void main() {
       );
     },
   );
+
+  test('history includes approved, rejected, and completed requests', () async {
+    const userId = 'history-user';
+    final requestIds = <String>[];
+    for (var i = 0; i < 5; i++) {
+      await requests.submitRequest(
+        userId: userId,
+        equipmentId: 'equipment-$i',
+        equipmentName: 'Equipment $i',
+        borrowerName: 'Test User',
+        borrowDate: DateTime.now(),
+        returnDate: DateTime.now().add(const Duration(days: 3)),
+      );
+      requestIds.add(requests.requestsForUser(userId).last.id);
+    }
+
+    final userRequests = requests.requestsForUser(userId);
+    userRequests[0].status = RequestStatus.approved;
+    userRequests[1].status = RequestStatus.rejected;
+    userRequests[2].status = RequestStatus.borrowed;
+    userRequests[3].status = RequestStatus.returned;
+    userRequests[4].status = RequestStatus.pending;
+
+    expect(
+      requests.historyRequests(userId).map((request) => request.id),
+      requestIds.take(4),
+    );
+  });
 }

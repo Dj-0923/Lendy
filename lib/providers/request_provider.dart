@@ -88,6 +88,8 @@ class RequestProvider extends ChangeNotifier {
       requestsForUser(userId)
           .where(
             (r) =>
+                r.status == RequestStatus.approved ||
+                r.status == RequestStatus.borrowed ||
                 r.status == RequestStatus.rejected ||
                 r.status == RequestStatus.returned ||
                 r.status == RequestStatus.cancelled,
