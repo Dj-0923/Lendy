@@ -88,16 +88,13 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
     if (!result.success) {
       if (result.code == 'email-already-in-use') {
         setState(() {
-          _emailValidationError = 'This email is already in use.';
+          _emailValidationError =
+              'This email is already in use. If your request was rejected, ask an admin to clear the old sign-in in Requests & accounts > Accounts.';
         });
         _emailFieldKey.currentState?.validate();
         return;
       }
-      AppNotice.show(
-        context,
-        result.error!,
-        type: AppNoticeType.error,
-      );
+      AppNotice.show(context, result.error!, type: AppNoticeType.error);
       return;
     }
 
