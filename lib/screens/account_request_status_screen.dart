@@ -6,7 +6,7 @@ import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_notice.dart';
 
-class AccountRequestStatusScreen extends StatelessWidget {
+class AccountRequestStatusScreen extends StatefulWidget {
   const AccountRequestStatusScreen({
     super.key,
     required this.email,
@@ -17,6 +17,54 @@ class AccountRequestStatusScreen extends StatelessWidget {
   final String email;
   final VoidCallback onContinueToLogin;
   final VoidCallback onRequestAgain;
+
+  @override
+  State<AccountRequestStatusScreen> createState() =>
+      _AccountRequestStatusScreenState();
+}
+
+class _AccountRequestStatusScreenState
+    extends State<AccountRequestStatusScreen> {
+  AuthProvider? _authProvider;
+  bool _approvalHandled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<AuthProvider>();
+    if (!identical(provider, _authProvider)) {
+      _authProvider?.removeListener(_handleRequestStatusChange);
+      _authProvider = provider..addListener(_handleRequestStatusChange);
+    }
+    _handleRequestStatusChange();
+  }
+
+  void _handleRequestStatusChange() {
+    final request = _authProvider?.accountRequestData;
+    if (_approvalHandled ||
+        request?['status'] != 'approved' ||
+        request?['credentialEmailStatus'] != 'sent') {
+      return;
+    }
+
+    _approvalHandled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AppNotice.show(
+        context,
+        'The temporary password was sent to ${widget.email}. Sign in with it, then set a new password.',
+        type: AppNoticeType.success,
+        title: 'Account approved',
+      );
+      widget.onContinueToLogin();
+    });
+  }
+
+  @override
+  void dispose() {
+    _authProvider?.removeListener(_handleRequestStatusChange);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +116,7 @@ class AccountRequestStatusScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       approved
-                          ? 'Your account is approved. The temporary password was emailed to $email. Sign in with it, then set a new password.'
+                          ? 'Your account is approved. The temporary password was emailed to ${widget.email}. Sign in with it, then set a new password.'
                           : rejected
                           ? requestDeleted
                                 ? 'Your rejected request was removed. No sign-in account was created, so you can submit a new request using this email.'
@@ -146,7 +194,7 @@ class AccountRequestStatusScreen extends StatelessWidget {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed: onContinueToLogin,
+                          onPressed: widget.onContinueToLogin,
                           child: const Text('Continue to Login'),
                         ),
                       ),
@@ -155,7 +203,7 @@ class AccountRequestStatusScreen extends StatelessWidget {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed: onContinueToLogin,
+                          onPressed: widget.onContinueToLogin,
                           child: const Text('Continue to Login'),
                         ),
                       ),
@@ -176,13 +224,13 @@ class AccountRequestStatusScreen extends StatelessWidget {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed: onRequestAgain,
+                          onPressed: widget.onRequestAgain,
                           child: const Text('Submit a new request'),
                         ),
                       ),
                       const SizedBox(height: 8),
                       TextButton(
-                        onPressed: onContinueToLogin,
+                        onPressed: widget.onContinueToLogin,
                         child: const Text('Back to Login'),
                       ),
                     ],
