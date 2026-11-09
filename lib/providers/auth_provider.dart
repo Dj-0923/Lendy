@@ -1,24 +1,33 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_model.dart';
 import '../utils/first_launch_store.dart';
 import '../utils/session_preference_store.dart';
 
+const _approvalApiUrl = 'https://lendy-account-approval.onrender.com';
+
 class RequestAccountResult {
   final bool success;
   final String? error;
   final String? code;
+  final String? warning;
 
-  RequestAccountResult.success() : success = true, error = null, code = null;
+  RequestAccountResult.success({this.warning})
+    : success = true,
+      error = null,
+      code = null;
 
-  RequestAccountResult.failure(this.error, {this.code}) : success = false;
+  RequestAccountResult.failure(this.error, {this.code})
+    : success = false,
+      warning = null;
 }
 
 class AuthProvider extends ChangeNotifier {
@@ -35,6 +44,7 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       },
     );
+    unawaited(_restorePendingAccountRequest());
   }
 
   AuthProvider.forTesting({
@@ -66,6 +76,14 @@ class AuthProvider extends ChangeNotifier {
   bool _loginInProgress = false;
   bool _handlingRevocation = false;
   int _accessRevokedVersion = 0;
+  String? _requestStatusToken;
+  String? _requestStatusId;
+  Timer? _requestStatusTimer;
+  bool _requestStatusRefreshInProgress = false;
+  bool _disposed = false;
+
+  static const _storedRequestIdKey = 'pending_account_request_id';
+  static const _storedRequestTokenKey = 'pending_account_request_token';
 
   UserModel? get currentUser => _currentUser;
   Map<String, dynamic>? get accountRequestData => _accountRequestData;
@@ -73,6 +91,108 @@ class AuthProvider extends ChangeNotifier {
   bool get isReady => _isReady;
   String? get authError => _authError;
   int get accessRevokedVersion => _accessRevokedVersion;
+
+  Future<void> _restorePendingAccountRequest() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final requestId = preferences.getString(_storedRequestIdKey);
+      final token = preferences.getString(_storedRequestTokenKey);
+      if (_disposed || requestId == null || token == null) return;
+      _requestStatusId = requestId;
+      _requestStatusToken = token;
+      await _refreshAccountRequestStatus();
+      if (!_disposed &&
+          _accountRequestData?['status'] != 'approved' &&
+          _accountRequestData?['status'] != 'rejected' &&
+          _requestStatusToken != null) {
+        _startRequestStatusPolling();
+      }
+    } catch (error) {
+      if (_disposed) return;
+      _authError = 'Could not restore account request status: $error';
+      notifyListeners();
+    }
+  }
+
+  Future<void> _storeRequestStatusCredentials(
+    String requestId,
+    String token,
+  ) async {
+    final preferences = await SharedPreferences.getInstance();
+    final savedId = await preferences.setString(_storedRequestIdKey, requestId);
+    final savedToken = await preferences.setString(
+      _storedRequestTokenKey,
+      token,
+    );
+    if (!savedId || !savedToken) {
+      throw StateError('Could not save the account request status locally.');
+    }
+  }
+
+  Future<void> _clearRequestStatusCredentials() async {
+    _requestStatusTimer?.cancel();
+    _requestStatusTimer = null;
+    _requestStatusId = null;
+    _requestStatusToken = null;
+    if (_forTesting) return;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove(_storedRequestIdKey);
+    await preferences.remove(_storedRequestTokenKey);
+  }
+
+  void _startRequestStatusPolling() {
+    _requestStatusTimer?.cancel();
+    _requestStatusTimer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) => unawaited(_refreshAccountRequestStatus()),
+    );
+  }
+
+  Future<void> _refreshAccountRequestStatus() async {
+    final requestId = _requestStatusId;
+    final token = _requestStatusToken;
+    if (requestId == null || token == null || _requestStatusRefreshInProgress) {
+      return;
+    }
+    _requestStatusRefreshInProgress = true;
+    try {
+      final response = await http.post(
+        Uri.parse('$_approvalApiUrl/account-request-status'),
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode({'requestId': requestId, 'statusToken': token}),
+      );
+      if (_disposed) return;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 404 && body['code'] == 'request-removed') {
+        _accountRequestData = {
+          ...?_accountRequestData,
+          'status': 'rejected',
+          'requestDeleted': true,
+        };
+        await _clearRequestStatusCredentials();
+        _approvalRequestId = null;
+        notifyListeners();
+        return;
+      }
+      if (response.statusCode != 200) {
+        throw StateError(
+          body['error'] as String? ?? 'Could not refresh request status.',
+        );
+      }
+      _accountRequestData = {...?_accountRequestData, ...body, 'id': requestId};
+      if (_accountRequestData?['status'] != 'pending') {
+        _requestStatusTimer?.cancel();
+        _requestStatusTimer = null;
+      }
+      notifyListeners();
+    } catch (error) {
+      if (_disposed) return;
+      _authError = 'Could not refresh account request status: $error';
+      notifyListeners();
+    } finally {
+      _requestStatusRefreshInProgress = false;
+    }
+  }
 
   Future<void> _handleAuthStateChanged(firebase_auth.User? user) async {
     if (_accountRequestInProgress || _loginInProgress) return;
@@ -84,7 +204,9 @@ class AuthProvider extends ChangeNotifier {
       await _accountStatusSubscription?.cancel();
       _accountStatusSubscription = null;
       _currentUser = null;
-      _accountRequestData = null;
+      if (_requestStatusToken == null) {
+        _accountRequestData = null;
+      }
       _isReady = true;
       notifyListeners();
       return;
@@ -397,69 +519,56 @@ class AuthProvider extends ChangeNotifier {
     }
 
     _accountRequestInProgress = true;
-    firebase_auth.User? createdUser;
     try {
-      final random = Random.secure();
-      final randomPassword = base64UrlEncode(
-        List<int>.generate(32, (_) => random.nextInt(256)),
+      final response = await http.post(
+        Uri.parse('$_approvalApiUrl/request-account'),
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'fullName': fullName.trim(),
+          'email': email.trim().toLowerCase(),
+          'role': role.name,
+          'idNumber': idNumber.trim(),
+          'college': college.trim(),
+          'gender': gender,
+          if (role == UserRole.student) ...{
+            'yearLevel': yearLevel,
+            'block': block,
+          },
+        }),
       );
-      final credential = await _auth!.createUserWithEmailAndPassword(
-        email: email.trim().toLowerCase(),
-        password: randomPassword,
-      );
-      createdUser = credential.user;
-      if (createdUser == null) {
-        throw StateError('Could not create the authentication account.');
+      final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode != 201) {
+        return RequestAccountResult.failure(
+          responseData['error'] as String? ??
+              'Could not submit the account request.',
+          code: responseData['code'] as String?,
+        );
       }
-      await createdUser.updateDisplayName(fullName.trim());
-      final request = _firestore!.collection('accountRequests').doc();
-      final requestData = <String, dynamic>{
-        'id': request.id,
-        'authUid': createdUser.uid,
-        'name': fullName.trim(),
-        'email': email.trim().toLowerCase(),
-        'role': role.name,
-        'idNumber': idNumber.trim(),
-        'college': college.trim(),
-        'gender': gender,
-        'status': 'pending',
-        'submittedAt': DateTime.now().millisecondsSinceEpoch,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      };
-      if (role == UserRole.student) {
-        requestData['yearLevel'] = yearLevel;
-        requestData['block'] = block;
-      }
-      await request.set(requestData);
+      final requestId = responseData['requestId'] as String;
+      final statusToken = responseData['statusToken'] as String;
+      _requestStatusId = requestId;
+      _requestStatusToken = statusToken;
       _accountRequestData = {
-        'id': request.id,
-        'authUid': createdUser.uid,
+        'id': requestId,
         'name': fullName.trim(),
         'email': email.trim().toLowerCase(),
         'status': 'pending',
       };
-      _approvalRequestId = request.id;
-      _watchAccountRequest(request);
-      return RequestAccountResult.success();
-    } catch (error) {
-      if (createdUser != null) {
-        try {
-          await createdUser.delete();
-        } catch (cleanupError) {
-          _accountRequestInProgress = false;
-          return RequestAccountResult.failure(
-            '${_errorMessage(error)} The sign-in account was created but could '
-            'not be removed; contact an administrator before retrying '
-            '(${_errorMessage(cleanupError)}).',
-            code: error is firebase_auth.FirebaseAuthException
-                ? error.code
-                : null,
-          );
-        }
+      _approvalRequestId = requestId;
+      String? warning;
+      try {
+        await _storeRequestStatusCredentials(requestId, statusToken);
+      } catch (error) {
+        warning =
+            'Your request was submitted, but this device could not save its status check. Keep the app open to follow the request.';
+        debugPrint('Could not persist account request status: $error');
       }
+      _startRequestStatusPolling();
+      unawaited(_refreshAccountRequestStatus());
+      return RequestAccountResult.success(warning: warning);
+    } catch (error) {
       return RequestAccountResult.failure(
-        _errorMessage(error),
-        code: error is firebase_auth.FirebaseAuthException ? error.code : null,
+        'Could not submit the account request: $error',
       );
     } finally {
       _accountRequestInProgress = false;
@@ -615,6 +724,7 @@ class AuthProvider extends ChangeNotifier {
       await _auth!.signOut();
       await SessionPreferenceStore.setKeepSignedIn(false);
     }
+    await _clearRequestStatusCredentials();
     _currentUser = null;
     _accountRequestData = null;
     notifyListeners();
@@ -647,6 +757,8 @@ class AuthProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    _requestStatusTimer?.cancel();
     _authStateSubscription?.cancel();
     _accountRequestSubscription?.cancel();
     super.dispose();

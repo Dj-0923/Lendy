@@ -86,10 +86,12 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
     setState(() => _isLoading = false);
 
     if (!result.success) {
-      if (result.code == 'email-already-in-use') {
+      if (result.code == 'email-already-in-use' ||
+          result.code == 'request-already-pending') {
         setState(() {
-          _emailValidationError =
-              'This email is already in use. If your request was rejected, ask an admin to clear the old sign-in in Requests & accounts > Accounts.';
+          _emailValidationError = result.code == 'request-already-pending'
+              ? 'A request using this email is already waiting for admin approval.'
+              : 'This email already belongs to an approved account.';
         });
         _emailFieldKey.currentState?.validate();
         return;
@@ -98,6 +100,9 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
       return;
     }
 
+    if (result.warning != null) {
+      AppNotice.show(context, result.warning!, type: AppNoticeType.info);
+    }
     setState(() {
       _submitted = true;
       _requestEmail = _emailController.text.trim();
