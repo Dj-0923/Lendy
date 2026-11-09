@@ -10,6 +10,7 @@ import '../providers/auth_provider.dart';
 import 'forgot_password_screen.dart';
 import 'request_account_screen.dart';
 import 'account_request_status_screen.dart';
+import '../widgets/app_notice.dart';
 
 const Color _teal = Color(0xFF1F7F74);
 const Color _labelColor = Color(0xFF1A1A1A);
@@ -73,22 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     _lastBackPress = now;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Tap again to exit',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12),
-          ),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          width: 150,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        ),
-      );
+    AppNotice.show(context, 'Tap again to exit');
   }
 
   String? _validateEmail(String? value) {
@@ -120,8 +106,12 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
+      final isRevoked = error.startsWith('Access denied:');
+      AppNotice.show(
+        context,
+        isRevoked ? error.replaceFirst('Access denied: ', '') : error,
+        type: AppNoticeType.error,
+        title: isRevoked ? 'Access denied' : null,
       );
       return;
     }

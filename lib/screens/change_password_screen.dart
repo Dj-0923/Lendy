@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive_layout.dart';
+import '../widgets/app_notice.dart';
 import '../widgets/simple_header.dart';
 import '../widgets/plain_text_field.dart';
 import '../widgets/primary_button.dart';
@@ -71,17 +72,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (!mounted) return;
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
-      );
+      AppNotice.show(context, error, type: AppNoticeType.error);
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Password updated successfully.'),
-        backgroundColor: AppColors.primaryLight,
-      ),
+    AppNotice.show(
+      context,
+      'Password updated successfully.',
+      type: AppNoticeType.success,
     );
     Navigator.pop(context);
   }

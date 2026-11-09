@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../utils/responsive_layout.dart';
 import '../widgets/dashboard_header.dart';
 import '../widgets/request_card.dart';
+import '../widgets/app_notice.dart';
 
 enum _RequestTab { active, pending, history }
 
@@ -168,8 +169,10 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       await action();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not update this request: $error')),
+      AppNotice.show(
+        context,
+        'Could not update this request: $error',
+        type: AppNoticeType.error,
       );
     }
   }

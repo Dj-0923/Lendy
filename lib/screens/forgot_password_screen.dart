@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/app_notice.dart';
 
 /// Forgot Password screen.
 class ForgotPasswordScreen extends StatefulWidget {
@@ -48,18 +49,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = false);
 
     if (error != null) {
-      _showMessage(error, Colors.redAccent);
+      _showMessage(error, AppNoticeType.error);
       return;
     }
 
-    _showMessage('Reset link sent! Please check your email.', _teal);
+    _showMessage('Reset link sent! Please check your email.', AppNoticeType.success);
     Navigator.pop(context); // back to Login
   }
 
-  void _showMessage(String text, Color background) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(text), backgroundColor: background));
+  void _showMessage(String text, AppNoticeType type) {
+    AppNotice.show(context, text, type: type);
   }
 
   @override

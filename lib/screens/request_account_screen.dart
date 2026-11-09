@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/year_level.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/app_notice.dart';
 import '../widgets/plain_dropdown_field.dart';
 import '../widgets/primary_button.dart';
 import 'account_request_status_screen.dart';
@@ -92,11 +93,10 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
         _emailFieldKey.currentState?.validate();
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.error!),
-          backgroundColor: Colors.redAccent,
-        ),
+      AppNotice.show(
+        context,
+        result.error!,
+        type: AppNoticeType.error,
       );
       return;
     }

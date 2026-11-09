@@ -15,6 +15,7 @@ import '../utils/status_style.dart';
 import '../utils/simple_page_route.dart';
 import '../utils/responsive_layout.dart';
 import '../widgets/simple_header.dart';
+import '../widgets/app_notice.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/role_badge.dart';
 import 'settings_screen.dart';
@@ -79,16 +80,18 @@ class ProfileScreen extends StatelessWidget {
         await croppedImage.readAsBytes(),
       );
       if (error != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save profile photo: $error')),
+        AppNotice.show(
+          context,
+          'Could not save profile photo: $error',
+          type: AppNoticeType.error,
         );
       }
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not select photo. Please try again.'),
-        ),
+      AppNotice.show(
+        context,
+        'Could not select photo. Please try again.',
+        type: AppNoticeType.error,
       );
     }
   }

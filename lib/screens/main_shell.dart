@@ -9,6 +9,7 @@ import 'my_requests_screen.dart';
 import 'notification_screen.dart';
 import 'profile_screen.dart';
 import '../utils/responsive_layout.dart';
+import '../widgets/app_notice.dart';
 
 /// Hosts the bottom navigation bar and switches between the four main
 /// dashboard tabs. Used by both Student and Faculty roles — the dashboard
@@ -49,21 +50,7 @@ class _MainShellState extends State<MainShell> {
     }
 
     _lastBackPress = now;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Tap again to exit',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12),
-          ),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          width: 150,
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        ),
-      );
+    AppNotice.show(context, 'Tap again to exit');
   }
 
   @override

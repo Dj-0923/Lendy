@@ -55,6 +55,8 @@ class AuthProvider extends ChangeNotifier {
   _accountRequestSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _temporaryCredentialSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _accountStatusSubscription;
   UserModel? _currentUser;
   Map<String, dynamic>? _accountRequestData;
   String? _approvalRequestId;
@@ -62,12 +64,15 @@ class AuthProvider extends ChangeNotifier {
   String? _authError;
   bool _accountRequestInProgress = false;
   bool _loginInProgress = false;
+  bool _handlingRevocation = false;
+  int _accessRevokedVersion = 0;
 
   UserModel? get currentUser => _currentUser;
   Map<String, dynamic>? get accountRequestData => _accountRequestData;
   bool get isLoggedIn => _currentUser != null;
   bool get isReady => _isReady;
   String? get authError => _authError;
+  int get accessRevokedVersion => _accessRevokedVersion;
 
   Future<void> _handleAuthStateChanged(firebase_auth.User? user) async {
     if (_accountRequestInProgress || _loginInProgress) return;
@@ -76,6 +81,8 @@ class AuthProvider extends ChangeNotifier {
       _accountRequestSubscription = null;
       await _temporaryCredentialSubscription?.cancel();
       _temporaryCredentialSubscription = null;
+      await _accountStatusSubscription?.cancel();
+      _accountStatusSubscription = null;
       _currentUser = null;
       _accountRequestData = null;
       _isReady = true;
@@ -106,6 +113,7 @@ class AuthProvider extends ChangeNotifier {
               .get();
           if (account.data()?['status'] == 'active' &&
               account.data()?['mustChangePassword'] == true) {
+            _watchAccountStatus(user);
             _approvalRequestId = requests.docs.first.id;
             _watchAccountRequest(requests.docs.first.reference);
             _accountRequestData = data;
@@ -125,6 +133,9 @@ class AuthProvider extends ChangeNotifier {
     } catch (error) {
       _authError = _errorMessage(error);
       _currentUser = null;
+      if (_authError!.startsWith('Access denied:')) {
+        _accessRevokedVersion++;
+      }
       await _auth!.signOut();
     } finally {
       _isReady = true;
@@ -231,8 +242,11 @@ class AuthProvider extends ChangeNotifier {
     }
     final data = snapshot.data()!;
     if (data['status'] != 'active') {
-      throw StateError('This account is disabled. Contact an administrator.');
+      throw StateError(
+        'Access denied: your account has been revoked. Contact an administrator.',
+      );
     }
+    _watchAccountStatus(user);
     if (user.email != null && data['email'] != user.email) {
       await snapshot.reference.update({'email': user.email});
     }
@@ -241,6 +255,42 @@ class AuthProvider extends ChangeNotifier {
       id: user.uid,
       data: {...data, 'email': user.email ?? data['email']},
     );
+  }
+
+  void _watchAccountStatus(firebase_auth.User user) {
+    if (_accountStatusSubscription != null) return;
+    _accountStatusSubscription = _firestore!
+        .collection('accounts')
+        .doc(user.uid)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (!snapshot.exists || snapshot.data()?['status'] != 'active') {
+              _handleRevokedAccount();
+            }
+          },
+          onError: (Object error) {
+            _authError = _errorMessage(error);
+            notifyListeners();
+          },
+        );
+  }
+
+  Future<void> _handleRevokedAccount() async {
+    if (_auth?.currentUser == null || _handlingRevocation) return;
+    _handlingRevocation = true;
+    _currentUser = null;
+    _authError =
+        'Access denied: your account has been revoked. Contact an administrator.';
+    _accessRevokedVersion++;
+    await _accountStatusSubscription?.cancel();
+    _accountStatusSubscription = null;
+    notifyListeners();
+    try {
+      await _auth!.signOut();
+    } finally {
+      _handlingRevocation = false;
+    }
   }
 
   Future<String?> updateProfilePhoto(Uint8List imageBytes) async {
@@ -559,6 +609,8 @@ class AuthProvider extends ChangeNotifier {
     _accountRequestSubscription = null;
     await _temporaryCredentialSubscription?.cancel();
     _temporaryCredentialSubscription = null;
+    await _accountStatusSubscription?.cancel();
+    _accountStatusSubscription = null;
     if (!_forTesting) {
       await _auth!.signOut();
       await SessionPreferenceStore.setKeepSignedIn(false);

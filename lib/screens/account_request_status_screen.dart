@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_notice.dart';
 
 class AccountRequestStatusScreen extends StatelessWidget {
   const AccountRequestStatusScreen({
@@ -124,14 +125,10 @@ class AccountRequestStatusScreen extends StatelessWidget {
                                         ClipboardData(text: temporaryPassword),
                                       );
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
+                                      AppNotice.show(
                                         context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Temporary password copied.',
-                                          ),
-                                        ),
+                                        'Temporary password copied.',
+                                        type: AppNoticeType.success,
                                       );
                                     },
                                     icon: const Icon(Icons.copy_rounded),

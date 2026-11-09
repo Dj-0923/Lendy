@@ -7,6 +7,7 @@ import '../providers/request_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/date_utils.dart';
 import '../utils/responsive_layout.dart';
+import '../widgets/app_notice.dart';
 import '../widgets/primary_button.dart';
 
 class RequestFormScreen extends StatefulWidget {
@@ -44,18 +45,14 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
 
   Future<void> _handleSubmit() async {
     if (_borrowDate == null || _returnDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select both borrow and return dates.'),
-        ),
-      );
+      AppNotice.show(context, 'Please select both borrow and return dates.');
       return;
     }
     if (_returnDate!.isBefore(_borrowDate!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Return date cannot be before the borrow date.'),
-        ),
+      AppNotice.show(
+        context,
+        'Return date cannot be before the borrow date.',
+        type: AppNoticeType.error,
       );
       return;
     }
@@ -64,10 +61,10 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
     final user = context.read<AuthProvider>().currentUser;
     if (user == null) {
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please sign in before requesting an item.'),
-        ),
+      AppNotice.show(
+        context,
+        'Please sign in before requesting an item.',
+        type: AppNoticeType.error,
       );
       return;
     }
@@ -83,19 +80,20 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not submit your request: $error')),
+      AppNotice.show(
+        context,
+        'Could not submit your request: $error',
+        type: AppNoticeType.error,
       );
       return;
     }
     if (!mounted) return;
 
     setState(() => _isSubmitting = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Request submitted! Status: Pending Approval'),
-        backgroundColor: AppColors.primaryLight,
-      ),
+    AppNotice.show(
+      context,
+      'Request submitted! Status: Pending Approval',
+      type: AppNoticeType.success,
     );
     Navigator.pop(context);
   }

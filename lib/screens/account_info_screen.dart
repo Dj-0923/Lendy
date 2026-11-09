@@ -11,6 +11,7 @@ import '../widgets/simple_header.dart';
 import '../widgets/plain_text_field.dart';
 import '../widgets/plain_dropdown_field.dart';
 import '../widgets/primary_button.dart';
+import '../widgets/app_notice.dart';
 
 class AccountInfoScreen extends StatefulWidget {
   const AccountInfoScreen({super.key});
@@ -91,17 +92,14 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
     if (!mounted) return;
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
-      );
+      AppNotice.show(context, error, type: AppNoticeType.error);
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Account information updated.'),
-        backgroundColor: AppColors.primaryLight,
-      ),
+    AppNotice.show(
+      context,
+      'Account information updated.',
+      type: AppNoticeType.success,
     );
     Navigator.pop(context);
   }

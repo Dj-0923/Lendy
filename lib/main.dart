@@ -19,9 +19,12 @@ import 'screens/login_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/set_new_password_screen.dart';
 import 'screens/main_shell.dart';
+import 'widgets/app_notice.dart';
 import 'utils/first_launch_store.dart';
 import 'utils/session_preference_store.dart';
 import 'utils/responsive_layout.dart';
+
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -138,12 +141,16 @@ class SmartClassroomApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
+        navigatorKey: _rootNavigatorKey,
+        scaffoldMessengerKey: AppNotice.messengerKey,
         title: 'Lendy',
         debugShowCheckedModeBanner: false,
         // See lib/utils/responsive_layout.dart for app-wide responsive sizing
         // and its breakpoints.
-        builder: (context, child) =>
-            ResponsiveAppFrame(child: child ?? const SizedBox.shrink()),
+        builder: (context, child) => _AuthSessionGuard(
+          navigatorKey: _rootNavigatorKey,
+          child: ResponsiveAppFrame(child: child ?? const SizedBox.shrink()),
+        ),
         theme: ThemeData(
           primaryColor: AppColors.primary,
           scaffoldBackgroundColor: AppColors.background,
@@ -161,4 +168,66 @@ class SmartClassroomApp extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AuthSessionGuard extends StatefulWidget {
+  const _AuthSessionGuard({
+    required this.navigatorKey,
+    required this.child,
+  });
+
+  final GlobalKey<NavigatorState> navigatorKey;
+  final Widget child;
+
+  @override
+  State<_AuthSessionGuard> createState() => _AuthSessionGuardState();
+}
+
+class _AuthSessionGuardState extends State<_AuthSessionGuard> {
+  AuthProvider? _auth;
+  int _lastRevokedVersion = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = context.read<AuthProvider>();
+    if (identical(auth, _auth)) return;
+    _auth?.removeListener(_handleAuthChange);
+    _auth = auth;
+    auth.addListener(_handleAuthChange);
+    _handleAuthChange();
+  }
+
+  void _handleAuthChange() {
+    final auth = _auth;
+    if (auth == null || auth.accessRevokedVersion <= _lastRevokedVersion) {
+      return;
+    }
+    _lastRevokedVersion = auth.accessRevokedVersion;
+    final message = auth.authError
+            ?.replaceFirst('Access denied: ', '') ??
+        'Your account has been revoked. Contact an administrator.';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        '/login',
+        (_) => false,
+      );
+      AppNotice.show(
+        null,
+        message,
+        type: AppNoticeType.error,
+        title: 'Access denied',
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _auth?.removeListener(_handleAuthChange);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

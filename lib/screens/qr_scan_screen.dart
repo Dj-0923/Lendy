@@ -11,6 +11,7 @@ import '../theme/app_colors.dart';
 import '../utils/status_style.dart';
 import '../utils/equipment_qr_code.dart';
 import '../widgets/qr_scanner_overlay.dart';
+import '../widgets/app_notice.dart';
 import '../widgets/status_badge.dart';
 import 'request_form_screen.dart';
 
@@ -65,11 +66,10 @@ class _QrScanScreenState extends State<QrScanScreen> {
     final equipment = context.read<EquipmentProvider>().findById(equipmentId);
 
     if (equipment == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No equipment found for code "$code".'),
-          backgroundColor: Colors.redAccent,
-        ),
+      AppNotice.show(
+        context,
+        'No equipment found for code "$code".',
+        type: AppNoticeType.error,
       );
       setState(() {
         _capturedImage = null;

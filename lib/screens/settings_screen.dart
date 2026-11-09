@@ -7,6 +7,7 @@ import '../utils/responsive_layout.dart';
 import '../utils/simple_page_route.dart';
 import '../widgets/simple_header.dart';
 import '../widgets/settings_tile.dart';
+import '../widgets/app_notice.dart';
 import 'notification_settings_screen.dart';
 import 'account_info_screen.dart';
 import 'change_password_screen.dart';
@@ -154,9 +155,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _isLoggingOut = false);
-      ScaffoldMessenger.of(
+      AppNotice.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not log out: $error')));
+        'Could not log out: $error',
+        type: AppNoticeType.error,
+      );
     }
   }
 }
