@@ -14,10 +14,11 @@ import '../utils/session_preference_store.dart';
 class RequestAccountResult {
   final bool success;
   final String? error;
+  final String? code;
 
-  RequestAccountResult.success() : success = true, error = null;
+  RequestAccountResult.success() : success = true, error = null, code = null;
 
-  RequestAccountResult.failure(this.error) : success = false;
+  RequestAccountResult.failure(this.error, {this.code}) : success = false;
 }
 
 class AuthProvider extends ChangeNotifier {
@@ -36,12 +37,15 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  AuthProvider.forTesting({UserModel? currentUser})
-    : _auth = null,
-      _firestore = null,
-      _forTesting = true,
-      _isReady = true,
-      _currentUser = currentUser;
+  AuthProvider.forTesting({
+    UserModel? currentUser,
+    Map<String, dynamic>? accountRequestData,
+  }) : _auth = null,
+       _firestore = null,
+       _forTesting = true,
+       _isReady = true,
+       _currentUser = currentUser,
+       _accountRequestData = accountRequestData;
 
   final firebase_auth.FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
@@ -49,6 +53,8 @@ class AuthProvider extends ChangeNotifier {
   StreamSubscription<firebase_auth.User?>? _authStateSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _accountRequestSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _temporaryCredentialSubscription;
   UserModel? _currentUser;
   Map<String, dynamic>? _accountRequestData;
   String? _approvalRequestId;
@@ -68,6 +74,8 @@ class AuthProvider extends ChangeNotifier {
     if (user == null) {
       await _accountRequestSubscription?.cancel();
       _accountRequestSubscription = null;
+      await _temporaryCredentialSubscription?.cancel();
+      _temporaryCredentialSubscription = null;
       _currentUser = null;
       _accountRequestData = null;
       _isReady = true;
@@ -140,12 +148,24 @@ class AuthProvider extends ChangeNotifier {
               data['status'] == 'pending' || data['status'] == 'rejected';
           final hasApprovedRequest = data['status'] == 'approved';
           if (isWaiting || hasApprovedRequest) {
-            _accountRequestData = data;
+            final loadedPassword = _accountRequestData?['temporaryPassword'];
+            _accountRequestData = {
+              ...data,
+              if (loadedPassword is String) 'temporaryPassword': loadedPassword,
+            };
+            if (hasApprovedRequest) {
+              _watchTemporaryCredential(requestReference);
+            } else {
+              _temporaryCredentialSubscription?.cancel();
+              _temporaryCredentialSubscription = null;
+            }
           } else {
             _accountRequestData = null;
             _approvalRequestId = null;
             _accountRequestSubscription?.cancel();
             _accountRequestSubscription = null;
+            _temporaryCredentialSubscription?.cancel();
+            _temporaryCredentialSubscription = null;
           }
         }
         notifyListeners();
@@ -155,6 +175,38 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       },
     );
+  }
+
+  void _watchTemporaryCredential(
+    DocumentReference<Map<String, dynamic>> requestReference,
+  ) {
+    if (_temporaryCredentialSubscription != null) return;
+    _temporaryCredentialSubscription = requestReference
+        .collection('privateCredentials')
+        .doc('temporary')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            final current = _accountRequestData;
+            if (current == null) return;
+            final credential = snapshot.data();
+            if (credential?['temporaryPassword'] is String) {
+              _accountRequestData = {
+                ...current,
+                'temporaryPassword': credential!['temporaryPassword'],
+              };
+            } else if (current['temporaryPassword'] is! String) {
+              final updated = Map<String, dynamic>.from(current)
+                ..remove('temporaryPassword');
+              _accountRequestData = updated;
+            }
+            notifyListeners();
+          },
+          onError: (Object error) {
+            _authError = _errorMessage(error);
+            notifyListeners();
+          },
+        );
   }
 
   Future<UserModel> _loadActiveAccount(firebase_auth.User user) async {
@@ -337,10 +389,16 @@ class AuthProvider extends ChangeNotifier {
             '${_errorMessage(error)} The sign-in account was created but could '
             'not be removed; contact an administrator before retrying '
             '(${_errorMessage(cleanupError)}).',
+            code: error is firebase_auth.FirebaseAuthException
+                ? error.code
+                : null,
           );
         }
       }
-      return RequestAccountResult.failure(_errorMessage(error));
+      return RequestAccountResult.failure(
+        _errorMessage(error),
+        code: error is firebase_auth.FirebaseAuthException ? error.code : null,
+      );
     } finally {
       _accountRequestInProgress = false;
       _isReady = true;
@@ -361,11 +419,19 @@ class AuthProvider extends ChangeNotifier {
     }
 
     try {
+      await _temporaryCredentialSubscription?.cancel();
+      _temporaryCredentialSubscription = null;
       await user.updatePassword(newPassword);
       await _firestore!.collection('accounts').doc(user.uid).update({
         'mustChangePassword': false,
       });
       if (_approvalRequestId case final requestId?) {
+        await _firestore
+            .collection('accountRequests')
+            .doc(requestId)
+            .collection('privateCredentials')
+            .doc('temporary')
+            .delete();
         if (_accountRequestData?['temporaryPassword'] is String) {
           await _firestore.collection('accountRequests').doc(requestId).update({
             'temporaryPassword': FieldValue.delete(),
@@ -479,6 +545,8 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     await _accountRequestSubscription?.cancel();
     _accountRequestSubscription = null;
+    await _temporaryCredentialSubscription?.cancel();
+    _temporaryCredentialSubscription = null;
     if (!_forTesting) {
       await _auth!.signOut();
       await SessionPreferenceStore.setKeepSignedIn(false);

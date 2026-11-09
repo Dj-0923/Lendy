@@ -21,6 +21,7 @@ class RequestAccountScreen extends StatefulWidget {
 
 class _RequestAccountScreenState extends State<RequestAccountScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _emailFieldKey = GlobalKey<FormFieldState<String>>();
   final _fullNameController = TextEditingController();
   final _idNumberController = TextEditingController();
   final _collegeController = TextEditingController();
@@ -40,6 +41,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
   bool _isLoading = false;
   bool _submitted = false;
   String? _requestEmail;
+  String? _emailValidationError;
 
   @override
   void dispose() {
@@ -56,6 +58,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
   }
 
   String? _validateEmail(String? value) {
+    if (_emailValidationError != null) return _emailValidationError;
     if (value == null || value.trim().isEmpty) return 'Email is required';
     final emailRegex = RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$');
     if (!emailRegex.hasMatch(value.trim())) return 'Enter a valid email';
@@ -82,6 +85,13 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
     setState(() => _isLoading = false);
 
     if (!result.success) {
+      if (result.code == 'email-already-in-use') {
+        setState(() {
+          _emailValidationError = 'This email is already in use.';
+        });
+        _emailFieldKey.currentState?.validate();
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.error!),
@@ -108,6 +118,15 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
     );
   }
 
+  Future<void> _requestAgain() async {
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const RequestAccountScreen()),
+      (_) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
@@ -116,6 +135,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
       return AccountRequestStatusScreen(
         email: _requestEmail ?? _emailController.text.trim(),
         onContinueToLogin: _goToLogin,
+        onRequestAgain: _requestAgain,
       );
     }
 
@@ -302,12 +322,22 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                     ),
                     const SizedBox(height: 16),
                     AppTextField(
+                      fieldKey: _emailFieldKey,
                       label: 'Email',
                       hint: 'e.g. username@gmail.com',
                       icon: Icons.email_outlined,
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       validator: _validateEmail,
+                      onChanged: (_) {
+                        if (_emailValidationError == null) return;
+                        setState(() {
+                          _emailValidationError = null;
+                        });
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _emailFieldKey.currentState?.validate();
+                        });
+                      },
                     ),
                     const SizedBox(height: 24),
                     PrimaryButton(

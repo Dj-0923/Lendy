@@ -147,6 +147,15 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Future<void> _requestAgain() async {
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const RequestAccountScreen()),
+      (_) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -157,6 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return AccountRequestStatusScreen(
         email: requestEmail,
         onContinueToLogin: () => _returnToLogin(requestEmail),
+        onRequestAgain: _requestAgain,
       );
     }
     if (_allowExistingSessionRedirect &&
