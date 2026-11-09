@@ -91,8 +91,7 @@ class AuthProvider extends ChangeNotifier {
           _authError = null;
           return;
         }
-        if (data['status'] == 'approved' &&
-            data['temporaryPassword'] is String) {
+        if (data['status'] == 'approved') {
           final account = await _firestore
               .collection('accounts')
               .doc(user.uid)
@@ -139,10 +138,8 @@ class AuthProvider extends ChangeNotifier {
           final data = snapshot.data()!;
           final isWaiting =
               data['status'] == 'pending' || data['status'] == 'rejected';
-          final hasTemporaryPassword =
-              data['status'] == 'approved' &&
-              data['temporaryPassword'] is String;
-          if (isWaiting || hasTemporaryPassword) {
+          final hasApprovedRequest = data['status'] == 'approved';
+          if (isWaiting || hasApprovedRequest) {
             _accountRequestData = data;
           } else {
             _accountRequestData = null;
@@ -240,8 +237,7 @@ class AuthProvider extends ChangeNotifier {
           notifyListeners();
           return null;
         }
-        if (data['status'] == 'approved' &&
-            data['temporaryPassword'] is String) {
+        if (data['status'] == 'approved') {
           final account = await _firestore
               .collection('accounts')
               .doc(user.uid)
@@ -370,9 +366,11 @@ class AuthProvider extends ChangeNotifier {
         'mustChangePassword': false,
       });
       if (_approvalRequestId case final requestId?) {
-        await _firestore.collection('accountRequests').doc(requestId).update({
-          'temporaryPassword': FieldValue.delete(),
-        });
+        if (_accountRequestData?['temporaryPassword'] is String) {
+          await _firestore.collection('accountRequests').doc(requestId).update({
+            'temporaryPassword': FieldValue.delete(),
+          });
+        }
         _approvalRequestId = null;
       }
       await _accountRequestSubscription?.cancel();
