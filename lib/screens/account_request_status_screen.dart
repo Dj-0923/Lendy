@@ -22,6 +22,7 @@ class AccountRequestStatusScreen extends StatelessWidget {
     final request = context.watch<AuthProvider>().accountRequestData;
     final approved = request?['status'] == 'approved';
     final rejected = request?['status'] == 'rejected';
+    final requestDeleted = request?['requestDeleted'] == true;
     final emailSent = request?['credentialEmailStatus'] == 'sent';
     final passwordValue = request?['temporaryPassword'];
     final String? temporaryPassword = passwordValue is String
@@ -73,7 +74,9 @@ class AccountRequestStatusScreen extends StatelessWidget {
                                 ? 'The email could not be sent, but you can use the temporary password below to sign in and set a new one.'
                                 : 'Your account is approved, but the password email could not be sent. Please contact the administrator.'
                           : rejected
-                          ? 'Your request was not approved. You can submit a new request using this email.'
+                          ? requestDeleted
+                                ? 'Your rejected request and its unused sign-in account were removed. You can submit a new request using this email.'
+                                : 'Your request was not approved. You can submit a new request using this email.'
                           : 'Your request is waiting for admin approval. Your temporary password will be emailed if the admin approves it.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: AppColors.textSecondary),

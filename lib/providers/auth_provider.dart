@@ -139,9 +139,21 @@ class AuthProvider extends ChangeNotifier {
     _accountRequestSubscription = requestReference.snapshots().listen(
       (snapshot) {
         if (!snapshot.exists) {
-          _accountRequestData = null;
+          final previousRequest = _accountRequestData;
+          if (previousRequest?['status'] == 'pending' ||
+              previousRequest?['status'] == 'rejected') {
+            _accountRequestData = {
+              ...previousRequest!,
+              'status': 'rejected',
+              'requestDeleted': true,
+            };
+          } else {
+            _accountRequestData = null;
+          }
           _approvalRequestId = null;
-          _authError = 'The account request could not be found.';
+          _authError = null;
+          _temporaryCredentialSubscription?.cancel();
+          _temporaryCredentialSubscription = null;
         } else {
           final data = snapshot.data()!;
           final isWaiting =
