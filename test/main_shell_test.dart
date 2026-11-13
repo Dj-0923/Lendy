@@ -57,8 +57,6 @@ void main() {
     expect(
       headerDecoration.borderRadius,
       const BorderRadius.only(
-        topLeft: Radius.circular(20),
-        topRight: Radius.circular(20),
         bottomLeft: Radius.circular(40),
         bottomRight: Radius.circular(40),
       ),
@@ -71,7 +69,7 @@ void main() {
     expect(notificationDecoration.shape, BoxShape.circle);
     expect(
       tester.getSize(find.byKey(const Key('dashboard-notification-circle'))),
-      const Size(44, 44),
+      const Size(36, 36),
     );
     await tester.tap(find.text('Loans').last);
     await tester.pumpAndSettle();

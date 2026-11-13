@@ -46,8 +46,6 @@ class DashboardHeader extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColors.primary,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
           bottomLeft: Radius.circular(40),
           bottomRight: Radius.circular(40),
         ),
@@ -138,8 +136,8 @@ class DashboardHeader extends StatelessWidget {
                   tooltip: 'Notifications',
                   icon: Container(
                     key: const Key('dashboard-notification-circle'),
-                    width: 44,
-                    height: 44,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white.withValues(alpha: 0.08),
