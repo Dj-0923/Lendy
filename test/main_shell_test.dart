@@ -34,30 +34,172 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('system back from Request returns to Home', (tester) async {
+  testWidgets('Loans replaces Request in the bottom navigation', (
+    tester,
+  ) async {
     await pumpMainShell(tester);
 
-    await tester.tap(find.text('Request').last);
+    expect(find.text('Request'), findsNothing);
+    expect(find.text('Messages'), findsOneWidget);
+    expect(find.text('Scan'), findsOneWidget);
+    expect(find.byKey(const Key('main-scan-button')), findsOneWidget);
+    expect(find.byKey(const Key('browse-search-scanner')), findsOneWidget);
+    expect(find.byIcon(Icons.mic_none_outlined), findsNothing);
+    final avatarOutline = tester.widget<Container>(
+      find.byKey(const Key('dashboard-profile-outline')),
+    );
+    final avatarDecoration = avatarOutline.decoration! as BoxDecoration;
+    expect(avatarDecoration.border!.top.color, const Color(0xFF9FE3A5));
+    final header = tester.widget<Container>(
+      find.byKey(const Key('dashboard-header')),
+    );
+    final headerDecoration = header.decoration! as BoxDecoration;
+    expect(
+      headerDecoration.borderRadius,
+      const BorderRadius.only(
+        topLeft: Radius.circular(20),
+        topRight: Radius.circular(20),
+        bottomLeft: Radius.circular(40),
+        bottomRight: Radius.circular(40),
+      ),
+    );
+    final notificationCircle = tester.widget<Container>(
+      find.byKey(const Key('dashboard-notification-circle')),
+    );
+    final notificationDecoration =
+        notificationCircle.decoration! as BoxDecoration;
+    expect(notificationDecoration.shape, BoxShape.circle);
+    expect(
+      tester.getSize(find.byKey(const Key('dashboard-notification-circle'))),
+      const Size(44, 44),
+    );
+    await tester.tap(find.text('Loans').last);
     await tester.pumpAndSettle();
-    expect(find.text('My requests'), findsOneWidget);
+    final loansHeaderHeight = tester
+        .getSize(find.byKey(const Key('loans-header')))
+        .height;
+    final loansHeader = tester.widget<Container>(
+      find.byKey(const Key('loans-header')),
+    );
+    expect((loansHeader.decoration! as BoxDecoration).borderRadius, isNull);
+    expect(find.text('Loans'), findsWidgets);
+    expect(find.byKey(const Key('loans-header')), findsOneWidget);
+    expect(find.byKey(const Key('loans-back')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-profile-avatar')), findsNothing);
+    expect(find.byKey(const Key('dashboard-notifications')), findsNothing);
+    expect(find.byKey(const Key('main-scan-button')), findsNothing);
+    expect(find.text('Messages'), findsNothing);
+    expect(find.text('Profile'), findsNothing);
+    expect(
+      find.text('Track everything you\'ve borrowed, requested, or returned.'),
+      findsOneWidget,
+    );
 
-    await tester.binding.handlePopRoute();
+    await tester.tap(find.byKey(const Key('loans-back')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse Item'), findsOneWidget);
+    expect(find.text('Browse Items'), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('dashboard-header'))).height,
+      greaterThan(loansHeaderHeight),
+    );
+  });
+
+  testWidgets('Loans shows a badge for unread loan updates', (tester) async {
+    await pumpMainShell(tester);
+
+    expect(find.byKey(const Key('loans-nav-badge')), findsNothing);
+
+    notifications.addNotification('Request approved');
+    await tester.pump();
+
+    expect(find.byKey(const Key('loans-nav-badge')), findsOneWidget);
+    expect(find.text('1'), findsWidgets);
+
+    await notifications.markAllRead();
+    await tester.pump();
+
+    expect(find.byKey(const Key('loans-nav-badge')), findsNothing);
   });
 
   testWidgets('system back from Notification returns to Home', (tester) async {
     await pumpMainShell(tester);
+    notifications.addNotification('Request approved');
+    await tester.pump();
+    expect(
+      find.byKey(const Key('dashboard-notification-badge')),
+      findsOneWidget,
+    );
 
-    await tester.tap(find.text('Notification').last);
+    await tester.tap(find.byKey(const Key('dashboard-notifications')));
     await tester.pumpAndSettle();
     expect(find.text('Notifications'), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-profile-avatar')), findsNothing);
+    expect(find.byKey(const Key('dashboard-notifications')), findsNothing);
+    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    expect(notifications.unreadCount, 0);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse Item'), findsOneWidget);
+    expect(find.text('Browse Items'), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-notification-badge')), findsNothing);
+  });
+
+  testWidgets('Notifications back button returns to Home', (tester) async {
+    await pumpMainShell(tester);
+
+    await tester.tap(find.text('Loans').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('loans-back')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('dashboard-notifications')));
+    await tester.pumpAndSettle();
+    expect(find.text('Notifications'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Browse Items'), findsOneWidget);
+  });
+
+  testWidgets('Messages opens a full-screen conversation with a back button', (
+    tester,
+  ) async {
+    await pumpMainShell(tester);
+
+    await tester.tap(find.text('Messages'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('messages-back')), findsOneWidget);
+    expect(find.text('Lendy Admin'), findsOneWidget);
+    expect(find.text('Admin'), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-notifications')), findsNothing);
+    expect(find.byKey(const Key('main-scan-button')), findsNothing);
+    expect(find.text('Scan'), findsNothing);
+    expect(find.text('Home'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('messages-back')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Browse Items'), findsOneWidget);
+    expect(find.text('Messages'), findsOneWidget);
+  });
+
+  testWidgets('system back from Messages returns to Home', (tester) async {
+    await pumpMainShell(tester);
+
+    await tester.tap(find.text('Loans').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('loans-back')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Messages'));
+    await tester.pumpAndSettle();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Browse Items'), findsOneWidget);
   });
 
   testWidgets('system back on Home shows exit prompt', (tester) async {

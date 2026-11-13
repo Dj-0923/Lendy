@@ -1,16 +1,86 @@
 // lib/screens/notification_screen.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/notification_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive_layout.dart';
-import '../widgets/dashboard_header.dart';
 import '../widgets/notification_tile.dart';
+import '../widgets/simple_header.dart';
 
-class NotificationScreen extends StatelessWidget {
-  final VoidCallback? onProfileTap;
+class NotificationScreen extends StatefulWidget {
+  final VoidCallback onBackTap;
+  final bool isActive;
 
-  const NotificationScreen({super.key, this.onProfileTap});
+  const NotificationScreen({
+    super.key,
+    required this.onBackTap,
+    required this.isActive,
+  });
+
+  @override
+  State<NotificationScreen> createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends State<NotificationScreen> {
+  NotificationProvider? _notificationProvider;
+  String? _lastMarkedUnreadIds;
+  bool _markScheduled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<NotificationProvider>();
+    if (_notificationProvider != provider) {
+      _notificationProvider?.removeListener(_scheduleMarkUnreadAsRead);
+      _notificationProvider = provider..addListener(_scheduleMarkUnreadAsRead);
+    }
+    _scheduleMarkUnreadAsRead();
+  }
+
+  @override
+  void didUpdateWidget(covariant NotificationScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) {
+      _scheduleMarkUnreadAsRead();
+    }
+  }
+
+  void _scheduleMarkUnreadAsRead() {
+    if (!widget.isActive || _markScheduled) return;
+    _markScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _markScheduled = false;
+      if (mounted) _markUnreadAsRead();
+    });
+  }
+
+  void _markUnreadAsRead() {
+    if (!widget.isActive) return;
+    final provider = _notificationProvider;
+    if (provider == null) return;
+    final unreadIds =
+        provider.notifications
+            .where((notification) => !notification.isRead)
+            .map((notification) => notification.id)
+            .toList()
+          ..sort();
+    if (unreadIds.isEmpty) {
+      _lastMarkedUnreadIds = null;
+      return;
+    }
+    final signature = unreadIds.join('|');
+    if (_lastMarkedUnreadIds == signature) return;
+    _lastMarkedUnreadIds = signature;
+    unawaited(provider.markAllRead());
+  }
+
+  @override
+  void dispose() {
+    _notificationProvider?.removeListener(_scheduleMarkUnreadAsRead);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +91,7 @@ class NotificationScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          DashboardHeader(title: 'Notifications', onProfileTap: onProfileTap),
+          SimpleHeader(title: 'Notifications', onBack: widget.onBackTap),
           Expanded(
             child: ResponsiveContent(
               child: ListView(

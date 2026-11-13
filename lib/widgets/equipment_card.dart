@@ -8,11 +8,13 @@ import 'status_badge.dart';
 class EquipmentCard extends StatelessWidget {
   final EquipmentModel equipment;
   final VoidCallback onRequest;
+  final bool requested;
 
   const EquipmentCard({
     super.key,
     required this.equipment,
     required this.onRequest,
+    this.requested = false,
   });
 
   @override
@@ -120,7 +122,8 @@ class EquipmentCard extends StatelessWidget {
             width: double.infinity,
             height: 42,
             child: ElevatedButton(
-              onPressed: equipment.status == EquipmentStatus.available
+              onPressed:
+                  equipment.status == EquipmentStatus.available && !requested
                   ? onRequest
                   : null,
               style: ElevatedButton.styleFrom(
@@ -132,7 +135,9 @@ class EquipmentCard extends StatelessWidget {
                 ),
               ),
               child: Text(
-                equipment.status == EquipmentStatus.available
+                requested
+                    ? 'Requested'
+                    : equipment.status == EquipmentStatus.available
                     ? 'Request'
                     : equipment.status.label,
                 style: const TextStyle(fontWeight: FontWeight.w600),

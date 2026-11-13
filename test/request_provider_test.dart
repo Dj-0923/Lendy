@@ -60,10 +60,16 @@ void main() {
       expect(requests.dueSoonCount(userId), 1);
 
       await requests.reportReturn(soonId);
-      expect(requests.dueSoonCount(userId), 0);
+      expect(requests.dueSoonCount(userId), 1);
       expect(requests.totalBorrowedCount(userId), 3);
-      expect(requests.currentBorrowedCount(userId), 1);
-      expect(requests.returnedCount(userId), 2);
+      expect(requests.currentBorrowedCount(userId), 3);
+      expect(requests.returnedCount(userId), 0);
+      expect(
+        requests
+            .requestsForUser(userId)
+            .where((request) => request.status == RequestStatus.returnPending),
+        hasLength(2),
+      );
     },
   );
 
@@ -112,6 +118,46 @@ void main() {
       );
     },
   );
+
+  test('a user can only submit one pending request per item', () async {
+    Future<void> submit(String equipmentId) => requests.submitRequest(
+      userId: 'requester',
+      equipmentId: equipmentId,
+      equipmentName: 'Equipment',
+      borrowerName: 'Test User',
+      borrowDate: DateTime.now(),
+      returnDate: DateTime.now().add(const Duration(days: 3)),
+    );
+
+    await submit('equipment-1');
+
+    expect(requests.hasPendingRequest('requester', 'equipment-1'), isTrue);
+    await expectLater(submit('equipment-1'), throwsA(isA<StateError>()));
+    await submit('equipment-2');
+
+    expect(requests.requestsForUser('requester'), hasLength(2));
+  });
+
+  test('rejected return count clears when the borrower resubmits', () async {
+    const userId = 'return-user';
+    final requestId = await addBorrowing(
+      userId: userId,
+      returnDate: DateTime.now().add(const Duration(days: 3)),
+    );
+    await requests.reportReturn(requestId);
+
+    final request = requests.requestsForUser(userId).single;
+    request
+      ..status = RequestStatus.borrowed
+      ..returnVerificationStatus = 'rejected'
+      ..returnRejectionReason = 'Return the item to the storage room.';
+
+    expect(requests.rejectedReturnCount(userId), 1);
+    expect(requests.rejectedReturnCount('another-user'), 0);
+
+    await requests.reportReturn(requestId);
+    expect(requests.rejectedReturnCount(userId), 0);
+  });
 
   test('history includes approved, rejected, and completed requests', () async {
     const userId = 'history-user';

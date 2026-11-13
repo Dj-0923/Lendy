@@ -11,7 +11,7 @@ class AppColors {
   static const Color danger = Color(0xFFC62828); // admin overdue values
   static const Color line = Color(0xFFDDD9CE); // admin card borders
   static const Color muted = Color(0xFF66746F); // admin secondary text
-  static const Color background = Colors.white;
+  static const Color background = Color(0xFFF8F9F8);
   static const Color textPrimary = Color(0xFF1B1B1B);
   static const Color textSecondary = Color(0xFF6B6B6B);
   static const Color fieldBorder = Color(0xFFDDE3E2);

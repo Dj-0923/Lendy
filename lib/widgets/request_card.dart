@@ -63,13 +63,56 @@ class RequestCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            '${formatDateRange(request.requestedBorrowDate, request.requestedReturnDate)}   $location',
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: AppColors.textSecondary,
-            ),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            children: [
+              Text(
+                formatDateRange(
+                  request.requestedBorrowDate,
+                  request.requestedReturnDate,
+                ),
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              if (location.isNotEmpty)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      location,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
           ),
+          if (request.status == RequestStatus.returnPending) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Your return is waiting for admin verification.',
+              style: TextStyle(color: AppColors.primaryLight, fontSize: 12.5),
+            ),
+          ] else if (request.status == RequestStatus.borrowed &&
+              request.returnVerificationStatus == 'rejected' &&
+              request.returnRejectionReason != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Return not verified: ${request.returnRejectionReason}',
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12.5),
+            ),
+          ],
           const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerRight,

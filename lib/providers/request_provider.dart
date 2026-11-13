@@ -17,6 +17,7 @@ class RequestProvider extends ChangeNotifier {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _requestSubscription;
   String? _userId;
   String? _errorMessage;
+  final Set<String> _submittingEquipmentIds = {};
 
   /// Called by the ProxyProviders whenever a dependency changes.
   void updateEquipmentProvider(EquipmentProvider equipmentProvider) {
@@ -71,12 +72,20 @@ class RequestProvider extends ChangeNotifier {
   List<BorrowRequestModel> requestsForUser(String userId) =>
       _requests.where((r) => r.studentOrFacultyId == userId).toList();
 
+  bool hasPendingRequest(String userId, String equipmentId) => _requests.any(
+    (request) =>
+        request.studentOrFacultyId == userId &&
+        request.equipmentId == equipmentId &&
+        request.status == RequestStatus.pending,
+  );
+
   List<BorrowRequestModel> activeRequests(String userId) =>
       requestsForUser(userId)
           .where(
             (r) =>
                 r.status == RequestStatus.approved ||
-                r.status == RequestStatus.borrowed,
+                r.status == RequestStatus.borrowed ||
+                r.status == RequestStatus.returnPending,
           )
           .toList();
 
@@ -90,13 +99,22 @@ class RequestProvider extends ChangeNotifier {
             (r) =>
                 r.status == RequestStatus.approved ||
                 r.status == RequestStatus.borrowed ||
+                r.status == RequestStatus.returnPending ||
                 r.status == RequestStatus.rejected ||
                 r.status == RequestStatus.returned ||
                 r.status == RequestStatus.cancelled,
           )
           .toList();
 
-  /// Borrowed or returned items, most recent first, for the profile history.
+  int rejectedReturnCount(String userId) => requestsForUser(userId)
+      .where(
+        (request) =>
+            request.status == RequestStatus.borrowed &&
+            request.returnVerificationStatus == 'rejected',
+      )
+      .length;
+
+  /// Active or returned borrowings, most recent first, for the profile history.
   List<BorrowRequestModel> recentBorrowings(String userId, {int limit = 3}) {
     final list =
         requestsForUser(userId)
@@ -104,6 +122,7 @@ class RequestProvider extends ChangeNotifier {
               (r) =>
                   r.status == RequestStatus.approved ||
                   r.status == RequestStatus.borrowed ||
+                  r.status == RequestStatus.returnPending ||
                   r.status == RequestStatus.returned,
             )
             .toList()
@@ -138,7 +157,8 @@ class RequestProvider extends ChangeNotifier {
 
   bool _isCurrentlyBorrowed(BorrowRequestModel request) =>
       request.status == RequestStatus.approved ||
-      request.status == RequestStatus.borrowed;
+      request.status == RequestStatus.borrowed ||
+      request.status == RequestStatus.returnPending;
 
   bool _isBorrowingOrReturned(BorrowRequestModel request) =>
       _isCurrentlyBorrowed(request) || request.status == RequestStatus.returned;
@@ -153,11 +173,47 @@ class RequestProvider extends ChangeNotifier {
     required DateTime borrowDate,
     required DateTime returnDate,
   }) async {
+    final submissionKey = '$userId::$equipmentId';
+    if (hasPendingRequest(userId, equipmentId) ||
+        !_submittingEquipmentIds.add(submissionKey)) {
+      throw StateError('You already have a pending request for this item.');
+    }
+
     final now = DateTime.now();
-    if (_firestore == null) {
+    try {
+      if (_firestore == null) {
+        _requests.add(
+          BorrowRequestModel(
+            id: 'r${_requests.length + 1}_${now.millisecondsSinceEpoch}',
+            studentOrFacultyId: userId,
+            borrowerName: borrowerName,
+            equipmentId: equipmentId,
+            requestedBorrowDate: borrowDate,
+            requestedReturnDate: returnDate,
+            requestDate: now,
+            status: RequestStatus.pending,
+          ),
+        );
+        notifyListeners();
+        return;
+      }
+
+      final document = _firestore.collection('loans').doc();
+      await document.set({
+        'id': document.id,
+        'borrowerUid': userId,
+        'equipmentId': equipmentId,
+        'name': equipmentName,
+        'borrower': borrowerName,
+        'start': _dateOnly(borrowDate),
+        'end': _dateOnly(returnDate),
+        'status': 'pending',
+        'returnedOn': null,
+        'updatedAt': now.millisecondsSinceEpoch,
+      });
       _requests.add(
         BorrowRequestModel(
-          id: 'r${_requests.length + 1}_${now.millisecondsSinceEpoch}',
+          id: document.id,
           studentOrFacultyId: userId,
           borrowerName: borrowerName,
           equipmentId: equipmentId,
@@ -168,22 +224,9 @@ class RequestProvider extends ChangeNotifier {
         ),
       );
       notifyListeners();
-      return;
+    } finally {
+      _submittingEquipmentIds.remove(submissionKey);
     }
-
-    final document = _firestore.collection('loans').doc();
-    await document.set({
-      'id': document.id,
-      'borrowerUid': userId,
-      'equipmentId': equipmentId,
-      'name': equipmentName,
-      'borrower': borrowerName,
-      'start': _dateOnly(borrowDate),
-      'end': _dateOnly(returnDate),
-      'status': 'pending',
-      'returnedOn': null,
-      'updatedAt': now.millisecondsSinceEpoch,
-    });
   }
 
   Future<void> checkOut(String requestId) async {
@@ -225,18 +268,17 @@ class RequestProvider extends ChangeNotifier {
     final now = DateTime.now();
     if (_firestore != null) {
       await _firestore.collection('loans').doc(requestId).update({
-        'status': 'returned',
-        'returnedOn': _dateOnly(now),
+        'status': 'return_pending',
+        'returnRequestedAt': FieldValue.serverTimestamp(),
+        'returnVerificationStatus': 'pending',
+        'returnRejectionReason': null,
         'updatedAt': now.millisecondsSinceEpoch,
       });
     } else {
-      request.status = RequestStatus.returned;
-      request.returnedDate = now;
+      request.status = RequestStatus.returnPending;
+      request.returnVerificationStatus = 'pending';
+      request.returnRejectionReason = null;
       request.activityDate = now;
-      _equipmentProvider.setStatus(
-        request.equipmentId,
-        EquipmentStatus.available,
-      );
       notifyListeners();
     }
   }
@@ -249,6 +291,7 @@ class RequestProvider extends ChangeNotifier {
       'pending' => RequestStatus.pending,
       'approved' when data['checkedOutAt'] is int => RequestStatus.borrowed,
       'approved' => RequestStatus.approved,
+      'return_pending' => RequestStatus.returnPending,
       'rejected' => RequestStatus.rejected,
       'returned' => RequestStatus.returned,
       'cancelled' => RequestStatus.cancelled,
@@ -273,6 +316,8 @@ class RequestProvider extends ChangeNotifier {
       returnedDate: data['returnedOn'] is String
           ? DateTime.tryParse(data['returnedOn'] as String)
           : null,
+      returnVerificationStatus: data['returnVerificationStatus'] as String?,
+      returnRejectionReason: data['returnRejectionReason'] as String?,
       status: status,
     );
   }

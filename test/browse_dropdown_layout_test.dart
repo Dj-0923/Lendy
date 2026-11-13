@@ -67,7 +67,7 @@ void main() {
     await pumpBrowse(tester);
 
     final baseline = fieldRect(tester, 0);
-    expect(baseline.height, 48.0);
+    expect(baseline.height, 38.0);
 
     for (final category in ['Cameras', '3D Printers', 'New category']) {
       equipment.setCategory(category);
@@ -88,7 +88,7 @@ void main() {
     await pumpBrowse(tester);
 
     final baseline = fieldRect(tester, 1);
-    expect(baseline.height, 48.0);
+    expect(baseline.height, 38.0);
 
     for (final status in EquipmentStatus.values) {
       equipment.setAvailability(status);
@@ -110,7 +110,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      tester.getTopLeft(find.text('All categories').last).dy,
+      tester.getTopLeft(find.text('All Categories').last).dy,
       greaterThanOrEqualTo(fieldRect(tester, 0).bottom),
       reason: 'category choices should open below the filter field',
     );
@@ -127,5 +127,23 @@ void main() {
     await tester.tap(find.byKey(const Key('dashboard-profile-avatar')));
 
     expect(profileOpened, isTrue);
+  });
+
+  testWidgets('Home header scrolls with the Browse content', (tester) async {
+    tester.view.physicalSize = const Size(800, 350);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await pumpBrowse(tester);
+
+    final header = find.byKey(const Key('dashboard-header'));
+    final initialTop = tester.getTopLeft(header).dy;
+    expect(find.byKey(const Key('browse-scroll-view')), findsOneWidget);
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -180));
+    await tester.pumpAndSettle();
+
+    expect(tester.getTopLeft(header).dy, lessThan(initialTop));
   });
 }

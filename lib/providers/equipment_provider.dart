@@ -41,6 +41,14 @@ class EquipmentProvider extends ChangeNotifier {
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   }
 
+  int countForCategory(String category) => _equipment
+      .where(
+        (equipment) =>
+            equipment.displayCategory.trim().toLowerCase() ==
+            category.trim().toLowerCase(),
+      )
+      .length;
+
   EquipmentStatus? get selectedAvailability => _selectedAvailability;
 
   void _watchEquipment(FirebaseFirestore firestore) {
@@ -156,6 +164,7 @@ class EquipmentProvider extends ChangeNotifier {
           _searchQuery.isEmpty ||
           e.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           e.id.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          e.location.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           (e.assetTag?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
               false);
       final matchesCategory =

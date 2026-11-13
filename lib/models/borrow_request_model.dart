@@ -1,13 +1,14 @@
 // lib/models/borrow_request_model.dart
 
-/// Status progression of a borrow request:
-/// pending -> approved / rejected -> borrowed -> returned
-/// (or pending -> cancelled, by the user themselves before approval)
+/// Status progression: pending -> approved / rejected -> borrowed ->
+/// returnPending -> returned. A rejected return report returns to borrowed;
+/// a request can also be cancelled before approval.
 enum RequestStatus {
   pending,
   approved,
   rejected,
   borrowed,
+  returnPending,
   returned,
   cancelled,
 }
@@ -23,6 +24,8 @@ extension RequestStatusX on RequestStatus {
         return 'Rejected';
       case RequestStatus.borrowed:
         return 'Borrowed';
+      case RequestStatus.returnPending:
+        return 'Return verification';
       case RequestStatus.returned:
         return 'Returned';
       case RequestStatus.cancelled:
@@ -46,6 +49,8 @@ class BorrowRequestModel {
   DateTime? approvedDate;
   DateTime? checkedOutDate;
   DateTime? returnedDate;
+  String? returnVerificationStatus;
+  String? returnRejectionReason;
   RequestStatus status;
 
   BorrowRequestModel({
@@ -60,6 +65,8 @@ class BorrowRequestModel {
     this.approvedDate,
     this.checkedOutDate,
     this.returnedDate,
+    this.returnVerificationStatus,
+    this.returnRejectionReason,
     this.status = RequestStatus.pending,
   }) : activityDate = activityDate ?? requestDate;
 }

@@ -77,6 +77,12 @@ StatusStyle requestStatusStyle(RequestStatus status) {
         background: Color(0xFFFCEFD9),
         foreground: Color(0xFFB4740E),
       );
+    case RequestStatus.returnPending:
+      return const StatusStyle(
+        label: 'Return verification',
+        background: Color(0xFFE7EFFF),
+        foreground: Color(0xFF3B5BDB),
+      );
     case RequestStatus.returned:
       return const StatusStyle(
         label: 'Returned',

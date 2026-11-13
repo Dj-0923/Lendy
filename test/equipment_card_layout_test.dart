@@ -68,4 +68,30 @@ void main() {
       closeTo(tester.getRect(codeRow).right, 1),
     );
   });
+
+  testWidgets('requested item shows a disabled Requested button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: EquipmentCard(
+            equipment: EquipmentModel(
+              id: 'EQ-015',
+              name: 'Projector',
+              category: EquipmentCategory.projector,
+              location: 'AV Storage',
+              status: EquipmentStatus.available,
+            ),
+            requested: true,
+            onRequest: () {},
+          ),
+        ),
+      ),
+    );
+
+    final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+    expect(find.text('Requested'), findsOneWidget);
+    expect(button.onPressed, isNull);
+  });
 }

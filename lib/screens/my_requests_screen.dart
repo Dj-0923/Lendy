@@ -7,16 +7,15 @@ import '../providers/equipment_provider.dart';
 import '../providers/request_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive_layout.dart';
-import '../widgets/dashboard_header.dart';
 import '../widgets/request_card.dart';
 import '../widgets/app_notice.dart';
 
 enum _RequestTab { active, pending, history }
 
 class MyRequestsScreen extends StatefulWidget {
-  final VoidCallback? onProfileTap;
+  final VoidCallback onBackTap;
 
-  const MyRequestsScreen({super.key, this.onProfileTap});
+  const MyRequestsScreen({super.key, required this.onBackTap});
 
   @override
   State<MyRequestsScreen> createState() => _MyRequestsScreenState();
@@ -55,10 +54,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          DashboardHeader(
-            title: 'My requests',
-            onProfileTap: widget.onProfileTap,
-          ),
+          _LoansHeader(onBackTap: widget.onBackTap),
           Expanded(
             child: ResponsiveContent(
               child: ListView(
@@ -140,7 +136,10 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                             () => requestProvider.checkOut(request.id),
                           );
                         } else if (request.status == RequestStatus.borrowed) {
-                          actionLabel = 'Report Return';
+                          actionLabel =
+                              request.returnVerificationStatus == 'rejected'
+                              ? 'Request Return Again'
+                              : 'Report Return';
                           onAction = () => _runRequestAction(
                             () => requestProvider.reportReturn(request.id),
                           );
@@ -175,6 +174,42 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
         type: AppNoticeType.error,
       );
     }
+  }
+}
+
+class _LoansHeader extends StatelessWidget {
+  const _LoansHeader({required this.onBackTap});
+
+  final VoidCallback onBackTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+    return Container(
+      key: const Key('loans-header'),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      padding: EdgeInsets.fromLTRB(12, statusBarHeight + 20, 20, 20),
+      decoration: const BoxDecoration(color: AppColors.primary),
+      child: Row(
+        children: [
+          IconButton(
+            key: const Key('loans-back'),
+            onPressed: onBackTap,
+            tooltip: 'Back to Home',
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          ),
+          const Text(
+            'Loans',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
