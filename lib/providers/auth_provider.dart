@@ -12,7 +12,7 @@ import '../models/user_model.dart';
 import '../utils/first_launch_store.dart';
 import '../utils/session_preference_store.dart';
 
-const _approvalApiUrl = 'https://lendy-account-approval.onrender.com';
+const approvalApiUrl = 'https://lendy-account-approval.onrender.com';
 
 class RequestAccountResult {
   final bool success;
@@ -157,7 +157,7 @@ class AuthProvider extends ChangeNotifier {
     _requestStatusRefreshInProgress = true;
     try {
       final response = await http.post(
-        Uri.parse('$_approvalApiUrl/account-request-status'),
+        Uri.parse('$approvalApiUrl/account-request-status'),
         headers: const {'Content-Type': 'application/json'},
         body: jsonEncode({'requestId': requestId, 'statusToken': token}),
       );
@@ -521,7 +521,7 @@ class AuthProvider extends ChangeNotifier {
     _accountRequestInProgress = true;
     try {
       final response = await http.post(
-        Uri.parse('$_approvalApiUrl/request-account'),
+        Uri.parse('$approvalApiUrl/request-account'),
         headers: const {'Content-Type': 'application/json'},
         body: jsonEncode({
           'fullName': fullName.trim(),

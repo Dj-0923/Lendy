@@ -129,21 +129,79 @@ void main() {
     expect(profileOpened, isTrue);
   });
 
-  testWidgets('Home header scrolls with the Browse content', (tester) async {
-    tester.view.physicalSize = const Size(800, 350);
+  testWidgets('AI assistant button opens the borrower assistant', (
+    tester,
+  ) async {
+    await pumpBrowse(tester);
+
+    final assistantButton = find.byKey(
+      const Key('browse-ai-assistant-button'),
+    );
+    expect(assistantButton, findsOneWidget);
+    await tester.tap(assistantButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI Assistant'), findsOneWidget);
+    expect(
+      find.textContaining('questions about Lendy equipment'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('header scrolls away while search and categories stay pinned', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 260);
     tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
 
     await pumpBrowse(tester);
 
     final header = find.byKey(const Key('dashboard-header'));
-    final initialTop = tester.getTopLeft(header).dy;
-    expect(find.byKey(const Key('browse-scroll-view')), findsOneWidget);
+    final search = find.byKey(const Key('browse-search-field'));
+    final pinnedSearch = find.byKey(const Key('browse-pinned-search'));
+    final filters = find.byKey(const Key('browse-pinned-filters'));
+    final statusBar = find.byKey(const Key('browse-status-bar-background'));
+    final scrollView = find.byKey(const Key('browse-scroll-view'));
+    expect(find.text('Lendy'), findsOneWidget);
+    expect(find.text('Browse Items'), findsNothing);
+    expect(search, findsOneWidget);
+    expect(tester.getSize(search).height, lessThan(50));
+    expect(tester.getRect(statusBar).height, 24);
+    expect(tester.getRect(header).top, 24);
+    expect(
+      (tester.widget<Container>(header).decoration! as BoxDecoration)
+          .borderRadius,
+      isNull,
+    );
+    expect(
+      (tester.widget<Container>(pinnedSearch).decoration! as BoxDecoration)
+          .borderRadius,
+      const BorderRadius.only(
+        bottomLeft: Radius.circular(36),
+        bottomRight: Radius.circular(36),
+      ),
+    );
 
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -180));
+    await tester.drag(scrollView, const Offset(0, -500));
     await tester.pumpAndSettle();
 
-    expect(tester.getTopLeft(header).dy, lessThan(initialTop));
+    expect(header, findsNothing);
+    expect(find.text('Lendy'), findsNothing);
+    expect(search, findsOneWidget);
+    expect(tester.getRect(pinnedSearch).top, 24);
+    final pinnedSearchRect = tester.getRect(search);
+    expect(pinnedSearchRect.top, 32);
+    expect(tester.getRect(filters).top, 96);
+    expect(tester.getRect(statusBar).top, 0);
+
+    await tester.drag(scrollView, const Offset(0, -50));
+    await tester.pumpAndSettle();
+
+    expect(tester.getRect(search), pinnedSearchRect);
+    expect(tester.getRect(filters).top, 96);
   });
 }

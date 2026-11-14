@@ -19,8 +19,8 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 12,
-        vertical: compact ? 3 : 5,
+        horizontal: compact ? 6 : 12,
+        vertical: compact ? 2 : 5,
       ),
       decoration: BoxDecoration(
         color: style.background,
@@ -34,7 +34,7 @@ class StatusBadge extends StatelessWidget {
         style: TextStyle(
           color: style.foreground,
           fontWeight: FontWeight.w600,
-          fontSize: compact ? 10 : 12,
+          fontSize: compact ? 9 : 12,
           letterSpacing: compact ? 0.2 : 0.3,
         ),
       ),

@@ -37,11 +37,18 @@ void main() {
   testWidgets('Loans replaces Request in the bottom navigation', (
     tester,
   ) async {
+    const statusBarHeight = 24.0;
+    tester.view.padding = FakeViewPadding(
+      top: statusBarHeight * tester.view.devicePixelRatio,
+    );
+    addTearDown(tester.view.resetPadding);
     await pumpMainShell(tester);
 
     expect(find.text('Request'), findsNothing);
     expect(find.text('Messages'), findsOneWidget);
     expect(find.text('Scan'), findsOneWidget);
+    expect(find.text('Lendy'), findsOneWidget);
+    expect(find.text('Browse Items'), findsNothing);
     expect(find.byKey(const Key('main-scan-button')), findsOneWidget);
     expect(find.byKey(const Key('browse-search-scanner')), findsOneWidget);
     expect(find.byIcon(Icons.mic_none_outlined), findsNothing);
@@ -53,14 +60,16 @@ void main() {
     final header = tester.widget<Container>(
       find.byKey(const Key('dashboard-header')),
     );
-    final headerDecoration = header.decoration! as BoxDecoration;
-    expect(
-      headerDecoration.borderRadius,
-      const BorderRadius.only(
-        bottomLeft: Radius.circular(40),
-        bottomRight: Radius.circular(40),
-      ),
+    final dashboardHeaderRect = tester.getRect(
+      find.byKey(const Key('dashboard-header')),
     );
+    expect(dashboardHeaderRect.left, 0);
+    expect(
+      dashboardHeaderRect.right,
+      tester.view.physicalSize.width / tester.view.devicePixelRatio,
+    );
+    final headerDecoration = header.decoration! as BoxDecoration;
+    expect(headerDecoration.borderRadius, isNull);
     final notificationCircle = tester.widget<Container>(
       find.byKey(const Key('dashboard-notification-circle')),
     );
@@ -76,6 +85,16 @@ void main() {
     final loansHeaderHeight = tester
         .getSize(find.byKey(const Key('loans-header')))
         .height;
+    final loansHeaderRect = tester.getRect(
+      find.byKey(const Key('loans-header')),
+    );
+    expect(loansHeaderRect.left, 0);
+    expect(
+      loansHeaderRect.right,
+      tester.view.physicalSize.width / tester.view.devicePixelRatio,
+    );
+    expect(loansHeaderRect.top, statusBarHeight);
+    expect(loansHeaderHeight, lessThan(90));
     final loansHeader = tester.widget<Container>(
       find.byKey(const Key('loans-header')),
     );
@@ -96,7 +115,7 @@ void main() {
     await tester.tap(find.byKey(const Key('loans-back')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse Items'), findsOneWidget);
+    expect(find.text('Lendy'), findsOneWidget);
     expect(
       tester.getSize(find.byKey(const Key('dashboard-header'))).height,
       greaterThan(loansHeaderHeight),
@@ -140,7 +159,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse Items'), findsOneWidget);
+    expect(find.text('Lendy'), findsOneWidget);
     expect(find.byKey(const Key('dashboard-notification-badge')), findsNothing);
   });
 
@@ -158,7 +177,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse Items'), findsOneWidget);
+    expect(find.text('Lendy'), findsOneWidget);
   });
 
   testWidgets('Messages opens a full-screen conversation with a back button', (
@@ -180,7 +199,7 @@ void main() {
     await tester.tap(find.byKey(const Key('messages-back')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse Items'), findsOneWidget);
+    expect(find.text('Lendy'), findsOneWidget);
     expect(find.text('Messages'), findsOneWidget);
   });
 
@@ -197,7 +216,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse Items'), findsOneWidget);
+    expect(find.text('Lendy'), findsOneWidget);
   });
 
   testWidgets('system back on Home shows exit prompt', (tester) async {

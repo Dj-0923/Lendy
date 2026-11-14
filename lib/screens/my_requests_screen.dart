@@ -52,14 +52,19 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _LoansHeader(onBackTap: widget.onBackTap),
-          Expanded(
-            child: ResponsiveContent(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                children: [
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        left: false,
+        right: false,
+        child: Column(
+          children: [
+            _LoansHeader(onBackTap: widget.onBackTap),
+            Expanded(
+              child: ResponsiveContent(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                  children: [
                   const Text(
                     "Track everything you've borrowed, requested, or returned.",
                     style: TextStyle(
@@ -154,11 +159,12 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                         onAction: onAction,
                       );
                     }),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -184,12 +190,10 @@ class _LoansHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusBarHeight = MediaQuery.of(context).padding.top;
     return Container(
       key: const Key('loans-header'),
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-      padding: EdgeInsets.fromLTRB(12, statusBarHeight + 20, 20, 20),
+      padding: const EdgeInsets.fromLTRB(12, 12, 20, 12),
       decoration: const BoxDecoration(color: AppColors.primary),
       child: Row(
         children: [
