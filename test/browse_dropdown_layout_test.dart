@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lendy/models/equipment_model.dart';
 import 'package:lendy/providers/auth_provider.dart';
 import 'package:lendy/providers/equipment_provider.dart';
+import 'package:lendy/screens/borrower_assistant_screen.dart';
 import 'package:lendy/screens/browse_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -129,23 +130,81 @@ void main() {
     expect(profileOpened, isTrue);
   });
 
+  testWidgets('search scanner and assistant controls fit a narrow screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(470, 240);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await pumpBrowse(tester);
+
+    expect(find.byKey(const Key('browse-search-field')), findsOneWidget);
+    expect(find.byKey(const Key('browse-ai-assistant-button')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('AI assistant button opens the borrower assistant', (
     tester,
   ) async {
     await pumpBrowse(tester);
 
-    final assistantButton = find.byKey(
-      const Key('browse-ai-assistant-button'),
-    );
+    final assistantButton = find.byKey(const Key('browse-ai-assistant-button'));
     expect(assistantButton, findsOneWidget);
     await tester.tap(assistantButton);
     await tester.pumpAndSettle();
 
     expect(find.text('AI Assistant'), findsOneWidget);
+    expect(find.textContaining('You can ask in English'), findsOneWidget);
+  });
+
+  testWidgets('home AI suggestions stay below search and open that question', (
+    tester,
+  ) async {
+    await pumpBrowse(tester);
+
+    final suggestion = find.byKey(const Key('browse-ai-suggestion-0'));
+    final search = find.byKey(const Key('browse-search-field'));
+    expect(suggestion, findsOneWidget);
     expect(
-      find.textContaining('questions about Lendy equipment'),
-      findsOneWidget,
+      tester.getTopLeft(suggestion).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(search).dy),
     );
+    expect(find.text('Available items?'), findsOneWidget);
+    expect(find.text('Camera to borrow?'), findsOneWidget);
+    expect(find.text('Request status?'), findsOneWidget);
+    expect(find.text('Next due date?'), findsOneWidget);
+
+    await tester.tap(suggestion);
+    await tester.pumpAndSettle();
+
+    final assistant = tester.widget<BorrowerAssistantScreen>(
+      find.byType(BorrowerAssistantScreen),
+    );
+    expect(assistant.initialQuestion, 'Available items?');
+  });
+
+  testWidgets('hides the home scrollbar but keeps prompt scrolling', (
+    tester,
+  ) async {
+    await pumpBrowse(tester);
+
+    final scrollView = find.byKey(const Key('browse-scroll-view'));
+    final scrollContext = tester.element(scrollView);
+    final behavior = ScrollConfiguration.of(scrollContext);
+    const child = SizedBox();
+    final verticalScrollbar = behavior.buildScrollbar(
+      scrollContext,
+      child,
+      const ScrollableDetails(direction: AxisDirection.down),
+    );
+    final suggestions = tester.widget<ListView>(
+      find.byKey(const Key('browse-ai-suggestions')),
+    );
+
+    expect(identical(verticalScrollbar, child), isTrue);
+    expect(suggestions.scrollDirection, Axis.horizontal);
   });
 
   testWidgets('header scrolls away while search and categories stay pinned', (
@@ -194,14 +253,14 @@ void main() {
     expect(search, findsOneWidget);
     expect(tester.getRect(pinnedSearch).top, 24);
     final pinnedSearchRect = tester.getRect(search);
-    expect(pinnedSearchRect.top, 32);
-    expect(tester.getRect(filters).top, 96);
+    expect(pinnedSearchRect.top, 30);
+    expect(tester.getRect(filters).top, 124);
     expect(tester.getRect(statusBar).top, 0);
 
     await tester.drag(scrollView, const Offset(0, -50));
     await tester.pumpAndSettle();
 
     expect(tester.getRect(search), pinnedSearchRect);
-    expect(tester.getRect(filters).top, 96);
+    expect(tester.getRect(filters).top, 124);
   });
 }

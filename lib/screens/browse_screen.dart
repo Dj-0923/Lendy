@@ -30,6 +30,13 @@ class BrowseScreen extends StatefulWidget {
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
+  static const _assistantSuggestions = [
+    'Available items?',
+    'Camera to borrow?',
+    'Request status?',
+    'Next due date?',
+  ];
+
   final _searchController = TextEditingController();
 
   @override
@@ -61,7 +68,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     tooltip: 'Scan item code',
                     onPressed: widget.onScannerTap,
                     constraints: const BoxConstraints.tightFor(
-                      width: 40,
+                      width: 39,
                       height: 40,
                     ),
                     icon: const Icon(Icons.qr_code_scanner, size: 19),
@@ -93,6 +100,62 @@ class _BrowseScreenState extends State<BrowseScreen> {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.primaryLight),
         ),
+      ),
+    );
+  }
+
+  Widget _buildAssistantSuggestions() {
+    return SizedBox(
+      height: 38,
+      child: ListView(
+        key: const Key('browse-ai-suggestions'),
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (var index = 0; index < _assistantSuggestions.length; index++)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: SizedBox(
+                height: 38,
+                child: Material(
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    side: const BorderSide(color: AppColors.fieldBorder),
+                  ),
+                  child: InkWell(
+                    key: Key('browse-ai-suggestion-$index'),
+                    borderRadius: BorderRadius.circular(22),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => BorrowerAssistantScreen(
+                            initialQuestion: _assistantSuggestions[index],
+                          ),
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Center(
+                        widthFactor: 1,
+                        child: Text(
+                          _assistantSuggestions[index],
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -160,9 +223,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
             Expanded(
               child: ColoredBox(
                 color: AppColors.background,
-                child: CustomScrollView(
-                  key: const Key('browse-scroll-view'),
-                  slivers: [
+                child: ScrollConfiguration(
+                  behavior: const _BrowseScrollBehavior(),
+                  child: CustomScrollView(
+                    key: const Key('browse-scroll-view'),
+                    slivers: [
                     SliverToBoxAdapter(
                       child: DashboardHeader(
                         title: 'Lendy',
@@ -196,54 +261,62 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                   child: Padding(
                                     padding: const EdgeInsets.fromLTRB(
                                       20,
-                                      8,
+                                      6,
                                       20,
-                                      12,
+                                      8,
                                     ),
-                                    child: Row(
+                                    child: Column(
                                       children: [
-                                        Expanded(
-                                          child: _buildSearchField(
-                                            equipmentProvider,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        SizedBox(
-                                          width: 44,
-                                          height: 44,
-                                          child: IconButton(
-                                            key: const Key(
-                                              'browse-ai-assistant-button',
-                                            ),
-                                            tooltip: 'AI Assistant',
-                                            onPressed: () {
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute<void>(
-                                                  builder: (_) =>
-                                                      const BorrowerAssistantScreen(),
-                                                ),
-                                              );
-                                            },
-                                            style: IconButton.styleFrom(
-                                              backgroundColor:
-                                                  AppColors.primary,
-                                              foregroundColor: Colors.white,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(14),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildSearchField(
+                                                equipmentProvider,
                                               ),
                                             ),
-                                            icon: const Icon(
-                                              Icons.auto_awesome,
-                                              size: 20,
+                                            const SizedBox(width: 8),
+                                            SizedBox(
+                                              width: 44,
+                                              height: 44,
+                                              child: IconButton(
+                                                key: const Key(
+                                                  'browse-ai-assistant-button',
+                                                ),
+                                                tooltip: 'AI Assistant',
+                                                onPressed: () {
+                                                  Navigator.of(context).push(
+                                                    MaterialPageRoute<void>(
+                                                      builder: (_) =>
+                                                          const BorrowerAssistantScreen(),
+                                                    ),
+                                                  );
+                                                },
+                                                style: IconButton.styleFrom(
+                                                  backgroundColor:
+                                                      AppColors.primary,
+                                                  foregroundColor: Colors.white,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          14,
+                                                        ),
+                                                  ),
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.auto_awesome,
+                                                  size: 20,
+                                                ),
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ),
+                                        const SizedBox(height: 4),
+                                        _buildAssistantSuggestions(),
                                       ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
                               Container(
                                 key: const Key('browse-pinned-filters'),
                                 height: _PinnedBrowseFilters.filtersHeight,
@@ -383,6 +456,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 ),
               ),
             ),
+          ),
           ],
         ),
       ),
@@ -395,7 +469,7 @@ class _PinnedBrowseFilters extends SliverPersistentHeaderDelegate {
 
   final Widget child;
 
-  static const double searchHeight = 72;
+  static const double searchHeight = 100;
   static const double filtersHeight = 58;
   static const double height = searchHeight + filtersHeight;
 
@@ -421,6 +495,23 @@ class _PinnedBrowseFilters extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _PinnedBrowseFilters oldDelegate) =>
       oldDelegate.child != child;
+}
+
+class _BrowseScrollBehavior extends MaterialScrollBehavior {
+  const _BrowseScrollBehavior();
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    if (details.direction == AxisDirection.up ||
+        details.direction == AxisDirection.down) {
+      return child;
+    }
+    return super.buildScrollbar(context, child, details);
+  }
 }
 
 /// Reusable full-width dropdown styled to match the app's input fields.

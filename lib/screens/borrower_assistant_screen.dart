@@ -6,15 +6,25 @@ import 'package:provider/provider.dart';
 
 import '../models/equipment_model.dart';
 import '../providers/auth_provider.dart';
+import '../providers/equipment_provider.dart';
 import '../providers/request_provider.dart';
 import '../services/borrower_assistant_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/borrower_assistant_conversation_store.dart';
+import '../utils/status_style.dart';
+import '../widgets/app_notice.dart';
+import '../widgets/status_badge.dart';
 import 'request_form_screen.dart';
 
 class BorrowerAssistantScreen extends StatefulWidget {
-  const BorrowerAssistantScreen({super.key, this.service});
+  const BorrowerAssistantScreen({
+    super.key,
+    this.service,
+    this.initialQuestion,
+  });
 
   final BorrowerAssistantService? service;
+  final String? initialQuestion;
 
   @override
   State<BorrowerAssistantScreen> createState() =>
@@ -23,28 +33,115 @@ class BorrowerAssistantScreen extends StatefulWidget {
 
 class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
   static const _suggestions = [
-    'How do I borrow an item?',
-    'What items are available?',
-    'I need a camera for recording',
-    'When are my loans due?',
+    'Available items?',
+    'Camera to borrow?',
+    'Request status?',
+    'Next due date?',
   ];
+  static const _welcomeMessage = _AssistantMessage(
+    text:
+        'Hi! You can ask in English, Tagalog, or Taglish about Lendy equipment, your profile, or your own loans and requests. I will answer from information saved in Lendy and let you know when a detail is not available.',
+    fromUser: false,
+  );
 
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  final List<_AssistantMessage> _messages = [
-    const _AssistantMessage(
-      text:
-          'Hi! I can answer questions about Lendy equipment, availability, item status, borrowing steps, and your active loan due dates. Describe what you need and I can show items you can request.',
-      fromUser: false,
-    ),
-  ];
+  final List<_AssistantMessage> _messages = [_welcomeMessage];
   bool _sending = false;
+  bool _loadingConversation = false;
+  bool _initializedUser = false;
+  bool _initialQuestionQueued = false;
+  String? _loadedUserId;
+  int _loadGeneration = 0;
+  int _conversationGeneration = 0;
+  Timer? _expirationTimer;
+  DateTime? _conversationStartedAt;
 
   BorrowerAssistantService get _service =>
       widget.service ?? BorrowerAssistantService();
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userId = context.read<AuthProvider>().currentUser?.id;
+    if (_initializedUser && userId == _loadedUserId) return;
+
+    _initializedUser = true;
+    _loadedUserId = userId;
+    _expirationTimer?.cancel();
+    _expirationTimer = null;
+    _conversationGeneration++;
+    _conversationStartedAt = null;
+    _messages
+      ..clear()
+      ..add(_welcomeMessage);
+    _sending = false;
+    _loadingConversation = userId != null;
+    final generation = ++_loadGeneration;
+    if (userId != null) {
+      unawaited(_restoreConversation(userId, generation));
+    } else {
+      _queueInitialQuestion();
+    }
+  }
+
+  void _queueInitialQuestion() {
+    final question = widget.initialQuestion;
+    if (question == null || _initialQuestionQueued) return;
+    _initialQuestionQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_sendQuestion(question));
+    });
+  }
+
+  Future<void> _restoreConversation(String userId, int generation) async {
+    try {
+      final conversation = await BorrowerAssistantConversationStore.load(
+        userId,
+      );
+      if (!mounted ||
+          generation != _loadGeneration ||
+          userId != _loadedUserId) {
+        return;
+      }
+      if (conversation != null) {
+        _conversationStartedAt = conversation.startedAt;
+        _scheduleExpiration(userId, conversation.startedAt);
+        _messages
+          ..clear()
+          ..addAll(
+            conversation.messages.map(
+              (message) => _AssistantMessage(
+                text: message.text,
+                fromUser: message.fromUser,
+                items: message.items,
+              ),
+            ),
+          );
+      }
+      setState(() => _loadingConversation = false);
+      _queueInitialQuestion();
+      _scrollToBottom();
+    } catch (error) {
+      if (!mounted ||
+          generation != _loadGeneration ||
+          userId != _loadedUserId) {
+        return;
+      }
+      debugPrint('Could not restore assistant conversation: $error');
+      setState(() => _loadingConversation = false);
+      _queueInitialQuestion();
+      AppNotice.show(
+        context,
+        'Could not restore your previous AI conversation. A new chat has started.',
+        type: AppNoticeType.error,
+      );
+    }
+  }
+
+  @override
   void dispose() {
+    _expirationTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -52,17 +149,26 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
 
   Future<void> _sendQuestion([String? suggestion]) async {
     final question = (suggestion ?? _controller.text).trim();
-    if (question.isEmpty || _sending) return;
+    if (question.isEmpty || _sending || _loadingConversation) return;
+    final userId = context.read<AuthProvider>().currentUser?.id;
     _controller.clear();
     setState(() {
+      if (_conversationStartedAt == null) {
+        _conversationStartedAt = DateTime.now();
+        if (userId != null) {
+          _scheduleExpiration(userId, _conversationStartedAt!);
+        }
+      }
       _sending = true;
       _messages.add(_AssistantMessage(text: question, fromUser: true));
     });
+    final conversationGeneration = _conversationGeneration;
     _scrollToBottom();
+    await _saveConversation(userId);
 
     try {
       final reply = await _service.ask(question);
-      if (!mounted) return;
+      if (!_isCurrentConversation(userId, conversationGeneration)) return;
       setState(() {
         _messages.add(
           _AssistantMessage(
@@ -72,39 +178,130 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
           ),
         );
       });
+      await _saveConversation(userId);
     } on BorrowerAssistantApiException catch (error) {
-      _addErrorMessage(error.message);
+      await _addErrorMessage(userId, conversationGeneration, error.message);
     } on TimeoutException {
-      _addErrorMessage(
+      await _addErrorMessage(
+        userId,
+        conversationGeneration,
         'The assistant took too long to respond. Please try again.',
       );
     } on http.ClientException {
       debugPrint('Borrower assistant connection failed.');
-      _addErrorMessage(
+      await _addErrorMessage(
+        userId,
+        conversationGeneration,
         'Could not reach the assistant service. Check your connection and try again.',
       );
     } on FormatException {
-      _addErrorMessage(
+      await _addErrorMessage(
+        userId,
+        conversationGeneration,
         'The assistant returned an invalid response. Please try again.',
       );
     } catch (error) {
       debugPrint('Borrower assistant request failed: $error');
-      _addErrorMessage(
+      await _addErrorMessage(
+        userId,
+        conversationGeneration,
         'The assistant is unavailable right now. Please try again.',
       );
     } finally {
-      if (mounted) {
+      if (_isCurrentConversation(userId, conversationGeneration)) {
         setState(() => _sending = false);
         _scrollToBottom();
       }
     }
   }
 
-  void _addErrorMessage(String message) {
-    if (!mounted) return;
+  bool _isCurrentConversation(String? userId, int generation) =>
+      mounted &&
+      _loadedUserId == userId &&
+      _conversationGeneration == generation;
+
+  void _scheduleExpiration(String userId, DateTime startedAt) {
+    _expirationTimer?.cancel();
+    final remaining = startedAt.add(
+      BorrowerAssistantConversationStore.expiration,
+    ).difference(DateTime.now());
+    _expirationTimer = Timer(
+      remaining.isNegative ? Duration.zero : remaining,
+      () => _expireConversation(userId, startedAt),
+    );
+  }
+
+  void _expireConversation(String userId, DateTime startedAt) {
+    if (!mounted ||
+        _loadedUserId != userId ||
+        _conversationStartedAt != startedAt) {
+      return;
+    }
+    _expirationTimer = null;
+    _conversationStartedAt = null;
+    _conversationGeneration++;
+    _messages
+      ..clear()
+      ..add(_welcomeMessage);
+    setState(() => _sending = false);
+    unawaited(_clearConversation(userId));
+  }
+
+  Future<void> _clearConversation(String userId) async {
+    try {
+      await BorrowerAssistantConversationStore.clear(userId);
+    } catch (error) {
+      debugPrint('Could not clear expired assistant conversation: $error');
+      if (mounted && _loadedUserId == userId) {
+        AppNotice.show(
+          context,
+          'The expired AI conversation could not be cleared from this device.',
+          type: AppNoticeType.error,
+        );
+      }
+    }
+  }
+
+  Future<void> _saveConversation(String? userId) async {
+    final startedAt = _conversationStartedAt;
+    if (userId == null || startedAt == null) return;
+    try {
+      await BorrowerAssistantConversationStore.save(
+        userId,
+        BorrowerAssistantConversation(
+          startedAt: startedAt,
+          messages: [
+            for (final message in _messages)
+              BorrowerAssistantConversationMessage(
+                text: message.text,
+                fromUser: message.fromUser,
+                items: message.items,
+              ),
+          ],
+        ),
+      );
+    } catch (error) {
+      debugPrint('Could not save assistant conversation: $error');
+      if (mounted && _loadedUserId == userId) {
+        AppNotice.show(
+          context,
+          'Your AI conversation could not be saved on this device.',
+          type: AppNoticeType.error,
+        );
+      }
+    }
+  }
+
+  Future<void> _addErrorMessage(
+    String? userId,
+    int conversationGeneration,
+    String message,
+  ) async {
+    if (!_isCurrentConversation(userId, conversationGeneration)) return;
     setState(() {
       _messages.add(_AssistantMessage(text: message, fromUser: false));
     });
+    await _saveConversation(userId);
   }
 
   void _scrollToBottom() {
@@ -120,6 +317,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final equipmentProvider = context.watch<EquipmentProvider?>();
     final requestProvider = context.watch<RequestProvider?>();
     final userId = context.watch<AuthProvider>().currentUser?.id;
     return Scaffold(
@@ -139,6 +337,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
                 for (final message in _messages)
                   _MessageBubble(
                     message: message,
+                    equipmentProvider: equipmentProvider,
                     requestedItemIds: {
                       for (final item in message.items)
                         if (userId != null &&
@@ -152,23 +351,39 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
                     onRequest: _openRequestForm,
                   ),
                 if (_sending) const _TypingIndicator(),
-                if (_messages.length == 1 && !_sending) ...[
-                  const SizedBox(height: 10),
+              ],
+            ),
+          ),
+          if (!_sending && !_loadingConversation)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mga puwedeng itanong',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 6,
+                    runSpacing: 0,
                     children: [
                       for (final suggestion in _suggestions)
                         ActionChip(
+                          key: ValueKey('assistant-suggestion-$suggestion'),
+                          visualDensity: VisualDensity.compact,
                           label: Text(suggestion),
                           onPressed: () => _sendQuestion(suggestion),
                         ),
                     ],
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
           SafeArea(
             top: false,
             child: Padding(
@@ -179,14 +394,15 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
-                      enabled: !_sending,
+                      enabled: !_sending && !_loadingConversation,
                       maxLength: 200,
                       maxLines: 4,
                       minLines: 1,
                       textCapitalization: TextCapitalization.sentences,
                       onSubmitted: (_) => _sendQuestion(),
                       decoration: InputDecoration(
-                        hintText: 'Ask about Lendy equipment or availability...',
+                        hintText:
+                            'Ask in English, Tagalog, or Taglish...',
                         counterText: '',
                         filled: true,
                         fillColor: Colors.white,
@@ -205,7 +421,9 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
                   IconButton.filled(
                     key: const Key('borrower-assistant-send'),
                     tooltip: 'Send question',
-                    onPressed: _sending ? null : _sendQuestion,
+                    onPressed: _sending || _loadingConversation
+                        ? null
+                        : _sendQuestion,
                     style: IconButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -245,11 +463,13 @@ class _AssistantMessage {
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
     required this.message,
+    required this.equipmentProvider,
     required this.requestedItemIds,
     required this.onRequest,
   });
 
   final _AssistantMessage message;
+  final EquipmentProvider? equipmentProvider;
   final Set<String> requestedItemIds;
   final ValueChanged<BorrowerAssistantItem> onRequest;
 
@@ -266,6 +486,7 @@ class _MessageBubble extends StatelessWidget {
           : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
+        width: message.items.isNotEmpty ? bubbleMaxWidth : null,
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
@@ -282,8 +503,11 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
             for (final item in message.items)
-              _SuggestedItemCard(
-                item: item,
+              _AssistantLandscapeItemCard(
+                key: ValueKey('assistant-landscape-item-${item.id}'),
+                equipment: item.toEquipmentModel(
+                  inventoryItem: equipmentProvider?.findById(item.id),
+                ),
                 requested: requestedItemIds.contains(item.id),
                 onRequest: () => onRequest(item),
               ),
@@ -294,80 +518,171 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-class _SuggestedItemCard extends StatelessWidget {
-  const _SuggestedItemCard({
-    required this.item,
+class _AssistantLandscapeItemCard extends StatelessWidget {
+  const _AssistantLandscapeItemCard({
+    super.key,
+    required this.equipment,
     required this.requested,
     required this.onRequest,
   });
 
-  final BorrowerAssistantItem item;
+  final EquipmentModel equipment;
   final bool requested;
   final VoidCallback onRequest;
 
   @override
   Widget build(BuildContext context) {
+    final imageBytes = equipment.imageBytes;
+    final isAvailable = equipment.status == EquipmentStatus.available;
     return Container(
-      key: Key('assistant-item-card-${item.id}'),
       width: double.infinity,
       margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.fieldBorder),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(item.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-          if (item.category.isNotEmpty || item.location.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              [
-                if (item.category.isNotEmpty) item.category,
-                if (item.location.isNotEmpty) item.location,
-              ].join(' • '),
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final imageWidth = constraints.maxWidth < 250 ? 72.0 : 92.0;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: imageWidth,
+                  height: 128,
+                  child: ColoredBox(
+                    color: Colors.white,
+                    child: imageBytes == null
+                        ? const Center(
+                            child: Icon(
+                              Icons.inventory_2_outlined,
+                              color: AppColors.textSecondary,
+                              size: 30,
+                            ),
+                          )
+                        : Image.memory(
+                            imageBytes,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const Center(
+                              child: Icon(
+                                Icons.inventory_2_outlined,
+                                color: AppColors.textSecondary,
+                                size: 30,
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
               ),
-            ),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            item.statusLabel,
-            style: TextStyle(
-              color: item.status == EquipmentStatus.available
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              key: Key('assistant-request-item-${item.id}'),
-              onPressed:
-                  requested || item.status != EquipmentStatus.available
-                  ? null
-                  : onRequest,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      equipment.displayCategory.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      equipment.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      equipment.assetTag?.isNotEmpty == true
+                          ? equipment.assetTag!
+                          : equipment.id,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    if (equipment.location.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              equipment.location,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 5),
+                    StatusBadge(
+                      style: equipmentStatusStyle(equipment.status),
+                      uppercase: true,
+                      compact: true,
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 36,
+                      child: ElevatedButton(
+                        key: Key('assistant-request-item-${equipment.id}'),
+                        onPressed: isAvailable && !requested ? onRequest : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryLight,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                        ),
+                        child: Text(
+                          requested
+                              ? 'Requested'
+                              : isAvailable
+                              ? 'Request'
+                              : equipment.status.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Text(
-                requested
-                    ? 'Requested'
-                    : item.status == EquipmentStatus.available
-                    ? 'Request'
-                    : item.statusLabel,
-              ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

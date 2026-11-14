@@ -22,13 +22,22 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final responseCompleter = Completer<http.Response>();
+      var requestCount = 0;
       final client = MockClient((request) async {
         expect(request.url.path, '/borrower-assistant');
         expect(request.headers['Authorization'], 'Bearer test-token');
-        expect(jsonDecode(request.body), {
-          'question': 'What items are available?',
-        });
-        return responseCompleter.future;
+        requestCount++;
+        if (requestCount == 1) {
+          expect(jsonDecode(request.body), {
+            'question': 'What items are available?',
+          });
+          return responseCompleter.future;
+        }
+        expect(jsonDecode(request.body), {'question': 'Available items?'});
+        return http.Response(
+          jsonEncode({'answer': 'Available ang projector.', 'items': []}),
+          200,
+        );
       });
       addTearDown(client.close);
 
@@ -56,6 +65,8 @@ void main() {
         ),
       );
 
+      expect(find.text('Mga puwedeng itanong'), findsOneWidget);
+      expect(find.text('Available items?'), findsOneWidget);
       await tester.enterText(
         find.byType(TextField),
         'What items are available?',
@@ -95,7 +106,15 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Projector'), findsOneWidget);
+      expect(find.text('PROJECTORS'), findsOneWidget);
+      expect(find.text('PRJ-001'), findsOneWidget);
+      expect(find.text('AV Room'), findsOneWidget);
       expect(tester.takeException(), isNull);
+      expect(find.text('Mga puwedeng itanong'), findsOneWidget);
+      expect(
+        find.byKey(const Key('assistant-landscape-item-projector-1')),
+        findsOneWidget,
+      );
       final requestButton = find.byKey(
         const Key('assistant-request-item-projector-1'),
       );
@@ -105,6 +124,58 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Request Equipment'), findsOneWidget);
       expect(find.text('Projector'), findsOneWidget);
+
+      Navigator.of(tester.element(find.text('Request Equipment'))).pop();
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('assistant-suggestion-Available items?')),
+      );
+      await tester.pumpAndSettle();
+      expect(requestCount, 2);
+      expect(find.text('Available ang projector.'), findsOneWidget);
     },
   );
+
+  testWidgets('automatically asks the question sent from the home screen', (
+    tester,
+  ) async {
+    final client = MockClient((request) async {
+      expect(jsonDecode(request.body), {'question': 'Camera to borrow?'});
+      return http.Response(
+        jsonEncode({'answer': 'Oo, may camera.', 'items': []}),
+        200,
+      );
+    });
+    addTearDown(client.close);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider.forTesting()),
+          ChangeNotifierProvider(create: (_) => EquipmentProvider()),
+          ChangeNotifierProxyProvider<EquipmentProvider, RequestProvider>(
+            create: (context) =>
+                RequestProvider(context.read<EquipmentProvider>()),
+            update: (context, equipment, requests) =>
+                requests ?? RequestProvider(equipment),
+          ),
+        ],
+        child: MaterialApp(
+          home: BorrowerAssistantScreen(
+            initialQuestion: 'Camera to borrow?',
+            service: BorrowerAssistantService(
+              client: client,
+              getIdToken: () async => 'test-token',
+              apiUrl: 'https://example.test',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Camera to borrow?'), findsNWidgets(2));
+    expect(find.text('Oo, may camera.'), findsOneWidget);
+  });
 }

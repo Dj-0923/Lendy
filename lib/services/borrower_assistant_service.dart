@@ -66,16 +66,32 @@ class BorrowerAssistantItem {
   final String statusLabel;
   final EquipmentStatus status;
 
-  EquipmentModel toEquipmentModel() => EquipmentModel.fromFirestore(
-    documentId: id,
-    data: {
-      'name': name,
-      'category': category,
-      'location': location,
-      'tag': tag,
-    },
-    status: status,
-  );
+  EquipmentModel toEquipmentModel({EquipmentModel? inventoryItem}) {
+    final parsedItem = EquipmentModel.fromFirestore(
+      documentId: id,
+      data: {
+        'name': name,
+        'category': category,
+        'location': location,
+        'tag': tag,
+      },
+      status: status,
+    );
+    return EquipmentModel(
+      id: id,
+      name: name,
+      category: inventoryItem?.category ?? parsedItem.category,
+      categoryName: category.isNotEmpty
+          ? category
+          : inventoryItem?.categoryName,
+      assetTag: tag.isNotEmpty ? tag : inventoryItem?.assetTag,
+      location: location.isNotEmpty
+          ? location
+          : inventoryItem?.location ?? '',
+      image: inventoryItem?.image,
+      status: status,
+    );
+  }
 }
 
 class BorrowerAssistantReply {
