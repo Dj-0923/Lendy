@@ -103,6 +103,27 @@ void main() {
     expect(fieldRect(tester, 1), baseline, reason: 'field moved on reset');
   });
 
+  testWidgets('filter labels stay close to their dropdown icons', (
+    tester,
+  ) async {
+    await pumpBrowse(tester);
+
+    for (final index in [0, 1]) {
+      final label = find.text(
+        index == 0 ? 'All Categories' : 'Any Availability',
+      );
+      final icon = find.byIcon(Icons.keyboard_arrow_down).at(index);
+      expect(
+        fieldRect(tester, index).width,
+        lessThanOrEqualTo(index == 0 ? 140 : 150),
+      );
+      expect(
+        tester.getRect(icon).left - tester.getRect(label).right,
+        lessThanOrEqualTo(8),
+      );
+    }
+  });
+
   // With no inventory, the only category option is the reset choice.
   testWidgets('category menu shows the all-categories option', (tester) async {
     await pumpBrowse(tester);
@@ -152,40 +173,151 @@ void main() {
 
     final assistantButton = find.byKey(const Key('browse-ai-assistant-button'));
     expect(assistantButton, findsOneWidget);
+    expect(tester.getSize(assistantButton), const Size(153, 180));
+    final assistantButtonInk = tester.widget<Ink>(
+      find.descendant(of: assistantButton, matching: find.byType(Ink)),
+    );
+    final assistantButtonMaterial = tester.widget<Material>(assistantButton);
+    expect(assistantButtonMaterial.color, Colors.transparent);
+    expect(assistantButtonMaterial.elevation, 0);
+    final assistantButtonImage =
+        (assistantButtonInk.decoration! as BoxDecoration).image!;
+    expect(assistantButtonImage.fit, BoxFit.cover);
+    expect(assistantButtonImage.alignment, Alignment.topCenter);
+    expect(assistantButtonImage.filterQuality, FilterQuality.high);
+    expect(find.byIcon(Icons.auto_awesome), findsNothing);
     await tester.tap(assistantButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('AI Assistant'), findsOneWidget);
-    expect(find.textContaining('You can ask in English'), findsOneWidget);
+    expect(find.text('Fabii'), findsOneWidget);
+    expect(find.text('your AI assistant'), findsOneWidget);
+    expect(find.text('Online'), findsOneWidget);
+    final assistantHeaderAvatar = tester.widget<CircleAvatar>(
+      find.byKey(const Key('assistant-header-avatar')),
+    );
+    expect(
+      assistantHeaderAvatar.backgroundImage,
+      const AssetImage('assets/images/botpfp.png'),
+    );
+    final titleRect = tester.getRect(find.text('Fabii'));
+    final subtitleRect = tester.getRect(find.text('your AI assistant'));
+    expect(subtitleRect.top - titleRect.bottom, lessThanOrEqualTo(2));
+    expect(find.byKey(const Key('assistant-online-indicator')), findsOneWidget);
+    expect(tester.widget<AppBar>(find.byType(AppBar)).titleSpacing, 0);
+    expect(find.textContaining('You can ask me in English'), findsOneWidget);
   });
 
-  testWidgets('home AI suggestions stay below search and open that question', (
+  testWidgets(
+    'three home AI suggestions stay above search and open a question',
+    (tester) async {
+      await pumpBrowse(tester);
+
+      final suggestion = find.byKey(const Key('browse-ai-suggestion-0'));
+      final search = find.byKey(const Key('browse-search-field'));
+      expect(suggestion, findsOneWidget);
+      expect(
+        tester.getBottomLeft(suggestion).dy,
+        lessThanOrEqualTo(tester.getTopLeft(search).dy),
+      );
+      expect(find.text('Available items?'), findsOneWidget);
+      expect(find.text('Camera to borrow?'), findsOneWidget);
+      expect(find.text('Request status?'), findsOneWidget);
+      expect(find.byKey(const Key('browse-ai-suggestion-3')), findsNothing);
+
+      await tester.tap(suggestion);
+      await tester.pumpAndSettle();
+
+      final assistant = tester.widget<BorrowerAssistantScreen>(
+        find.byType(BorrowerAssistantScreen),
+      );
+      expect(assistant.initialQuestion, 'Available items?');
+    },
+  );
+
+  testWidgets('home suggestions match the reference layout beside Fabii', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(547, 380);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await pumpBrowse(tester);
 
-    final suggestion = find.byKey(const Key('browse-ai-suggestion-0'));
+    final suggestions = find.byKey(const Key('browse-ai-suggestions'));
+    final suggestionsRect = tester.getRect(suggestions);
+    final assistantButton = find.byKey(const Key('browse-ai-assistant-button'));
     final search = find.byKey(const Key('browse-search-field'));
-    expect(suggestion, findsOneWidget);
+    final title = find.text('What do you need today?');
+    final subtitle = find.text('Browse equipment or ask Fabii for help.');
+    final dashboardHeader = find.byKey(const Key('dashboard-header'));
+    final pinnedSearch = find.byKey(const Key('browse-pinned-search'));
+    final buttonRect = tester.getRect(assistantButton);
+    final searchRect = tester.getRect(search);
+    final pinnedSearchRect = tester.getRect(pinnedSearch);
+    final pinnedDecoration =
+        tester.widget<Container>(pinnedSearch).decoration! as BoxDecoration;
+    final contentClip = tester.widget<ClipRRect>(
+      find.byKey(const Key('browse-pinned-search-content-clip')),
+    );
+
+    expect(pinnedSearchRect.height, 180);
     expect(
-      tester.getTopLeft(suggestion).dy,
-      greaterThanOrEqualTo(tester.getBottomLeft(search).dy),
+      pinnedDecoration.borderRadius,
+      const BorderRadius.only(
+        bottomLeft: Radius.circular(48),
+        bottomRight: Radius.circular(48),
+      ),
     );
-    expect(find.text('Available items?'), findsOneWidget);
-    expect(find.text('Camera to borrow?'), findsOneWidget);
-    expect(find.text('Request status?'), findsOneWidget);
-    expect(find.text('Next due date?'), findsOneWidget);
-
-    await tester.tap(suggestion);
-    await tester.pumpAndSettle();
-
-    final assistant = tester.widget<BorrowerAssistantScreen>(
-      find.byType(BorrowerAssistantScreen),
+    expect(contentClip.borderRadius, pinnedDecoration.borderRadius);
+    expect(
+      find.ancestor(
+        of: assistantButton,
+        matching: find.byKey(const Key('browse-pinned-search-content-clip')),
+      ),
+      findsOneWidget,
     );
-    expect(assistant.initialQuestion, 'Available items?');
+    expect(buttonRect.bottom, pinnedSearchRect.bottom);
+    expect(buttonRect.right, pinnedSearchRect.right - 12);
+    expect(searchRect.height, 48);
+    expect(searchRect.bottom, pinnedSearchRect.bottom - 40);
+    expect(suggestionsRect.width, searchRect.width);
+    expect(suggestionsRect.right - buttonRect.left, closeTo(7, 0.01));
+    expect(searchRect.top - suggestionsRect.bottom, 24);
+    expect(title, findsOneWidget);
+    expect(subtitle, findsOneWidget);
+    expect(tester.getSize(dashboardHeader).height, lessThan(160));
+    expect(
+      tester.getTopLeft(title).dy,
+      greaterThan(tester.getBottomLeft(find.text('Lendy')).dy),
+    );
+    expect(
+      tester.getTopLeft(subtitle).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(title).dy),
+    );
+    expect(
+      tester.getTopLeft(suggestions).dy - tester.getBottomLeft(subtitle).dy,
+      lessThan(45),
+    );
+    for (var index = 0; index < 3; index++) {
+      final suggestion = find.byKey(Key('browse-ai-suggestion-$index'));
+      final rect = tester.getRect(suggestion);
+      expect(rect.height, 40);
+      expect(rect.width, inInclusiveRange(110, 120));
+      expect(rect.left, greaterThanOrEqualTo(suggestionsRect.left));
+      expect(rect.right, lessThanOrEqualTo(suggestionsRect.right + 0.01));
+    }
+    expect(
+      (tester.getRect(find.byKey(const Key('browse-ai-suggestion-0'))).width -
+              tester
+                  .getRect(find.byKey(const Key('browse-ai-suggestion-2')))
+                  .width)
+          .abs(),
+      lessThan(0.01),
+    );
   });
 
-  testWidgets('hides the home scrollbar but keeps prompt scrolling', (
+  testWidgets('hides the home scrollbar and shows all three prompts', (
     tester,
   ) async {
     await pumpBrowse(tester);
@@ -199,12 +331,10 @@ void main() {
       child,
       const ScrollableDetails(direction: AxisDirection.down),
     );
-    final suggestions = tester.widget<ListView>(
-      find.byKey(const Key('browse-ai-suggestions')),
-    );
-
     expect(identical(verticalScrollbar, child), isTrue);
-    expect(suggestions.scrollDirection, Axis.horizontal);
+    expect(find.byKey(const Key('browse-ai-suggestion-0')), findsOneWidget);
+    expect(find.byKey(const Key('browse-ai-suggestion-1')), findsOneWidget);
+    expect(find.byKey(const Key('browse-ai-suggestion-2')), findsOneWidget);
   });
 
   testWidgets('header scrolls away while search and categories stay pinned', (
@@ -240,8 +370,8 @@ void main() {
       (tester.widget<Container>(pinnedSearch).decoration! as BoxDecoration)
           .borderRadius,
       const BorderRadius.only(
-        bottomLeft: Radius.circular(36),
-        bottomRight: Radius.circular(36),
+        bottomLeft: Radius.circular(48),
+        bottomRight: Radius.circular(48),
       ),
     );
 
@@ -251,16 +381,22 @@ void main() {
     expect(header, findsNothing);
     expect(find.text('Lendy'), findsNothing);
     expect(search, findsOneWidget);
+    expect(find.byKey(const Key('browse-ai-suggestions')), findsNothing);
+    expect(find.text('Available items?'), findsNothing);
+    expect(find.text('Camera to borrow?'), findsNothing);
+    expect(find.text('Request status?'), findsNothing);
+    expect(find.byKey(const Key('browse-ai-assistant-button')), findsNothing);
     expect(tester.getRect(pinnedSearch).top, 24);
     final pinnedSearchRect = tester.getRect(search);
-    expect(pinnedSearchRect.top, 30);
-    expect(tester.getRect(filters).top, 124);
+    expect(tester.getRect(pinnedSearch).height, 64);
+    expect(pinnedSearchRect.top, 32);
+    expect(tester.getRect(filters).top, 88);
     expect(tester.getRect(statusBar).top, 0);
 
     await tester.drag(scrollView, const Offset(0, -50));
     await tester.pumpAndSettle();
 
     expect(tester.getRect(search), pinnedSearchRect);
-    expect(tester.getRect(filters).top, 124);
+    expect(tester.getRect(filters).top, 88);
   });
 }

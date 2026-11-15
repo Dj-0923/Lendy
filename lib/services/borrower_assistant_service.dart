@@ -40,6 +40,7 @@ class BorrowerAssistantItem {
     }
     final status = switch (statusLabel) {
       'Borrowed' => EquipmentStatus.borrowed,
+      'Reserved' => EquipmentStatus.reserved,
       'Return Pending' => EquipmentStatus.reserved,
       'In Maintenance' => EquipmentStatus.maintenance,
       'Available' => EquipmentStatus.available,
@@ -85,9 +86,7 @@ class BorrowerAssistantItem {
           ? category
           : inventoryItem?.categoryName,
       assetTag: tag.isNotEmpty ? tag : inventoryItem?.assetTag,
-      location: location.isNotEmpty
-          ? location
-          : inventoryItem?.location ?? '',
+      location: location.isNotEmpty ? location : inventoryItem?.location ?? '',
       image: inventoryItem?.image,
       status: status,
     );
@@ -146,7 +145,9 @@ class BorrowerAssistantService {
 
     final decoded = jsonDecode(response.body);
     if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('The assistant returned an invalid response.');
+      throw const FormatException(
+        'The assistant returned an invalid response.',
+      );
     }
     if (response.statusCode != 200) {
       final message = decoded['error'];

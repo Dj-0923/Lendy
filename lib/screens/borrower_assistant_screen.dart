@@ -32,6 +32,8 @@ class BorrowerAssistantScreen extends StatefulWidget {
 }
 
 class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
+  static var _requestSequence = 0;
+
   static const _suggestions = [
     'Available items?',
     'Camera to borrow?',
@@ -40,7 +42,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
   ];
   static const _welcomeMessage = _AssistantMessage(
     text:
-        'Hi! You can ask in English, Tagalog, or Taglish about Lendy equipment, your profile, or your own loans and requests. I will answer from information saved in Lendy and let you know when a detail is not available.',
+        'Hi, I\'m Fabii! You can ask me in English, Tagalog, or Taglish about Lendy equipment, your profile, or your own loans and requests. I will answer from information saved in Lendy and let you know when a detail is not available.',
     fromUser: false,
   );
 
@@ -50,6 +52,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
   bool _sending = false;
   bool _loadingConversation = false;
   bool _initializedUser = false;
+  bool _hasStartedConversation = false;
   bool _initialQuestionQueued = false;
   String? _loadedUserId;
   int _loadGeneration = 0;
@@ -72,6 +75,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
     _expirationTimer = null;
     _conversationGeneration++;
     _conversationStartedAt = null;
+    _hasStartedConversation = false;
     _messages
       ..clear()
       ..add(_welcomeMessage);
@@ -105,6 +109,9 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
         return;
       }
       if (conversation != null) {
+        _hasStartedConversation = conversation.messages.any(
+          (message) => message.fromUser,
+        );
         _conversationStartedAt = conversation.startedAt;
         _scheduleExpiration(userId, conversation.startedAt);
         _messages
@@ -115,11 +122,14 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
                 text: message.text,
                 fromUser: message.fromUser,
                 items: message.items,
+                requestId: message.requestId,
+                replyToRequestId: message.replyToRequestId,
               ),
             ),
           );
       }
       setState(() => _loadingConversation = false);
+      unawaited(_markReplyRead(userId));
       _queueInitialQuestion();
       _scrollToBottom();
     } catch (error) {
@@ -151,6 +161,10 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
     final question = (suggestion ?? _controller.text).trim();
     if (question.isEmpty || _sending || _loadingConversation) return;
     final userId = context.read<AuthProvider>().currentUser?.id;
+    final equipmentProvider = context.read<EquipmentProvider?>();
+    final requestId =
+        '${DateTime.now().microsecondsSinceEpoch}-${_requestSequence++}';
+    late final DateTime startedAt;
     _controller.clear();
     setState(() {
       if (_conversationStartedAt == null) {
@@ -159,32 +173,80 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
           _scheduleExpiration(userId, _conversationStartedAt!);
         }
       }
+      startedAt = _conversationStartedAt!;
+      _hasStartedConversation = true;
       _sending = true;
-      _messages.add(_AssistantMessage(text: question, fromUser: true));
+      _messages.add(
+        _AssistantMessage(text: question, fromUser: true, requestId: requestId),
+      );
     });
     final conversationGeneration = _conversationGeneration;
     _scrollToBottom();
+    if (userId != null) {
+      BorrowerAssistantConversationStore.markReplying(userId);
+    }
     await _saveConversation(userId);
 
     try {
-      final reply = await _service.ask(question);
-      if (!_isCurrentConversation(userId, conversationGeneration)) return;
-      setState(() {
-        _messages.add(
+      final reply =
+          _maintenanceQuestionReply(question, equipmentProvider) ??
+          await _service.ask(question);
+      if (_isCurrentConversation(userId, conversationGeneration)) {
+        setState(() {
+          _messages.add(
+            _AssistantMessage(
+              text: reply.answer,
+              fromUser: false,
+              items: reply.items,
+              replyToRequestId: requestId,
+            ),
+          );
+        });
+        await _saveConversation(userId);
+        if (_isCurrentConversation(userId, conversationGeneration)) {
+          if (userId != null) {
+            BorrowerAssistantConversationStore.clearReplying(userId);
+          }
+        } else {
+          await _persistAssistantReplyWhenClosed(
+            userId,
+            startedAt,
+            requestId,
+            _AssistantMessage(
+              text: reply.answer,
+              fromUser: false,
+              items: reply.items,
+              replyToRequestId: requestId,
+            ),
+          );
+        }
+      } else {
+        await _persistAssistantReplyWhenClosed(
+          userId,
+          startedAt,
+          requestId,
           _AssistantMessage(
             text: reply.answer,
             fromUser: false,
             items: reply.items,
+            replyToRequestId: requestId,
           ),
         );
-      });
-      await _saveConversation(userId);
+      }
     } on BorrowerAssistantApiException catch (error) {
-      await _addErrorMessage(userId, conversationGeneration, error.message);
+      await _addErrorMessage(
+        userId,
+        conversationGeneration,
+        startedAt,
+        requestId,
+        error.message,
+      );
     } on TimeoutException {
       await _addErrorMessage(
         userId,
         conversationGeneration,
+        startedAt,
+        requestId,
         'The assistant took too long to respond. Please try again.',
       );
     } on http.ClientException {
@@ -192,12 +254,16 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
       await _addErrorMessage(
         userId,
         conversationGeneration,
+        startedAt,
+        requestId,
         'Could not reach the assistant service. Check your connection and try again.',
       );
     } on FormatException {
       await _addErrorMessage(
         userId,
         conversationGeneration,
+        startedAt,
+        requestId,
         'The assistant returned an invalid response. Please try again.',
       );
     } catch (error) {
@@ -205,6 +271,8 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
       await _addErrorMessage(
         userId,
         conversationGeneration,
+        startedAt,
+        requestId,
         'The assistant is unavailable right now. Please try again.',
       );
     } finally {
@@ -215,16 +283,89 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
     }
   }
 
+  BorrowerAssistantReply? _maintenanceQuestionReply(
+    String question,
+    EquipmentProvider? equipmentProvider,
+  ) {
+    if (!RegExp(
+      r'\b(?:maintenance|under repair|being repaired|for repair)\b',
+      caseSensitive: false,
+    ).hasMatch(question)) {
+      return null;
+    }
+
+    if (equipmentProvider == null) return null;
+    final lowerQuestion = question.toLowerCase();
+    final filipino = RegExp(
+      r'\b(?:ano|anong|mga|wala|ilan|may|na|ng)\b',
+    ).hasMatch(lowerQuestion);
+    if (equipmentProvider.isLoading || equipmentProvider.loadError != null) {
+      return BorrowerAssistantReply(
+        answer: filipino
+            ? 'Hindi ko ma-check ang status ng inventory ngayon. Pakisubukan ulit mamaya.'
+            : 'I cannot check the inventory status right now. Please try again later.',
+        items: const [],
+      );
+    }
+
+    final equipment = equipmentProvider.allEquipment;
+    EquipmentModel? mentionedItem;
+    for (final item in equipment) {
+      final identifiers = [item.name, item.id, item.assetTag];
+      if (identifiers.any(
+        (identifier) =>
+            identifier != null &&
+            identifier.isNotEmpty &&
+            lowerQuestion.contains(identifier.toLowerCase()),
+      )) {
+        mentionedItem = item;
+        break;
+      }
+    }
+    final matches = mentionedItem == null
+        ? equipment
+              .where((item) => item.status == EquipmentStatus.maintenance)
+              .toList()
+        : [mentionedItem];
+    final items = [
+      for (final item in matches)
+        BorrowerAssistantItem(
+          id: item.id,
+          name: item.name,
+          category: item.displayCategory,
+          location: item.location,
+          tag: item.assetTag ?? '',
+          statusLabel: item.status.label,
+          status: item.status,
+        ),
+    ];
+
+    final answer = mentionedItem != null
+        ? filipino
+              ? '${mentionedItem.name} ay kasalukuyang ${mentionedItem.status.label}${mentionedItem.status == EquipmentStatus.maintenance ? "." : ", hindi naka-maintenance."}'
+              : '${mentionedItem.name} is currently ${mentionedItem.status.label}${mentionedItem.status == EquipmentStatus.maintenance ? "." : ", not in maintenance."}'
+        : matches.isEmpty
+        ? filipino
+              ? 'Walang item na nasa maintenance sa ngayon.'
+              : 'There are no items in maintenance right now.'
+        : filipino
+        ? 'May ${matches.length} item na nasa maintenance sa ngayon.'
+        : '${matches.length} item(s) are currently in maintenance.';
+
+    return BorrowerAssistantReply(answer: answer, items: items);
+  }
+
   bool _isCurrentConversation(String? userId, int generation) =>
       mounted &&
+      ModalRoute.of(context)?.isCurrent == true &&
       _loadedUserId == userId &&
       _conversationGeneration == generation;
 
   void _scheduleExpiration(String userId, DateTime startedAt) {
     _expirationTimer?.cancel();
-    final remaining = startedAt.add(
-      BorrowerAssistantConversationStore.expiration,
-    ).difference(DateTime.now());
+    final remaining = startedAt
+        .add(BorrowerAssistantConversationStore.expiration)
+        .difference(DateTime.now());
     _expirationTimer = Timer(
       remaining.isNegative ? Duration.zero : remaining,
       () => _expireConversation(userId, startedAt),
@@ -239,6 +380,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
     }
     _expirationTimer = null;
     _conversationStartedAt = null;
+    _hasStartedConversation = false;
     _conversationGeneration++;
     _messages
       ..clear()
@@ -276,6 +418,8 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
                 text: message.text,
                 fromUser: message.fromUser,
                 items: message.items,
+                requestId: message.requestId,
+                replyToRequestId: message.replyToRequestId,
               ),
           ],
         ),
@@ -295,13 +439,84 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
   Future<void> _addErrorMessage(
     String? userId,
     int conversationGeneration,
+    DateTime startedAt,
+    String requestId,
     String message,
   ) async {
-    if (!_isCurrentConversation(userId, conversationGeneration)) return;
-    setState(() {
-      _messages.add(_AssistantMessage(text: message, fromUser: false));
-    });
-    await _saveConversation(userId);
+    final errorReply = _AssistantMessage(
+      text: message,
+      fromUser: false,
+      replyToRequestId: requestId,
+    );
+    if (_isCurrentConversation(userId, conversationGeneration)) {
+      setState(() => _messages.add(errorReply));
+      await _saveConversation(userId);
+      if (_isCurrentConversation(userId, conversationGeneration)) {
+        if (userId != null) {
+          BorrowerAssistantConversationStore.clearReplying(userId);
+        }
+      } else {
+        await _persistAssistantReplyWhenClosed(
+          userId,
+          startedAt,
+          requestId,
+          errorReply,
+        );
+      }
+      return;
+    }
+
+    await _persistAssistantReplyWhenClosed(
+      userId,
+      startedAt,
+      requestId,
+      errorReply,
+    );
+  }
+
+  Future<void> _persistAssistantReplyWhenClosed(
+    String? userId,
+    DateTime startedAt,
+    String requestId,
+    _AssistantMessage reply,
+  ) async {
+    if (userId == null) return;
+    try {
+      final saved =
+          await BorrowerAssistantConversationStore.appendAssistantReply(
+            userId: userId,
+            startedAt: startedAt,
+            requestId: requestId,
+            reply: BorrowerAssistantConversationMessage(
+              text: reply.text,
+              fromUser: false,
+              items: reply.items,
+              replyToRequestId: requestId,
+            ),
+          );
+      if (saved) {
+        await BorrowerAssistantConversationStore.markReplyAvailable(userId);
+      } else {
+        BorrowerAssistantConversationStore.clearReplying(userId);
+      }
+    } catch (error) {
+      debugPrint('Could not save assistant reply after closing chat: $error');
+    }
+  }
+
+  Future<void> _markReplyRead(String userId) async {
+    try {
+      await BorrowerAssistantConversationStore.markReplyRead(userId);
+    } catch (error) {
+      debugPrint('Could not clear assistant reply notification: $error');
+      if (mounted && _loadedUserId == userId) {
+        AppNotice.show(
+          context,
+          'The AI reply notification could not be cleared.',
+          type: AppNoticeType.error,
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -323,7 +538,65 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('AI Assistant'),
+        title: Row(
+          children: [
+            const _AssistantAvatar(avatarKey: Key('assistant-header-avatar')),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Fabii',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      height: 1,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      const Flexible(
+                        child: Text(
+                          "your AI assistant",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white70,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        key: const Key('assistant-online-indicator'),
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF55D98B),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Online',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white70,
+                          height: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        titleSpacing: 0,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -354,7 +627,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
               ],
             ),
           ),
-          if (!_sending && !_loadingConversation)
+          if (!_hasStartedConversation && !_sending && !_loadingConversation)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
               child: Column(
@@ -370,7 +643,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
                   const SizedBox(height: 4),
                   Wrap(
                     spacing: 6,
-                    runSpacing: 0,
+                    runSpacing: 6,
                     children: [
                       for (final suggestion in _suggestions)
                         ActionChip(
@@ -401,8 +674,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
                       textCapitalization: TextCapitalization.sentences,
                       onSubmitted: (_) => _sendQuestion(),
                       decoration: InputDecoration(
-                        hintText:
-                            'Ask in English, Tagalog, or Taglish...',
+                        hintText: 'Ask in English, Tagalog, or Taglish...',
                         counterText: '',
                         filled: true,
                         fillColor: Colors.white,
@@ -453,11 +725,15 @@ class _AssistantMessage {
     required this.text,
     required this.fromUser,
     this.items = const [],
+    this.requestId,
+    this.replyToRequestId,
   });
 
   final String text;
   final bool fromUser;
   final List<BorrowerAssistantItem> items;
+  final String? requestId;
+  final String? replyToRequestId;
 }
 
 class _MessageBubble extends StatelessWidget {
@@ -476,44 +752,75 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = message.fromUser ? AppColors.primary : Colors.white;
-    final bubbleMaxWidth = (MediaQuery.sizeOf(context).width - 48).clamp(
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final bubbleMaxWidth = (screenWidth - (message.fromUser ? 48 : 76)).clamp(
       0.0,
       320.0,
     );
-    return Align(
-      alignment: message.fromUser
-          ? Alignment.centerRight
-          : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
-        width: message.items.isNotEmpty ? bubbleMaxWidth : null,
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              message.text,
-              style: TextStyle(
-                color: message.fromUser ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            for (final item in message.items)
-              _AssistantLandscapeItemCard(
-                key: ValueKey('assistant-landscape-item-${item.id}'),
-                equipment: item.toEquipmentModel(
-                  inventoryItem: equipmentProvider?.findById(item.id),
-                ),
-                requested: requestedItemIds.contains(item.id),
-                onRequest: () => onRequest(item),
-              ),
-          ],
-        ),
+    final bubble = Container(
+      constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
+      width: message.items.isNotEmpty ? bubbleMaxWidth : null,
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message.text,
+            style: TextStyle(
+              color: message.fromUser ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+          for (final item in message.items)
+            _AssistantLandscapeItemCard(
+              key: ValueKey('assistant-landscape-item-${item.id}'),
+              equipment: item.toEquipmentModel(
+                inventoryItem: equipmentProvider?.findById(item.id),
+              ),
+              requested: requestedItemIds.contains(item.id),
+              onRequest: () => onRequest(item),
+            ),
+        ],
+      ),
+    );
+
+    if (message.fromUser) {
+      return Align(alignment: Alignment.centerRight, child: bubble);
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: _AssistantAvatar(),
+          ),
+          const SizedBox(width: 8),
+          Flexible(child: bubble),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssistantAvatar extends StatelessWidget {
+  const _AssistantAvatar({this.avatarKey});
+
+  final Key? avatarKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      key: avatarKey ?? const Key('assistant-profile-avatar'),
+      radius: 18,
+      backgroundColor: AppColors.primaryLight,
+      backgroundImage: const AssetImage('assets/images/botpfp.png'),
     );
   }
 }
@@ -714,38 +1021,46 @@ class _TypingIndicatorState extends State<_TypingIndicator>
       label: 'Assistant is typing',
       child: Align(
         alignment: Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var index = 0; index < 3; index++)
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    final phase = (_controller.value + index / 3) % 1;
-                    final opacity = 0.25 + 0.75 * (1 - (phase - 0.5).abs() * 2);
-                    return Opacity(
-                      opacity: opacity,
-                      child: Container(
-                        width: 7,
-                        height: 7,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: const BoxDecoration(
-                          color: AppColors.textSecondary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-            ],
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const _AssistantAvatar(),
+            const SizedBox(width: 8),
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var index = 0; index < 3; index++)
+                    AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        final phase = (_controller.value + index / 3) % 1;
+                        final opacity =
+                            0.25 + 0.75 * (1 - (phase - 0.5).abs() * 2);
+                        return Opacity(
+                          opacity: opacity,
+                          child: Container(
+                            width: 7,
+                            height: 7,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: const BoxDecoration(
+                              color: AppColors.textSecondary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

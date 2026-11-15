@@ -191,6 +191,8 @@ void main() {
     expect(find.byKey(const Key('messages-back')), findsOneWidget);
     expect(find.text('Lendy Admin'), findsOneWidget);
     expect(find.text('Admin'), findsOneWidget);
+    expect(find.text('Online'), findsOneWidget);
+    expect(find.byKey(const Key('messages-admin-online')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-notifications')), findsNothing);
     expect(find.byKey(const Key('main-scan-button')), findsNothing);
     expect(find.text('Scan'), findsNothing);

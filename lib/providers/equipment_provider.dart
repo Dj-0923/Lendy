@@ -7,13 +7,16 @@ import '../models/equipment_model.dart';
 
 /// Streams admin-managed equipment and applies browse filters and statuses.
 class EquipmentProvider extends ChangeNotifier {
-  EquipmentProvider({FirebaseFirestore? firestore}) {
+  EquipmentProvider({
+    FirebaseFirestore? firestore,
+    List<EquipmentModel> initialEquipment = const [],
+  }) : _equipment = List.of(initialEquipment) {
     if (firestore != null) {
       _watchEquipment(firestore);
     }
   }
 
-  final List<EquipmentModel> _equipment = [];
+  final List<EquipmentModel> _equipment;
   final Set<String> _approvedLoanEquipmentIds = {};
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _equipmentSubscription;
@@ -27,6 +30,7 @@ class EquipmentProvider extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   String? get loadError => _equipmentLoadError ?? _loanLoadError;
+  List<EquipmentModel> get allEquipment => List.unmodifiable(_equipment);
   String get searchQuery => _searchQuery;
   String? get selectedCategory => _selectedCategory;
   List<String> get categories {

@@ -44,10 +44,10 @@ class DashboardHeader extends StatelessWidget {
       margin: EdgeInsets.zero,
       padding: EdgeInsets.fromLTRB(
         16,
-        tall ? 24 : 16,
+        tall && bottomContent == null ? 24 : 16,
         16,
         bottomContent != null
-            ? 20
+            ? 8
             : tall
             ? 30
             : 16,
@@ -236,7 +236,7 @@ class DashboardHeader extends StatelessWidget {
                 ],
               ),
               if (bottomContent != null) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 bottomContent!,
               ],
             ],
