@@ -6,8 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
-import 'package:timezone/data/latest.dart' as timezone_data;
-import 'package:timezone/timezone.dart' as tz;
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/equipment_provider.dart';
@@ -28,8 +26,6 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  timezone_data.initializeTimeZones();
-  tz.setLocalLocation(tz.getLocation('Asia/Manila'));
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   const notificationChannel = AndroidNotificationChannel(
     'lendy_alerts',
@@ -45,6 +41,13 @@ Future<void> main() async {
         iOS: DarwinInitializationSettings(),
       ),
     );
+    final pendingNotifications = await localNotifications
+        .pendingNotificationRequests();
+    for (final notification in pendingNotifications) {
+      if (notification.payload?.startsWith('lendy_return_due:') ?? false) {
+        await localNotifications.cancel(id: notification.id);
+      }
+    }
     await localNotifications
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
@@ -125,9 +128,6 @@ class SmartClassroomApp extends StatelessWidget {
             firestore: authProvider == null ? FirebaseFirestore.instance : null,
             messaging: authProvider == null && !kIsWeb
                 ? FirebaseMessaging.instance
-                : null,
-            localNotifications: authProvider == null && !kIsWeb
-                ? FlutterLocalNotificationsPlugin()
                 : null,
           ),
           update: (_, auth, notifications) {

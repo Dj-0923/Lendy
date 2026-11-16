@@ -17,7 +17,7 @@ class EquipmentProvider extends ChangeNotifier {
   }
 
   final List<EquipmentModel> _equipment;
-  final Set<String> _approvedLoanEquipmentIds = {};
+  final Map<String, EquipmentStatus> _activeLoanStatuses = {};
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _equipmentSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _loanSubscription;
@@ -68,17 +68,13 @@ class EquipmentProvider extends ChangeNotifier {
                 snapshot.docs.map((document) {
                   final data = document.data();
                   final maintenance = data['maintenance'] == true;
-                  final isBorrowed = _approvedLoanEquipmentIds.contains(
-                    document.id,
-                  );
                   return EquipmentModel.fromFirestore(
                     documentId: document.id,
                     data: data,
                     status: maintenance
                         ? EquipmentStatus.maintenance
-                        : isBorrowed
-                        ? EquipmentStatus.borrowed
-                        : EquipmentStatus.available,
+                        : _activeLoanStatuses[document.id] ??
+                              EquipmentStatus.available,
                   );
                 }),
               )
@@ -120,22 +116,26 @@ class EquipmentProvider extends ChangeNotifier {
           .snapshots()
           .listen(
             (snapshot) {
-              _approvedLoanEquipmentIds
+              final activeLoanStatuses = <String, EquipmentStatus>{};
+              for (final document in snapshot.docs) {
+                final loan = document.data();
+                final equipmentId = loan['equipmentId'];
+                if (equipmentId is! String) continue;
+                final status = activeEquipmentStatusForLoan(loan);
+                if (status == null) continue;
+                final existing = activeLoanStatuses[equipmentId];
+                if (status == EquipmentStatus.borrowed || existing == null) {
+                  activeLoanStatuses[equipmentId] = status;
+                }
+              }
+              _activeLoanStatuses
                 ..clear()
-                ..addAll(
-                  snapshot.docs
-                      .where(
-                        (document) => document.data()['status'] == 'approved',
-                      )
-                      .map((document) => document.data()['equipmentId'])
-                      .whereType<String>(),
-                );
+                ..addAll(activeLoanStatuses);
               for (final equipment in _equipment) {
                 if (equipment.status != EquipmentStatus.maintenance) {
                   equipment.status =
-                      _approvedLoanEquipmentIds.contains(equipment.id)
-                      ? EquipmentStatus.borrowed
-                      : EquipmentStatus.available;
+                      _activeLoanStatuses[equipment.id] ??
+                      EquipmentStatus.available;
                 }
               }
               _loanLoadError = null;
@@ -150,7 +150,7 @@ class EquipmentProvider extends ChangeNotifier {
     } else if (!isAuthenticated && _loanSubscription != null) {
       _loanSubscription!.cancel();
       _loanSubscription = null;
-      _approvedLoanEquipmentIds.clear();
+      _activeLoanStatuses.clear();
       for (final equipment in _equipment) {
         if (equipment.status != EquipmentStatus.maintenance) {
           equipment.status = EquipmentStatus.available;

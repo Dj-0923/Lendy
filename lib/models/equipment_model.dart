@@ -52,6 +52,15 @@ extension EquipmentStatusX on EquipmentStatus {
   }
 }
 
+EquipmentStatus? activeEquipmentStatusForLoan(Map<String, dynamic> loan) {
+  return switch (loan['status']) {
+    'approved' when loan['checkedOutAt'] is int => EquipmentStatus.borrowed,
+    'approved' => EquipmentStatus.reserved,
+    'return_pending' => EquipmentStatus.borrowed,
+    _ => null,
+  };
+}
+
 /// Represents a single piece of borrowable school equipment.
 /// Kept flat and simple now so it maps easily to Firestore later.
 class EquipmentModel {

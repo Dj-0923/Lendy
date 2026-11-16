@@ -103,24 +103,41 @@ void main() {
     expect(fieldRect(tester, 1), baseline, reason: 'field moved on reset');
   });
 
-  testWidgets('filter labels stay close to their dropdown icons', (
+  testWidgets('dropdown icons stay pinned to the right as selections change', (
     tester,
   ) async {
     await pumpBrowse(tester);
 
     for (final index in [0, 1]) {
-      final label = find.text(
-        index == 0 ? 'All Categories' : 'Any Availability',
-      );
       final icon = find.byIcon(Icons.keyboard_arrow_down).at(index);
+      final rightInset =
+          tester.getRect(dropdowns.at(index)).right -
+          tester.getRect(icon).right;
       expect(
         fieldRect(tester, index).width,
         lessThanOrEqualTo(index == 0 ? 140 : 150),
       );
       expect(
-        tester.getRect(icon).left - tester.getRect(label).right,
-        lessThanOrEqualTo(8),
+        rightInset,
+        closeTo(13, 0.01),
+        reason: 'dropdown icon should align with the field right edge',
       );
+
+      final values = index == 0
+          ? <Object?>[null, 'Cameras', '3D Printers', 'New category']
+          : <Object?>[null, ...EquipmentStatus.values];
+      for (final value in values) {
+        if (index == 0) {
+          equipment.setCategory(value as String?);
+        } else {
+          equipment.setAvailability(value as EquipmentStatus?);
+        }
+        await tester.pump();
+        expect(
+          tester.getRect(icon).right,
+          closeTo(tester.getRect(dropdowns.at(index)).right - rightInset, 0.01),
+        );
+      }
     }
   });
 

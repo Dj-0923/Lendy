@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -520,21 +520,45 @@ class AuthProvider extends ChangeNotifier {
 
     _accountRequestInProgress = true;
     try {
+      String? notificationToken;
+      String? notificationWarning;
+      if (!kIsWeb) {
+        try {
+          final settings = await FirebaseMessaging.instance.requestPermission();
+          if (settings.authorizationStatus == AuthorizationStatus.denied) {
+            notificationWarning =
+                'Your request was submitted, but notifications are blocked. Allow Lendy notifications to receive your account decision.';
+          } else {
+            // ignore: deprecated_member_use
+            notificationToken = await FirebaseMessaging.instance.getToken();
+          }
+        } catch (error) {
+          debugPrint(
+            'Could not register account-request notifications: $error',
+          );
+          notificationWarning =
+              'Your request was submitted, but this device could not register for account-decision notifications.';
+        }
+      }
+      final requestData = <String, Object?>{
+        'fullName': fullName.trim(),
+        'email': email.trim().toLowerCase(),
+        'role': role.name,
+        'idNumber': idNumber.trim(),
+        'college': college.trim(),
+        'gender': gender,
+        if (role == UserRole.student) ...{
+          'yearLevel': yearLevel,
+          'block': block,
+        },
+      };
+      if (notificationToken != null) {
+        requestData['notificationToken'] = notificationToken;
+      }
       final response = await http.post(
         Uri.parse('$approvalApiUrl/request-account'),
         headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'fullName': fullName.trim(),
-          'email': email.trim().toLowerCase(),
-          'role': role.name,
-          'idNumber': idNumber.trim(),
-          'college': college.trim(),
-          'gender': gender,
-          if (role == UserRole.student) ...{
-            'yearLevel': yearLevel,
-            'block': block,
-          },
-        }),
+        body: jsonEncode(requestData),
       );
       final responseData = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode != 201) {
@@ -555,12 +579,15 @@ class AuthProvider extends ChangeNotifier {
         'status': 'pending',
       };
       _approvalRequestId = requestId;
-      String? warning;
+      String? warning = notificationWarning;
       try {
         await _storeRequestStatusCredentials(requestId, statusToken);
       } catch (error) {
-        warning =
-            'Your request was submitted, but this device could not save its status check. Keep the app open to follow the request.';
+        final warnings = <String>[
+          'This device could not save the request status check. Keep the app open to follow the request.',
+        ];
+        if (warning != null) warnings.insert(0, warning);
+        warning = warnings.join(' ');
         debugPrint('Could not persist account request status: $error');
       }
       _startRequestStatusPolling();

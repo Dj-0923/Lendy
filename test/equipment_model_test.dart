@@ -2,6 +2,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lendy/models/equipment_model.dart';
 
 void main() {
+  group('activeEquipmentStatusForLoan', () {
+    test('approved loans are reserved until checkout', () {
+      expect(
+        activeEquipmentStatusForLoan({'status': 'approved'}),
+        EquipmentStatus.reserved,
+      );
+      expect(
+        activeEquipmentStatusForLoan({
+          'status': 'approved',
+          'checkedOutAt': 123,
+        }),
+        EquipmentStatus.borrowed,
+      );
+    });
+
+    test('items awaiting return verification remain borrowed', () {
+      expect(
+        activeEquipmentStatusForLoan({'status': 'return_pending'}),
+        EquipmentStatus.borrowed,
+      );
+      expect(activeEquipmentStatusForLoan({'status': 'returned'}), isNull);
+    });
+  });
+
   group('EquipmentModel.fromFirestore', () {
     test(
       'maps admin equipment fields and retains the Firestore document ID',

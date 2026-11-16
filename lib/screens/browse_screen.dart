@@ -813,7 +813,7 @@ class _FilterDropdown<T> extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Row(
                 children: [
-                  Flexible(
+                  Expanded(
                     child: Text(
                       labelOf(value),
                       maxLines: 1,
