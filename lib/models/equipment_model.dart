@@ -33,17 +33,17 @@ extension EquipmentCategoryX on EquipmentCategory {
 }
 
 /// Lifecycle status of a piece of equipment.
-/// Available -> Unavailable (once a request is Approved) -> Borrowed (once
+/// Available -> Reserved (once a request is Approved) -> Borrowed (once
 /// scanned/checked out) -> Available again (once returned).
-enum EquipmentStatus { available, unavailable, borrowed, maintenance }
+enum EquipmentStatus { available, reserved, borrowed, maintenance }
 
 extension EquipmentStatusX on EquipmentStatus {
   String get label {
     switch (this) {
       case EquipmentStatus.available:
         return 'Available';
-      case EquipmentStatus.unavailable:
-        return 'Unavailable';
+      case EquipmentStatus.reserved:
+        return 'Reserved';
       case EquipmentStatus.borrowed:
         return 'Borrowed';
       case EquipmentStatus.maintenance:
@@ -55,7 +55,7 @@ extension EquipmentStatusX on EquipmentStatus {
 EquipmentStatus? activeEquipmentStatusForLoan(Map<String, dynamic> loan) {
   return switch (loan['status']) {
     'approved' when loan['checkedOutAt'] is int => EquipmentStatus.borrowed,
-    'approved' => EquipmentStatus.unavailable,
+    'approved' => EquipmentStatus.reserved,
     'return_pending' => EquipmentStatus.borrowed,
     _ => null,
   };

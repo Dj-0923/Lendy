@@ -40,8 +40,8 @@ class BorrowerAssistantItem {
     }
     final status = switch (statusLabel) {
       'Borrowed' => EquipmentStatus.borrowed,
-      'Unavailable' => EquipmentStatus.unavailable,
-      'Return Pending' => EquipmentStatus.borrowed,
+      'Reserved' => EquipmentStatus.reserved,
+      'Return Pending' => EquipmentStatus.reserved,
       'In Maintenance' => EquipmentStatus.maintenance,
       'Available' => EquipmentStatus.available,
       _ => throw const FormatException(

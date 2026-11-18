@@ -27,11 +27,11 @@ StatusStyle equipmentStatusStyle(EquipmentStatus status) {
         background: Color(0xFFE3F5EC),
         foreground: Color(0xFF157F5D),
       );
-    case EquipmentStatus.unavailable:
+    case EquipmentStatus.reserved:
       return const StatusStyle(
-        label: 'Unavailable',
-        background: Color(0xFFF1F1F1),
-        foreground: Color(0xFF6B6B6B),
+        label: 'Reserved',
+        background: Color(0xFFE7EFFF),
+        foreground: Color(0xFF3B5BDB),
       );
     case EquipmentStatus.borrowed:
       return const StatusStyle(
