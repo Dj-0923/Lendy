@@ -127,7 +127,7 @@ void main() {
 
     expect(find.byKey(const Key('loans-nav-badge')), findsNothing);
 
-    notifications.addNotification('Request approved');
+    notifications.addNotification('Request approved', type: 'approved');
     await tester.pump();
 
     expect(find.byKey(const Key('loans-nav-badge')), findsOneWidget);
@@ -141,7 +141,7 @@ void main() {
 
   testWidgets('system back from Notification returns to Home', (tester) async {
     await pumpMainShell(tester);
-    notifications.addNotification('Request approved');
+    notifications.addNotification('Request approved', type: 'approved');
     await tester.pump();
     expect(
       find.byKey(const Key('dashboard-notification-badge')),

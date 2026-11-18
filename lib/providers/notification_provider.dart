@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../models/notification_model.dart';
+import '../widgets/app_notice.dart';
 
 /// Keeps the signed-in user's notification feed and delivery preferences in sync.
 class NotificationProvider extends ChangeNotifier {
@@ -13,20 +14,30 @@ class NotificationProvider extends ChangeNotifier {
     FirebaseFirestore? firestore,
     FirebaseMessaging? messaging,
   }) : _firestore = firestore,
-       _messaging = messaging;
+       _messaging = messaging {
+    if (_messaging != null) {
+      _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(
+        _handleForegroundMessage,
+      );
+    }
+  }
 
   final FirebaseFirestore? _firestore;
   final FirebaseMessaging? _messaging;
   final List<NotificationModel> _notifications = [];
+  final Map<int, String> _activePageOverlays = {};
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _accountSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _notificationSubscription;
   StreamSubscription<String>? _tokenSubscription;
+  StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
   String? _userId;
   String? _deviceDocumentId;
   String? _errorMessage;
   String? _permissionMessage;
+  String _activePage = 'home';
+  int _nextActivePageOverlayId = 0;
   bool _preferencesReady = false;
 
   bool requestUpdatesEnabled = true;
@@ -42,6 +53,82 @@ class NotificationProvider extends ChangeNotifier {
   }
 
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
+  int get unreadChatCount => _notifications
+      .where(
+        (notification) =>
+            !notification.isRead &&
+            (notification.type == 'admin_chat_reply' ||
+                notification.type == 'assistant_reply'),
+      )
+      .length;
+  int get unreadLoanUpdateCount => _notifications
+      .where(
+        (notification) =>
+            !notification.isRead &&
+            const {
+              'approved',
+              'rejected',
+              'return_rejected',
+              'returned',
+              'due_reminder',
+              'due_today',
+              'overdue',
+            }.contains(notification.type),
+      )
+      .length;
+
+  void setActivePage(String page) {
+    _activePage = page;
+  }
+
+  int beginActivePage(String page) {
+    final id = ++_nextActivePageOverlayId;
+    _activePageOverlays[id] = page;
+    return id;
+  }
+
+  void endActivePage(int id) {
+    _activePageOverlays.remove(id);
+  }
+
+  bool shouldSuppressForegroundNotification(String type) {
+    final activePage = _activePageOverlays.values.isEmpty
+        ? _activePage
+        : _activePageOverlays.values.last;
+    if (activePage == 'notifications') return true;
+    return switch (type) {
+      'admin_chat_reply' => activePage == 'messages',
+      'assistant_reply' => activePage == 'fabii_chat',
+      'approved' ||
+      'rejected' ||
+      'return_rejected' ||
+      'returned' ||
+      'due_reminder' ||
+      'due_today' ||
+      'overdue' => activePage == 'loans',
+      'account_approved' ||
+      'account_rejected' => activePage == 'account_request_status',
+      _ => false,
+    };
+  }
+
+  void _handleForegroundMessage(RemoteMessage message) {
+    final type = message.data['type']?.toString() ?? '';
+    if (shouldSuppressForegroundNotification(type)) {
+      final notificationId = message.data['notificationId']?.toString();
+      if (notificationId != null && notificationId.isNotEmpty) {
+        unawaited(markNotificationReadById(notificationId));
+      }
+      return;
+    }
+
+    final title =
+        message.notification?.title ?? message.data['title']?.toString();
+    final body =
+        message.notification?.body ?? message.data['message']?.toString();
+    if (body == null || body.trim().isEmpty) return;
+    AppNotice.show(null, body, title: title);
+  }
 
   void updateAuthentication({required String? userId}) {
     if (_userId == userId) return;
@@ -143,6 +230,7 @@ class NotificationProvider extends ChangeNotifier {
     return NotificationModel(
       id: document.id,
       message: data['message'] as String? ?? '',
+      type: data['type'] as String? ?? '',
       timestamp: timestamp is Timestamp ? timestamp.toDate() : DateTime.now(),
       isRead: data['isRead'] == true,
     );
@@ -315,12 +403,30 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  void addNotification(String message) {
+  Future<void> markNotificationReadById(String id) async {
+    final userId = _userId;
+    if (userId == null || _firestore == null || id.isEmpty) return;
+    try {
+      await _firestore
+          .collection('accounts')
+          .doc(userId)
+          .collection('notifications')
+          .doc(id)
+          .update({'isRead': true});
+      _errorMessage = null;
+    } catch (error) {
+      _errorMessage = 'Could not mark notification as read: $error';
+      notifyListeners();
+    }
+  }
+
+  void addNotification(String message, {String type = ''}) {
     _notifications.insert(
       0,
       NotificationModel(
         id: 'n${_notifications.length + 1}_${DateTime.now().millisecondsSinceEpoch}',
         message: message,
+        type: type,
         timestamp: DateTime.now(),
       ),
     );
@@ -332,6 +438,7 @@ class NotificationProvider extends ChangeNotifier {
     _accountSubscription?.cancel();
     _notificationSubscription?.cancel();
     _tokenSubscription?.cancel();
+    _foregroundMessageSubscription?.cancel();
     super.dispose();
   }
 }

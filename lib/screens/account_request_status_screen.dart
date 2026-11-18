@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_notice.dart';
 
@@ -26,6 +27,8 @@ class AccountRequestStatusScreen extends StatefulWidget {
 class _AccountRequestStatusScreenState
     extends State<AccountRequestStatusScreen> {
   AuthProvider? _authProvider;
+  NotificationProvider? _notificationProvider;
+  int? _activePageId;
   bool _approvalHandled = false;
 
   @override
@@ -35,6 +38,16 @@ class _AccountRequestStatusScreenState
     if (!identical(provider, _authProvider)) {
       _authProvider?.removeListener(_handleRequestStatusChange);
       _authProvider = provider..addListener(_handleRequestStatusChange);
+    }
+    final notificationProvider = context.read<NotificationProvider?>();
+    if (!identical(notificationProvider, _notificationProvider)) {
+      if (_activePageId != null) {
+        _notificationProvider?.endActivePage(_activePageId!);
+      }
+      _notificationProvider = notificationProvider;
+      _activePageId = notificationProvider?.beginActivePage(
+        'account_request_status',
+      );
     }
     _handleRequestStatusChange();
   }
@@ -63,6 +76,9 @@ class _AccountRequestStatusScreenState
   @override
   void dispose() {
     _authProvider?.removeListener(_handleRequestStatusChange);
+    if (_activePageId != null) {
+      _notificationProvider?.endActivePage(_activePageId!);
+    }
     super.dispose();
   }
 

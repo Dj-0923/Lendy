@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/equipment_model.dart';
 import '../providers/equipment_provider.dart';
+import '../providers/notification_provider.dart';
 import '../providers/request_provider.dart';
 import '../services/borrower_assistant_service.dart';
 import '../theme/app_colors.dart';
@@ -112,7 +113,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     tooltip: 'Scan item code',
                     onPressed: widget.onScannerTap,
                     constraints: const BoxConstraints.tightFor(
-                      width: 39,
+                      width: 48,
                       height: 40,
                     ),
                     icon: const Icon(Icons.qr_code_scanner, size: 19),
@@ -129,7 +130,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         contentPadding: const EdgeInsets.symmetric(vertical: 10),
         constraints: const BoxConstraints(minHeight: 48),
         suffixIconConstraints: const BoxConstraints.tightFor(
-          width: 40,
+          width: 50,
           height: 40,
         ),
         border: OutlineInputBorder(
@@ -214,15 +215,23 @@ class _BrowseScreenState extends State<BrowseScreen> {
     );
   }
 
-  void _openAssistant({String? initialQuestion}) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => BorrowerAssistantScreen(
-          service: widget.assistantService,
-          initialQuestion: initialQuestion,
+  Future<void> _openAssistant({String? initialQuestion}) async {
+    final notificationProvider = context.read<NotificationProvider?>();
+    final activePageId = notificationProvider?.beginActivePage('fabii_chat');
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => BorrowerAssistantScreen(
+            service: widget.assistantService,
+            initialQuestion: initialQuestion,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      if (activePageId != null) {
+        notificationProvider?.endActivePage(activePageId);
+      }
+    }
   }
 
   Widget _buildAssistantReplyNotice(String? userId) {

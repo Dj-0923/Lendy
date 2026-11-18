@@ -29,7 +29,7 @@ web dashboard to select a user and reply. Both clients use the same Firestore
 The notification feed is synced from Firestore. Push alerts cover admin chat
 replies, Fabii replies, item request and return decisions, account request
 decisions, and return deadlines. Alerts display when the app is backgrounded or
-closed, and are not shown as popups while the app is in use. Deadline reminders
-are sent by Cloud Functions at midnight Asia/Manila, including a reminder one
-day before the due date. See [`../FIREBASE_SETUP.md`](../FIREBASE_SETUP.md) to
-deploy the notification functions.
+closed, and are not shown as popups while the app is in use. On the Spark plan,
+a Google Apps Script poller checks for updates every five minutes and checks
+deadlines after the Manila date changes; delivery is best-effort and may be
+delayed. See [`../FIREBASE_SETUP.md`](../FIREBASE_SETUP.md) for setup.

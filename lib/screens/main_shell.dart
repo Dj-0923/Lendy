@@ -35,6 +35,23 @@ class _MainShellState extends State<MainShell> {
   static const int _profileTabIndex = 3;
   static const int _notificationsTabIndex = 4;
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateNotificationPage();
+  }
+
+  void _updateNotificationPage() {
+    final page = switch (_currentIndex) {
+      _loansTabIndex => 'loans',
+      _messagesTabIndex => 'messages',
+      _profileTabIndex => 'profile',
+      _notificationsTabIndex => 'notifications',
+      _ => 'home',
+    };
+    context.read<NotificationProvider?>()?.setActivePage(page);
+  }
+
   void _goToTab(int index) {
     if (index == _messagesTabIndex) _hasOpenedMessages = true;
     setState(() {
@@ -44,6 +61,7 @@ class _MainShellState extends State<MainShell> {
       _currentIndex = index;
       _lastBackPress = null;
     });
+    _updateNotificationPage();
   }
 
   void _openNotifications() => _goToTab(_notificationsTabIndex);
@@ -89,9 +107,10 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final userId = context.watch<AuthProvider?>()?.currentUser?.id ?? '';
+    final notificationProvider = context.watch<NotificationProvider?>();
     final requestProvider = context.watch<RequestProvider?>();
     final unreadLoanUpdates =
-        (context.watch<NotificationProvider?>()?.unreadCount ?? 0) +
+        (notificationProvider?.unreadLoanUpdateCount ?? 0) +
         (requestProvider?.rejectedReturnCount(userId) ?? 0);
     final screens = [
       BrowseScreen(
@@ -261,6 +280,8 @@ class _MainShellState extends State<MainShell> {
                           selectedIcon: Icons.forum,
                           selected: _currentIndex == _messagesTabIndex,
                           onTap: () => _goToTab(_messagesTabIndex),
+                          badgeCount:
+                              notificationProvider?.unreadChatCount ?? 0,
                         ),
                       ),
                       Expanded(
