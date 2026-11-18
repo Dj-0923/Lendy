@@ -1,13 +1,33 @@
 // lib/utils/date_utils.dart
 
 const List<String> _monthAbbr = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 const List<String> _monthFull = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 /// Formats a date as "Aug 19" (no external intl package required).
@@ -23,6 +43,14 @@ String formatDateRange(DateTime start, DateTime end) {
 /// Formats a date as "May 20, 2024".
 String formatFullDate(DateTime date) {
   return '${_monthFull[date.month - 1]} ${date.day}, ${date.year}';
+}
+
+/// Formats a timestamp as "May 20, 2024 at 2:05 PM".
+String formatFullDateTime(DateTime dateTime) {
+  final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+  final minute = dateTime.minute.toString().padLeft(2, '0');
+  final period = dateTime.hour < 12 ? 'AM' : 'PM';
+  return '${formatFullDate(dateTime)} at $hour:$minute $period';
 }
 
 /// Formats a timestamp as a relative "time ago" string, e.g. "Just now",

@@ -112,8 +112,8 @@ class RequestProvider extends ChangeNotifier {
           .where(
             (r) =>
                 r.status == RequestStatus.approved ||
-                r.status == RequestStatus.borrowed ||
-                r.status == RequestStatus.returnPending ||
+                (r.status == RequestStatus.borrowed &&
+                    r.returnVerificationStatus != 'rejected') ||
                 r.status == RequestStatus.rejected ||
                 r.status == RequestStatus.returned ||
                 r.status == RequestStatus.cancelled,
@@ -373,8 +373,17 @@ class RequestProvider extends ChangeNotifier {
       returnVerificationStatus: data['returnVerificationStatus'] as String?,
       returnRejectionReason: data['returnRejectionReason'] as String?,
       returnRejectionSeen: data['returnRejectionSeen'] == true,
+      returnRequestedAt: _dateTimeFromFirestore(data['returnRequestedAt']),
+      returnVerifiedAt: _dateTimeFromFirestore(data['returnVerifiedAt']),
       status: status,
     );
+  }
+
+  DateTime? _dateTimeFromFirestore(Object? value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   String _dateOnly(DateTime date) =>

@@ -49,6 +49,8 @@ class BorrowRequestModel {
   DateTime? approvedDate;
   DateTime? checkedOutDate;
   DateTime? returnedDate;
+  DateTime? returnRequestedAt;
+  DateTime? returnVerifiedAt;
   String? returnVerificationStatus;
   String? returnRejectionReason;
   bool returnRejectionSeen;
@@ -66,6 +68,8 @@ class BorrowRequestModel {
     this.approvedDate,
     this.checkedOutDate,
     this.returnedDate,
+    this.returnRequestedAt,
+    this.returnVerifiedAt,
     this.returnVerificationStatus,
     this.returnRejectionReason,
     this.returnRejectionSeen = false,

@@ -3,10 +3,10 @@ import 'package:lendy/models/equipment_model.dart';
 
 void main() {
   group('activeEquipmentStatusForLoan', () {
-    test('approved loans are reserved until checkout', () {
+    test('approved loans are unavailable until checkout', () {
       expect(
         activeEquipmentStatusForLoan({'status': 'approved'}),
-        EquipmentStatus.reserved,
+        EquipmentStatus.unavailable,
       );
       expect(
         activeEquipmentStatusForLoan({

@@ -28,14 +28,20 @@ class RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = equipment?.name ?? 'Unknown equipment';
     final location = equipment?.location ?? '';
+    final today = DateUtils.dateOnly(DateTime.now());
+    final dueDate = DateUtils.dateOnly(request.requestedReturnDate);
+    final isOverdue =
+        request.status == RequestStatus.borrowed && dueDate.isBefore(today);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isOverdue ? const Color(0xFFFFEBEE) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.fieldBorder),
+        border: Border.all(
+          color: isOverdue ? AppColors.danger : AppColors.fieldBorder,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,6 +117,40 @@ class RequestCard extends StatelessWidget {
             Text(
               'Return not verified: ${request.returnRejectionReason}',
               style: const TextStyle(color: Colors.redAccent, fontSize: 12.5),
+            ),
+          ],
+          if (request.status == RequestStatus.returned &&
+              request.returnRequestedAt != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Return reported: '
+              '${formatFullDateTime(request.returnRequestedAt!)}',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+          if (request.status == RequestStatus.returned &&
+              request.returnVerifiedAt != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Verified by Admin: '
+              '${formatFullDateTime(request.returnVerifiedAt!)}',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ] else if (request.status == RequestStatus.returned &&
+              request.returnedDate != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Verified by Admin: ${formatFullDate(request.returnedDate!)}',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
           const SizedBox(height: 10),

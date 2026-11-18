@@ -180,31 +180,38 @@ void main() {
     expect(request.returnRejectionSeen, isTrue);
   });
 
-  test('history includes approved, rejected, and completed requests', () async {
-    const userId = 'history-user';
-    final requestIds = <String>[];
-    for (var i = 0; i < 5; i++) {
-      await requests.submitRequest(
-        userId: userId,
-        equipmentId: 'equipment-$i',
-        equipmentName: 'Equipment $i',
-        borrowerName: 'Test User',
-        borrowDate: DateTime.now(),
-        returnDate: DateTime.now().add(const Duration(days: 3)),
+  test(
+    'history excludes unverified and rejected returns until completion',
+    () async {
+      const userId = 'history-user';
+      final requestIds = <String>[];
+      for (var i = 0; i < 7; i++) {
+        await requests.submitRequest(
+          userId: userId,
+          equipmentId: 'equipment-$i',
+          equipmentName: 'Equipment $i',
+          borrowerName: 'Test User',
+          borrowDate: DateTime.now(),
+          returnDate: DateTime.now().add(const Duration(days: 3)),
+        );
+        requestIds.add(requests.requestsForUser(userId).last.id);
+      }
+
+      final userRequests = requests.requestsForUser(userId);
+      userRequests[0].status = RequestStatus.approved;
+      userRequests[1].status = RequestStatus.rejected;
+      userRequests[2].status = RequestStatus.borrowed;
+      userRequests[3].status = RequestStatus.returned;
+      userRequests[4].status = RequestStatus.pending;
+      userRequests[5].status = RequestStatus.returnPending;
+      userRequests[6]
+        ..status = RequestStatus.borrowed
+        ..returnVerificationStatus = 'rejected';
+
+      expect(
+        requests.historyRequests(userId).map((request) => request.id),
+        requestIds.take(4),
       );
-      requestIds.add(requests.requestsForUser(userId).last.id);
-    }
-
-    final userRequests = requests.requestsForUser(userId);
-    userRequests[0].status = RequestStatus.approved;
-    userRequests[1].status = RequestStatus.rejected;
-    userRequests[2].status = RequestStatus.borrowed;
-    userRequests[3].status = RequestStatus.returned;
-    userRequests[4].status = RequestStatus.pending;
-
-    expect(
-      requests.historyRequests(userId).map((request) => request.id),
-      requestIds.take(4),
-    );
-  });
+    },
+  );
 }
