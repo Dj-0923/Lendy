@@ -288,7 +288,7 @@ class _MainShellState extends State<MainShell> {
                           selected: _currentIndex == _messagesTabIndex,
                           onTap: () => _goToTab(_messagesTabIndex),
                           badgeCount:
-                              notificationProvider?.unreadChatCount ?? 0,
+                              notificationProvider?.unreadAdminChatCount ?? 0,
                         ),
                       ),
                       Expanded(

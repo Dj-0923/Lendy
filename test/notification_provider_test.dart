@@ -1,5 +1,23 @@
+import 'dart:async';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lendy/providers/notification_provider.dart';
+import 'package:lendy/utils/phone_notification_service.dart';
+
+class _RecordingPhoneNotifications extends PhoneNotificationService {
+  final List<({int id, String title, String body, String? payload})> shown = [];
+
+  @override
+  Future<void> show({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    shown.add((id: id, title: title, body: body, payload: payload));
+  }
+}
 
 void main() {
   test('notification and push preferences start enabled', () {
@@ -82,10 +100,64 @@ void main() {
       type: 'approved',
     );
 
-    expect(notifications.unreadChatCount, 1);
+    expect(notifications.unreadAdminChatCount, 1);
     expect(notifications.unreadLoanUpdateCount, 1);
     expect(notifications.unreadCount, 2);
   });
+
+  test(
+    'foreground FCM alerts use phone notifications outside matching chat',
+    () async {
+      final incomingMessages = StreamController<RemoteMessage>.broadcast(
+        sync: true,
+      );
+      final phoneNotifications = _RecordingPhoneNotifications();
+      final notifications = NotificationProvider(
+        phoneNotifications: phoneNotifications,
+        foregroundMessages: incomingMessages.stream,
+      );
+      addTearDown(notifications.dispose);
+      addTearDown(incomingMessages.close);
+
+      notifications.setActivePage('home');
+      incomingMessages.add(
+        RemoteMessage(
+          messageId: 'approval-1',
+          notification: const RemoteNotification(
+            title: 'Request approved',
+            body: 'Your item request was approved.',
+          ),
+          data: const {'type': 'approved', 'notificationId': 'approval-1'},
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(phoneNotifications.shown, hasLength(1));
+      expect(phoneNotifications.shown.single.title, 'Request approved');
+      expect(
+        phoneNotifications.shown.single.body,
+        'Your item request was approved.',
+      );
+
+      notifications.setActivePage('messages');
+      incomingMessages.add(
+        RemoteMessage(
+          messageId: 'admin-chat-1',
+          notification: const RemoteNotification(
+            title: 'New admin reply',
+            body: 'An admin replied.',
+          ),
+          data: const {
+            'type': 'admin_chat_reply',
+            'notificationId': 'admin-chat-1',
+          },
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(phoneNotifications.shown, hasLength(1));
+    },
+  );
 
   test(
     'notification page excludes chat replies and keeps them unread',
@@ -119,7 +191,8 @@ void main() {
       await notifications.markNotificationPageRead();
 
       expect(notifications.unreadLoanUpdateCount, 0);
-      expect(notifications.unreadChatCount, 2);
+      expect(notifications.unreadAdminChatCount, 1);
+      expect(notifications.unreadCount, 2);
     },
   );
 
@@ -140,14 +213,13 @@ void main() {
       type: 'approved',
     );
 
-    await notifications.markAdminChatNotificationsRead();
-
-    expect(notifications.unreadChatCount, 1);
-    expect(notifications.unreadLoanUpdateCount, 1);
-
     await notifications.markAssistantNotificationsRead();
 
-    expect(notifications.unreadChatCount, 0);
+    expect(notifications.unreadAdminChatCount, 1);
+    expect(notifications.unreadLoanUpdateCount, 1);
+
+    await notifications.markAdminChatNotificationsRead();
+    expect(notifications.unreadAdminChatCount, 0);
     expect(notifications.unreadLoanUpdateCount, 1);
   });
 }

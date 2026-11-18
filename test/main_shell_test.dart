@@ -156,7 +156,7 @@ void main() {
     await tester.tap(find.text('Messages'));
     await tester.pumpAndSettle();
 
-    expect(notifications.unreadChatCount, 0);
+    expect(notifications.unreadAdminChatCount, 0);
     expect(notifications.unreadLoanUpdateCount, 1);
 
     await tester.tap(find.byKey(const Key('messages-back')));
@@ -177,6 +177,20 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('messages-nav-badge')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-notification-badge')), findsNothing);
+  });
+
+  testWidgets('Fabii replies do not appear on the Messages badge', (
+    tester,
+  ) async {
+    await pumpMainShell(tester);
+    notifications.addNotification(
+      'Fabii replied to your chat.',
+      type: 'assistant_reply',
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('messages-nav-badge')), findsNothing);
     expect(find.byKey(const Key('dashboard-notification-badge')), findsNothing);
   });
 
@@ -234,7 +248,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(notifications.unreadCount, 1);
-    expect(notifications.unreadChatCount, 1);
+    expect(notifications.unreadAdminChatCount, 1);
   });
 
   testWidgets('Notifications back button returns to Home', (tester) async {

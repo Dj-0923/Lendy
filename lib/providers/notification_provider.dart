@@ -6,17 +6,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../models/notification_model.dart';
-import '../widgets/app_notice.dart';
+import '../utils/phone_notification_service.dart';
 
 /// Keeps the signed-in user's notification feed and delivery preferences in sync.
 class NotificationProvider extends ChangeNotifier {
   NotificationProvider({
     FirebaseFirestore? firestore,
     FirebaseMessaging? messaging,
+    PhoneNotificationService? phoneNotifications,
+    Stream<RemoteMessage>? foregroundMessages,
   }) : _firestore = firestore,
-       _messaging = messaging {
-    if (_messaging != null) {
-      _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(
+       _messaging = messaging,
+       _phoneNotifications = phoneNotifications {
+    final messageStream =
+        foregroundMessages ??
+        (_messaging == null ? null : FirebaseMessaging.onMessage);
+    if (messageStream != null) {
+      _foregroundMessageSubscription = messageStream.listen(
         _handleForegroundMessage,
       );
     }
@@ -24,6 +30,7 @@ class NotificationProvider extends ChangeNotifier {
 
   final FirebaseFirestore? _firestore;
   final FirebaseMessaging? _messaging;
+  final PhoneNotificationService? _phoneNotifications;
   final List<NotificationModel> _notifications = [];
   final Map<int, String> _activePageOverlays = {};
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
@@ -68,10 +75,10 @@ class NotificationProvider extends ChangeNotifier {
       .toList();
 
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
-  int get unreadChatCount => _notifications
+  int get unreadAdminChatCount => _notifications
       .where(
         (notification) =>
-            !notification.isRead && _isChatNotification(notification),
+            !notification.isRead && notification.type == 'admin_chat_reply',
       )
       .length;
   int get unreadLoanUpdateCount => _notifications
@@ -81,10 +88,6 @@ class NotificationProvider extends ChangeNotifier {
             _notificationPageTypes.contains(notification.type),
       )
       .length;
-
-  bool _isChatNotification(NotificationModel notification) =>
-      notification.type == 'admin_chat_reply' ||
-      notification.type == 'assistant_reply';
 
   void setActivePage(String page) {
     _activePage = page;
@@ -101,9 +104,7 @@ class NotificationProvider extends ChangeNotifier {
   }
 
   bool shouldSuppressForegroundNotification(String type) {
-    final activePage = _activePageOverlays.values.isEmpty
-        ? _activePage
-        : _activePageOverlays.values.last;
+    final activePage = _currentActivePage;
     return switch (type) {
       'admin_chat_reply' => activePage == 'messages',
       'assistant_reply' => activePage == 'fabii_chat',
@@ -113,17 +114,25 @@ class NotificationProvider extends ChangeNotifier {
       'returned' ||
       'due_reminder' ||
       'due_today' ||
-      'overdue' =>
-        activePage == 'loans' || activePage == 'notifications',
+      'overdue' => activePage == 'loans' || activePage == 'notifications',
       _ => false,
     };
   }
+
+  String get _currentActivePage => _activePageOverlays.values.isEmpty
+      ? _activePage
+      : _activePageOverlays.values.last;
 
   void _handleForegroundMessage(RemoteMessage message) {
     final type = message.data['type']?.toString() ?? '';
     if (shouldSuppressForegroundNotification(type)) {
       final notificationId = message.data['notificationId']?.toString();
-      if (notificationId != null && notificationId.isNotEmpty) {
+      final isVisibleInNotificationFeed =
+          _currentActivePage == 'notifications' &&
+          _notificationPageTypes.contains(type);
+      if (!isVisibleInNotificationFeed &&
+          notificationId != null &&
+          notificationId.isNotEmpty) {
         unawaited(markNotificationReadById(notificationId));
       }
       return;
@@ -134,7 +143,47 @@ class NotificationProvider extends ChangeNotifier {
     final body =
         message.notification?.body ?? message.data['message']?.toString();
     if (body == null || body.trim().isEmpty) return;
-    AppNotice.show(null, body, title: title);
+    final notificationId =
+        message.data['notificationId']?.toString() ?? message.messageId;
+    final id =
+        (notificationId ?? DateTime.now().microsecondsSinceEpoch).hashCode &
+        0x7fffffff;
+    unawaited(
+      _showPhoneNotification(
+        id: id,
+        title: title ?? 'Lendy',
+        body: body,
+        payload: notificationId,
+      ),
+    );
+  }
+
+  Future<void> _showPhoneNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    final phoneNotifications = _phoneNotifications;
+    if (phoneNotifications == null) {
+      _errorMessage =
+          'Could not show the phone notification while the app is open.';
+      debugPrint(_errorMessage);
+      notifyListeners();
+      return;
+    }
+    try {
+      await phoneNotifications.show(
+        id: id,
+        title: title,
+        body: body,
+        payload: payload,
+      );
+    } catch (error) {
+      _errorMessage = 'Could not show the phone notification: $error';
+      debugPrint(_errorMessage);
+      notifyListeners();
+    }
   }
 
   void updateAuthentication({required String? userId}) {

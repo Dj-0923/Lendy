@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
@@ -19,41 +18,17 @@ import 'screens/set_new_password_screen.dart';
 import 'screens/main_shell.dart';
 import 'widgets/app_notice.dart';
 import 'utils/first_launch_store.dart';
+import 'utils/phone_notification_service.dart';
 import 'utils/session_preference_store.dart';
 import 'utils/responsive_layout.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+final _phoneNotificationService = PhoneNotificationService();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  const notificationChannel = AndroidNotificationChannel(
-    'lendy_alerts',
-    'Lendy alerts',
-    description: 'Borrowing requests and return reminders',
-    importance: Importance.high,
-  );
-  final localNotifications = FlutterLocalNotificationsPlugin();
-  if (!kIsWeb) {
-    await localNotifications.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
-      ),
-    );
-    final pendingNotifications = await localNotifications
-        .pendingNotificationRequests();
-    for (final notification in pendingNotifications) {
-      if (notification.payload?.startsWith('lendy_return_due:') ?? false) {
-        await localNotifications.cancel(id: notification.id);
-      }
-    }
-    await localNotifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.createNotificationChannel(notificationChannel);
-  }
+  await _phoneNotificationService.initialize(isWeb: kIsWeb);
   final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
   final showWelcome = await FirstLaunchStore.takeWelcomePage(
     hasExistingAccount: firebaseUser != null,
@@ -129,6 +104,9 @@ class SmartClassroomApp extends StatelessWidget {
             messaging: authProvider == null && !kIsWeb
                 ? FirebaseMessaging.instance
                 : null,
+            phoneNotifications: authProvider == null && !kIsWeb
+                ? _phoneNotificationService
+                : null,
           ),
           update: (_, auth, notifications) {
             final user = auth.currentUser;
@@ -171,10 +149,7 @@ class SmartClassroomApp extends StatelessWidget {
 }
 
 class _AuthSessionGuard extends StatefulWidget {
-  const _AuthSessionGuard({
-    required this.navigatorKey,
-    required this.child,
-  });
+  const _AuthSessionGuard({required this.navigatorKey, required this.child});
 
   final GlobalKey<NavigatorState> navigatorKey;
   final Widget child;
@@ -204,8 +179,8 @@ class _AuthSessionGuardState extends State<_AuthSessionGuard> {
       return;
     }
     _lastRevokedVersion = auth.accessRevokedVersion;
-    final message = auth.authError
-            ?.replaceFirst('Access denied: ', '') ??
+    final message =
+        auth.authError?.replaceFirst('Access denied: ', '') ??
         'Your account has been revoked. Contact an administrator.';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
