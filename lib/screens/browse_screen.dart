@@ -217,6 +217,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   Future<void> _openAssistant({String? initialQuestion}) async {
     final notificationProvider = context.read<NotificationProvider?>();
+    unawaited(
+      notificationProvider?.markAssistantNotificationsRead() ??
+          Future<void>.value(),
+    );
     final activePageId = notificationProvider?.beginActivePage('fabii_chat');
     try {
       await Navigator.of(context).push(

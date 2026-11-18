@@ -7,49 +7,71 @@ import '../utils/date_utils.dart';
 /// A single row in the Notifications list.
 class NotificationTile extends StatelessWidget {
   final NotificationModel notification;
+  final VoidCallback onTap;
 
-  const NotificationTile({super.key, required this.notification});
+  const NotificationTile({
+    super.key,
+    required this.notification,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 5),
-            child: Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: notification.isRead ? Colors.grey.shade400 : AppColors.primaryLight,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  notification.message,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: notification.isRead ? FontWeight.normal : FontWeight.w600,
-                    color: AppColors.textPrimary,
+    return Material(
+      color: notification.isRead
+          ? Colors.white
+          : AppColors.primaryLight.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: notification.isRead ? null : onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: notification.isRead
+                        ? Colors.grey.shade400
+                        : AppColors.primaryLight,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  formatRelativeTime(notification.timestamp),
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notification.message,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: notification.isRead
+                            ? FontWeight.normal
+                            : FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      formatRelativeTime(notification.timestamp),
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

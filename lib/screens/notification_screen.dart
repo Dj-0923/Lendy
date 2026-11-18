@@ -1,6 +1,4 @@
 // lib/screens/notification_screen.dart
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/notification_provider.dart';
@@ -11,81 +9,18 @@ import '../widgets/simple_header.dart';
 
 class NotificationScreen extends StatefulWidget {
   final VoidCallback onBackTap;
-  final bool isActive;
 
-  const NotificationScreen({
-    super.key,
-    required this.onBackTap,
-    required this.isActive,
-  });
+  const NotificationScreen({super.key, required this.onBackTap});
 
   @override
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  NotificationProvider? _notificationProvider;
-  String? _lastMarkedUnreadIds;
-  bool _markScheduled = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final provider = context.read<NotificationProvider>();
-    if (_notificationProvider != provider) {
-      _notificationProvider?.removeListener(_scheduleMarkUnreadAsRead);
-      _notificationProvider = provider..addListener(_scheduleMarkUnreadAsRead);
-    }
-    _scheduleMarkUnreadAsRead();
-  }
-
-  @override
-  void didUpdateWidget(covariant NotificationScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!oldWidget.isActive && widget.isActive) {
-      _scheduleMarkUnreadAsRead();
-    }
-  }
-
-  void _scheduleMarkUnreadAsRead() {
-    if (!widget.isActive || _markScheduled) return;
-    _markScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _markScheduled = false;
-      if (mounted) _markUnreadAsRead();
-    });
-  }
-
-  void _markUnreadAsRead() {
-    if (!widget.isActive) return;
-    final provider = _notificationProvider;
-    if (provider == null) return;
-    final unreadIds =
-        provider.notifications
-            .where((notification) => !notification.isRead)
-            .map((notification) => notification.id)
-            .toList()
-          ..sort();
-    if (unreadIds.isEmpty) {
-      _lastMarkedUnreadIds = null;
-      return;
-    }
-    final signature = unreadIds.join('|');
-    if (_lastMarkedUnreadIds == signature) return;
-    _lastMarkedUnreadIds = signature;
-    unawaited(provider.markAllRead());
-  }
-
-  @override
-  void dispose() {
-    _notificationProvider?.removeListener(_scheduleMarkUnreadAsRead);
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final notificationProvider = context.watch<NotificationProvider>();
-    final notifications = notificationProvider.notifications;
+    final notifications = notificationProvider.notificationPageNotifications;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -109,7 +44,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         ),
                       ),
                       OutlinedButton(
-                        onPressed: notificationProvider.markAllRead,
+                        onPressed:
+                            notificationProvider.markNotificationPageRead,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textPrimary,
                           side: const BorderSide(color: AppColors.fieldBorder),
@@ -158,7 +94,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       child: Column(
                         children: [
                           for (int i = 0; i < notifications.length; i++) ...[
-                            NotificationTile(notification: notifications[i]),
+                            NotificationTile(
+                              notification: notifications[i],
+                              onTap: () => notificationProvider.markRead(
+                                notifications[i].id,
+                              ),
+                            ),
                             if (i != notifications.length - 1)
                               const Divider(height: 1),
                           ],

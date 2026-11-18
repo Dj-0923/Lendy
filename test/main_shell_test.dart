@@ -169,6 +169,10 @@ void main() {
   testWidgets('system back from Notification returns to Home', (tester) async {
     await pumpMainShell(tester);
     notifications.addNotification('Request approved', type: 'approved');
+    notifications.addNotification(
+      'Admin replied to your chat.',
+      type: 'admin_chat_reply',
+    );
     await tester.pump();
     expect(
       find.byKey(const Key('dashboard-notification-badge')),
@@ -181,13 +185,42 @@ void main() {
     expect(find.byKey(const Key('dashboard-profile-avatar')), findsNothing);
     expect(find.byKey(const Key('dashboard-notifications')), findsNothing);
     expect(find.byIcon(Icons.arrow_back), findsOneWidget);
-    expect(notifications.unreadCount, 0);
+    expect(find.text('Admin replied to your chat.'), findsNothing);
+    expect(notifications.unreadCount, 2);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
     expect(find.text('Lendy'), findsOneWidget);
-    expect(find.byKey(const Key('dashboard-notification-badge')), findsNothing);
+    expect(
+      find.byKey(const Key('dashboard-notification-badge')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Notification Page marks only tapped feed items as read', (
+    tester,
+  ) async {
+    await pumpMainShell(tester);
+    notifications.addNotification('Request approved', type: 'approved');
+    notifications.addNotification(
+      'Admin replied to your chat.',
+      type: 'admin_chat_reply',
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('dashboard-notifications')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Request approved'), findsOneWidget);
+    expect(find.text('Admin replied to your chat.'), findsNothing);
+    expect(notifications.unreadCount, 2);
+
+    await tester.tap(find.text('Request approved'));
+    await tester.pumpAndSettle();
+
+    expect(notifications.unreadCount, 1);
+    expect(notifications.unreadChatCount, 1);
   });
 
   testWidgets('Notifications back button returns to Home', (tester) async {

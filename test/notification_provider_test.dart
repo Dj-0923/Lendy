@@ -47,6 +47,16 @@ void main() {
       isFalse,
     );
 
+    notifications.setActivePage('notifications');
+    expect(
+      notifications.shouldSuppressForegroundNotification('admin_chat_reply'),
+      isFalse,
+    );
+    expect(
+      notifications.shouldSuppressForegroundNotification('approved'),
+      isTrue,
+    );
+
     final assistantPage = notifications.beginActivePage('fabii_chat');
     expect(
       notifications.shouldSuppressForegroundNotification('assistant_reply'),
@@ -56,12 +66,6 @@ void main() {
     expect(
       notifications.shouldSuppressForegroundNotification('assistant_reply'),
       isFalse,
-    );
-
-    notifications.setActivePage('account_request_status');
-    expect(
-      notifications.shouldSuppressForegroundNotification('account_approved'),
-      isTrue,
     );
   });
 
@@ -84,7 +88,7 @@ void main() {
   });
 
   test(
-    'opening chat marks chat notifications read without clearing loan updates',
+    'notification page excludes chat replies and keeps them unread',
     () async {
       final notifications = NotificationProvider();
       addTearDown(notifications.dispose);
@@ -94,14 +98,56 @@ void main() {
         type: 'admin_chat_reply',
       );
       notifications.addNotification(
+        'Fabii replied to your chat.',
+        type: 'assistant_reply',
+      );
+      notifications.addNotification(
         'Your request was approved.',
         type: 'approved',
       );
+      notifications.addNotification(
+        'Your item is due tomorrow.',
+        type: 'due_reminder',
+      );
 
-      await notifications.markChatNotificationsRead();
+      expect(
+        notifications.notificationPageNotifications.map((item) => item.type),
+        containsAll(['approved', 'due_reminder']),
+      );
+      expect(notifications.notificationPageNotifications, hasLength(2));
 
-      expect(notifications.unreadChatCount, 0);
-      expect(notifications.unreadLoanUpdateCount, 1);
+      await notifications.markNotificationPageRead();
+
+      expect(notifications.unreadLoanUpdateCount, 0);
+      expect(notifications.unreadChatCount, 2);
     },
   );
+
+  test('opening each chat clears only that chat reply badge count', () async {
+    final notifications = NotificationProvider();
+    addTearDown(notifications.dispose);
+
+    notifications.addNotification(
+      'Admin replied to your chat.',
+      type: 'admin_chat_reply',
+    );
+    notifications.addNotification(
+      'Fabii replied to your chat.',
+      type: 'assistant_reply',
+    );
+    notifications.addNotification(
+      'Your request was approved.',
+      type: 'approved',
+    );
+
+    await notifications.markAdminChatNotificationsRead();
+
+    expect(notifications.unreadChatCount, 1);
+    expect(notifications.unreadLoanUpdateCount, 1);
+
+    await notifications.markAssistantNotificationsRead();
+
+    expect(notifications.unreadChatCount, 0);
+    expect(notifications.unreadLoanUpdateCount, 1);
+  });
 }

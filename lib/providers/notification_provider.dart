@@ -43,6 +43,15 @@ class NotificationProvider extends ChangeNotifier {
   bool requestUpdatesEnabled = true;
   bool returnRemindersEnabled = true;
   bool pushNotificationsEnabled = true;
+  static const Set<String> _notificationPageTypes = {
+    'approved',
+    'rejected',
+    'return_rejected',
+    'returned',
+    'due_reminder',
+    'due_today',
+    'overdue',
+  };
 
   String? get errorMessage => _errorMessage;
   String? get permissionMessage => _permissionMessage;
@@ -51,6 +60,12 @@ class NotificationProvider extends ChangeNotifier {
     list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return list;
   }
+
+  List<NotificationModel> get notificationPageNotifications => notifications
+      .where(
+        (notification) => _notificationPageTypes.contains(notification.type),
+      )
+      .toList();
 
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
   int get unreadChatCount => _notifications
@@ -63,15 +78,7 @@ class NotificationProvider extends ChangeNotifier {
       .where(
         (notification) =>
             !notification.isRead &&
-            const {
-              'approved',
-              'rejected',
-              'return_rejected',
-              'returned',
-              'due_reminder',
-              'due_today',
-              'overdue',
-            }.contains(notification.type),
+            _notificationPageTypes.contains(notification.type),
       )
       .length;
 
@@ -97,7 +104,6 @@ class NotificationProvider extends ChangeNotifier {
     final activePage = _activePageOverlays.values.isEmpty
         ? _activePage
         : _activePageOverlays.values.last;
-    if (activePage == 'notifications') return true;
     return switch (type) {
       'admin_chat_reply' => activePage == 'messages',
       'assistant_reply' => activePage == 'fabii_chat',
@@ -107,9 +113,8 @@ class NotificationProvider extends ChangeNotifier {
       'returned' ||
       'due_reminder' ||
       'due_today' ||
-      'overdue' => activePage == 'loans',
-      'account_approved' ||
-      'account_rejected' => activePage == 'account_request_status',
+      'overdue' =>
+        activePage == 'loans' || activePage == 'notifications',
       _ => false,
     };
   }
@@ -383,17 +388,26 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> markChatNotificationsRead() async {
-    final unreadChatNotifications = _notifications
+  Future<void> markAdminChatNotificationsRead() =>
+      _markNotificationsReadForTypes({'admin_chat_reply'});
+
+  Future<void> markAssistantNotificationsRead() =>
+      _markNotificationsReadForTypes({'assistant_reply'});
+
+  Future<void> markNotificationPageRead() =>
+      _markNotificationsReadForTypes(_notificationPageTypes);
+
+  Future<void> _markNotificationsReadForTypes(Set<String> types) async {
+    final unreadNotifications = _notifications
         .where((notification) => !notification.isRead)
-        .where(_isChatNotification)
+        .where((notification) => types.contains(notification.type))
         .toList();
-    if (unreadChatNotifications.isEmpty) return;
+    if (unreadNotifications.isEmpty) return;
 
     final userId = _userId;
     final firestore = _firestore;
     if (userId == null || firestore == null) {
-      for (final notification in unreadChatNotifications) {
+      for (final notification in unreadNotifications) {
         notification.isRead = true;
       }
       notifyListeners();
@@ -402,7 +416,7 @@ class NotificationProvider extends ChangeNotifier {
 
     try {
       final batch = firestore.batch();
-      for (final notification in unreadChatNotifications) {
+      for (final notification in unreadNotifications) {
         batch.update(
           firestore
               .collection('accounts')
@@ -415,7 +429,7 @@ class NotificationProvider extends ChangeNotifier {
       await batch.commit();
       _errorMessage = null;
     } catch (error) {
-      _errorMessage = 'Could not mark chat notifications as read: $error';
+      _errorMessage = 'Could not mark notifications as read: $error';
       notifyListeners();
     }
   }

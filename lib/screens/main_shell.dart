@@ -58,7 +58,9 @@ class _MainShellState extends State<MainShell> {
     if (index == _messagesTabIndex) {
       _hasOpenedMessages = true;
       unawaited(
-        context.read<NotificationProvider?>()?.markChatNotificationsRead() ??
+        context
+                .read<NotificationProvider?>()
+                ?.markAdminChatNotificationsRead() ??
             Future<void>.value(),
       );
     }
@@ -137,10 +139,7 @@ class _MainShellState extends State<MainShell> {
             )
           : const SizedBox.shrink(),
       ProfileScreen(onBack: () => _goToTab(_homeTabIndex)),
-      NotificationScreen(
-        onBackTap: () => _goToTab(_homeTabIndex),
-        isActive: _currentIndex == _notificationsTabIndex,
-      ),
+      NotificationScreen(onBackTap: () => _goToTab(_homeTabIndex)),
     ];
 
     final isOnProfileTab = _currentIndex == _profileTabIndex;
