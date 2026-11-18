@@ -139,6 +139,33 @@ void main() {
     expect(find.byKey(const Key('loans-nav-badge')), findsNothing);
   });
 
+  testWidgets('Messages shows admin reply count and clears it when opened', (
+    tester,
+  ) async {
+    await pumpMainShell(tester);
+    notifications.addNotification(
+      'Admin replied to your chat.',
+      type: 'admin_chat_reply',
+    );
+    notifications.addNotification('Request approved', type: 'approved');
+    await tester.pump();
+
+    expect(find.byKey(const Key('messages-nav-badge')), findsOneWidget);
+    expect(find.byKey(const Key('loans-nav-badge')), findsOneWidget);
+
+    await tester.tap(find.text('Messages'));
+    await tester.pumpAndSettle();
+
+    expect(notifications.unreadChatCount, 0);
+    expect(notifications.unreadLoanUpdateCount, 1);
+
+    await tester.tap(find.byKey(const Key('messages-back')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('messages-nav-badge')), findsNothing);
+    expect(find.byKey(const Key('loans-nav-badge')), findsOneWidget);
+  });
+
   testWidgets('system back from Notification returns to Home', (tester) async {
     await pumpMainShell(tester);
     notifications.addNotification('Request approved', type: 'approved');

@@ -1,4 +1,6 @@
 // lib/screens/main_shell.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -53,7 +55,13 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _goToTab(int index) {
-    if (index == _messagesTabIndex) _hasOpenedMessages = true;
+    if (index == _messagesTabIndex) {
+      _hasOpenedMessages = true;
+      unawaited(
+        context.read<NotificationProvider?>()?.markChatNotificationsRead() ??
+            Future<void>.value(),
+      );
+    }
     setState(() {
       if (_currentIndex != _notificationsTabIndex) {
         _previousTabIndex = _currentIndex;
@@ -337,7 +345,7 @@ class _NavigationButton extends StatelessWidget {
                 Icon(selected ? selectedIcon : icon, color: color, size: 22),
                 if (badgeCount > 0)
                   Positioned(
-                    key: const Key('loans-nav-badge'),
+                    key: Key('${label.toLowerCase()}-nav-badge'),
                     top: -6,
                     right: -10,
                     child: Container(

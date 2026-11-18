@@ -82,4 +82,26 @@ void main() {
     expect(notifications.unreadLoanUpdateCount, 1);
     expect(notifications.unreadCount, 2);
   });
+
+  test(
+    'opening chat marks chat notifications read without clearing loan updates',
+    () async {
+      final notifications = NotificationProvider();
+      addTearDown(notifications.dispose);
+
+      notifications.addNotification(
+        'Admin replied to your chat.',
+        type: 'admin_chat_reply',
+      );
+      notifications.addNotification(
+        'Your request was approved.',
+        type: 'approved',
+      );
+
+      await notifications.markChatNotificationsRead();
+
+      expect(notifications.unreadChatCount, 0);
+      expect(notifications.unreadLoanUpdateCount, 1);
+    },
+  );
 }

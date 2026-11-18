@@ -56,9 +56,7 @@ class NotificationProvider extends ChangeNotifier {
   int get unreadChatCount => _notifications
       .where(
         (notification) =>
-            !notification.isRead &&
-            (notification.type == 'admin_chat_reply' ||
-                notification.type == 'assistant_reply'),
+            !notification.isRead && _isChatNotification(notification),
       )
       .length;
   int get unreadLoanUpdateCount => _notifications
@@ -76,6 +74,10 @@ class NotificationProvider extends ChangeNotifier {
             }.contains(notification.type),
       )
       .length;
+
+  bool _isChatNotification(NotificationModel notification) =>
+      notification.type == 'admin_chat_reply' ||
+      notification.type == 'assistant_reply';
 
   void setActivePage(String page) {
     _activePage = page;
@@ -377,6 +379,43 @@ class NotificationProvider extends ChangeNotifier {
       _errorMessage = null;
     } catch (error) {
       _errorMessage = 'Could not mark notifications as read: $error';
+      notifyListeners();
+    }
+  }
+
+  Future<void> markChatNotificationsRead() async {
+    final unreadChatNotifications = _notifications
+        .where((notification) => !notification.isRead)
+        .where(_isChatNotification)
+        .toList();
+    if (unreadChatNotifications.isEmpty) return;
+
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) {
+      for (final notification in unreadChatNotifications) {
+        notification.isRead = true;
+      }
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final batch = firestore.batch();
+      for (final notification in unreadChatNotifications) {
+        batch.update(
+          firestore
+              .collection('accounts')
+              .doc(userId)
+              .collection('notifications')
+              .doc(notification.id),
+          {'isRead': true},
+        );
+      }
+      await batch.commit();
+      _errorMessage = null;
+    } catch (error) {
+      _errorMessage = 'Could not mark chat notifications as read: $error';
       notifyListeners();
     }
   }
