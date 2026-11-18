@@ -101,7 +101,7 @@ void main() {
     );
 
     expect(notifications.unreadAdminChatCount, 1);
-    expect(notifications.unreadLoanUpdateCount, 1);
+    expect(notifications.unseenLoanUpdateCount, 1);
     expect(notifications.unreadCount, 2);
   });
 
@@ -188,10 +188,19 @@ void main() {
       );
       expect(notifications.notificationPageNotifications, hasLength(2));
 
-      await notifications.markNotificationPageRead();
+      await notifications.markNotificationPageSeen();
+      expect(notifications.unseenLoanUpdateCount, 0);
+      expect(
+        notifications.notificationPageNotifications.every(
+          (notification) => notification.isSeen && !notification.isRead,
+        ),
+        isTrue,
+      );
+      expect(notifications.unreadCount, 4);
 
-      expect(notifications.unreadLoanUpdateCount, 0);
+      await notifications.markNotificationPageRead();
       expect(notifications.unreadAdminChatCount, 1);
+      expect(notifications.unseenLoanUpdateCount, 0);
       expect(notifications.unreadCount, 2);
     },
   );
@@ -216,10 +225,10 @@ void main() {
     await notifications.markAssistantNotificationsRead();
 
     expect(notifications.unreadAdminChatCount, 1);
-    expect(notifications.unreadLoanUpdateCount, 1);
+    expect(notifications.unseenLoanUpdateCount, 1);
 
     await notifications.markAdminChatNotificationsRead();
     expect(notifications.unreadAdminChatCount, 0);
-    expect(notifications.unreadLoanUpdateCount, 1);
+    expect(notifications.unseenLoanUpdateCount, 1);
   });
 }

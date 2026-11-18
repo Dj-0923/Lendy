@@ -17,11 +17,21 @@ class RequestProvider extends ChangeNotifier {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _requestSubscription;
   String? _userId;
   String? _errorMessage;
+  bool _loanPageVisible = false;
   final Set<String> _submittingEquipmentIds = {};
 
   /// Called by the ProxyProviders whenever a dependency changes.
   void updateEquipmentProvider(EquipmentProvider equipmentProvider) {
     _equipmentProvider = equipmentProvider;
+  }
+
+  void setLoanPageVisible(bool visible) {
+    if (_loanPageVisible == visible) return;
+    _loanPageVisible = visible;
+    final userId = _userId;
+    if (visible && userId != null) {
+      unawaited(markRejectedReturnsSeen(userId));
+    }
   }
 
   String? get errorMessage => _errorMessage;
@@ -53,6 +63,10 @@ class RequestProvider extends ChangeNotifier {
                   ..clear()
                   ..addAll(requests);
                 _errorMessage = null;
+                final userId = _userId;
+                if (_loanPageVisible && userId != null) {
+                  unawaited(markRejectedReturnsSeen(userId));
+                }
               } on FormatException catch (error) {
                 _errorMessage = 'Could not read your loan data: $error';
               } on TypeError catch (error) {
@@ -110,9 +124,49 @@ class RequestProvider extends ChangeNotifier {
       .where(
         (request) =>
             request.status == RequestStatus.borrowed &&
-            request.returnVerificationStatus == 'rejected',
+            request.returnVerificationStatus == 'rejected' &&
+            !request.returnRejectionSeen,
       )
       .length;
+
+  Future<void> markRejectedReturnsSeen(String userId) async {
+    final unseenRequests = requestsForUser(userId)
+        .where(
+          (request) =>
+              request.status == RequestStatus.borrowed &&
+              request.returnVerificationStatus == 'rejected' &&
+              !request.returnRejectionSeen,
+        )
+        .toList();
+    if (unseenRequests.isEmpty) return;
+
+    final firestore = _firestore;
+    if (firestore == null) {
+      for (final request in unseenRequests) {
+        request.returnRejectionSeen = true;
+      }
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final batch = firestore.batch();
+      for (final request in unseenRequests) {
+        batch.update(firestore.collection('loans').doc(request.id), {
+          'returnRejectionSeen': true,
+        });
+      }
+      await batch.commit();
+      for (final request in unseenRequests) {
+        request.returnRejectionSeen = true;
+      }
+      _errorMessage = null;
+      notifyListeners();
+    } catch (error) {
+      _errorMessage = 'Could not mark return rejections as seen: $error';
+      notifyListeners();
+    }
+  }
 
   /// Active or returned borrowings, most recent first, for the profile history.
   List<BorrowRequestModel> recentBorrowings(String userId, {int limit = 3}) {
@@ -318,6 +372,7 @@ class RequestProvider extends ChangeNotifier {
           : null,
       returnVerificationStatus: data['returnVerificationStatus'] as String?,
       returnRejectionReason: data['returnRejectionReason'] as String?,
+      returnRejectionSeen: data['returnRejectionSeen'] == true,
       status: status,
     );
   }

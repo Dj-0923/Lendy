@@ -7,6 +7,7 @@ class NotificationModel {
   final String type;
   final DateTime timestamp;
   bool isRead;
+  bool isSeen;
 
   NotificationModel({
     required this.id,
@@ -14,5 +15,6 @@ class NotificationModel {
     this.type = '',
     required this.timestamp,
     this.isRead = false,
+    this.isSeen = false,
   });
 }

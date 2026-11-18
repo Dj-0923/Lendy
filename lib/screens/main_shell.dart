@@ -52,9 +52,18 @@ class _MainShellState extends State<MainShell> {
       _ => 'home',
     };
     context.read<NotificationProvider?>()?.setActivePage(page);
+    context.read<RequestProvider?>()?.setLoanPageVisible(
+      _currentIndex == _loansTabIndex,
+    );
   }
 
   void _goToTab(int index) {
+    if (index == _loansTabIndex || index == _notificationsTabIndex) {
+      unawaited(
+        context.read<NotificationProvider?>()?.markNotificationPageSeen() ??
+            Future<void>.value(),
+      );
+    }
     if (index == _messagesTabIndex) {
       _hasOpenedMessages = true;
       unawaited(
@@ -120,7 +129,7 @@ class _MainShellState extends State<MainShell> {
     final notificationProvider = context.watch<NotificationProvider?>();
     final requestProvider = context.watch<RequestProvider?>();
     final unreadLoanUpdates =
-        (notificationProvider?.unreadLoanUpdateCount ?? 0) +
+        (notificationProvider?.unseenLoanUpdateCount ?? 0) +
         (requestProvider?.rejectedReturnCount(userId) ?? 0);
     final screens = [
       BrowseScreen(

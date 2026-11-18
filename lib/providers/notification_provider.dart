@@ -81,10 +81,10 @@ class NotificationProvider extends ChangeNotifier {
             !notification.isRead && notification.type == 'admin_chat_reply',
       )
       .length;
-  int get unreadLoanUpdateCount => _notifications
+  int get unseenLoanUpdateCount => _notifications
       .where(
         (notification) =>
-            !notification.isRead &&
+            !notification.isSeen &&
             _notificationPageTypes.contains(notification.type),
       )
       .length;
@@ -270,6 +270,9 @@ class NotificationProvider extends ChangeNotifier {
               ..addAll(snapshot.docs.map(_notificationFromDocument));
             _errorMessage = null;
             notifyListeners();
+            if (_isViewingLoanNotifications) {
+              unawaited(markNotificationPageSeen());
+            }
           },
           onError: (Object error) {
             _errorMessage = 'Could not load your notifications: $error';
@@ -289,8 +292,12 @@ class NotificationProvider extends ChangeNotifier {
       type: data['type'] as String? ?? '',
       timestamp: timestamp is Timestamp ? timestamp.toDate() : DateTime.now(),
       isRead: data['isRead'] == true,
+      isSeen: data['isSeen'] == true || data['isRead'] == true,
     );
   }
+
+  bool get _isViewingLoanNotifications =>
+      _currentActivePage == 'loans' || _currentActivePage == 'notifications';
 
   Future<void> _syncPushRegistration(String userId) async {
     final messaging = _messaging;
@@ -410,27 +417,37 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> markAllRead() async {
     final userId = _userId;
+    final unreadNotifications = _notifications
+        .where((notification) => !notification.isRead)
+        .toList();
+    if (unreadNotifications.isEmpty) return;
     if (userId == null || _firestore == null) {
-      for (final notification in _notifications) {
+      for (final notification in unreadNotifications) {
         notification.isRead = true;
+        notification.isSeen = true;
       }
       notifyListeners();
       return;
     }
     try {
       final batch = _firestore.batch();
-      for (final notification in _notifications.where((item) => !item.isRead)) {
+      for (final notification in unreadNotifications) {
         batch.update(
           _firestore
               .collection('accounts')
               .doc(userId)
               .collection('notifications')
               .doc(notification.id),
-          {'isRead': true},
+          {'isRead': true, 'isSeen': true},
         );
       }
       await batch.commit();
+      for (final notification in unreadNotifications) {
+        notification.isRead = true;
+        notification.isSeen = true;
+      }
       _errorMessage = null;
+      notifyListeners();
     } catch (error) {
       _errorMessage = 'Could not mark notifications as read: $error';
       notifyListeners();
@@ -443,8 +460,52 @@ class NotificationProvider extends ChangeNotifier {
   Future<void> markAssistantNotificationsRead() =>
       _markNotificationsReadForTypes({'assistant_reply'});
 
+  Future<void> markNotificationPageSeen() =>
+      _markNotificationsSeenForTypes(_notificationPageTypes);
+
   Future<void> markNotificationPageRead() =>
       _markNotificationsReadForTypes(_notificationPageTypes);
+
+  Future<void> _markNotificationsSeenForTypes(Set<String> types) async {
+    final unseenNotifications = _notifications
+        .where((notification) => !notification.isSeen)
+        .where((notification) => types.contains(notification.type))
+        .toList();
+    if (unseenNotifications.isEmpty) return;
+
+    final userId = _userId;
+    final firestore = _firestore;
+    if (userId == null || firestore == null) {
+      for (final notification in unseenNotifications) {
+        notification.isSeen = true;
+      }
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final batch = firestore.batch();
+      for (final notification in unseenNotifications) {
+        batch.update(
+          firestore
+              .collection('accounts')
+              .doc(userId)
+              .collection('notifications')
+              .doc(notification.id),
+          {'isSeen': true},
+        );
+      }
+      await batch.commit();
+      for (final notification in unseenNotifications) {
+        notification.isSeen = true;
+      }
+      _errorMessage = null;
+      notifyListeners();
+    } catch (error) {
+      _errorMessage = 'Could not mark notifications as seen: $error';
+      notifyListeners();
+    }
+  }
 
   Future<void> _markNotificationsReadForTypes(Set<String> types) async {
     final unreadNotifications = _notifications
@@ -458,6 +519,7 @@ class NotificationProvider extends ChangeNotifier {
     if (userId == null || firestore == null) {
       for (final notification in unreadNotifications) {
         notification.isRead = true;
+        notification.isSeen = true;
       }
       notifyListeners();
       return;
@@ -472,11 +534,16 @@ class NotificationProvider extends ChangeNotifier {
               .doc(userId)
               .collection('notifications')
               .doc(notification.id),
-          {'isRead': true},
+          {'isRead': true, 'isSeen': true},
         );
       }
       await batch.commit();
+      for (final notification in unreadNotifications) {
+        notification.isRead = true;
+        notification.isSeen = true;
+      }
       _errorMessage = null;
+      notifyListeners();
     } catch (error) {
       _errorMessage = 'Could not mark notifications as read: $error';
       notifyListeners();
@@ -487,7 +554,9 @@ class NotificationProvider extends ChangeNotifier {
     final userId = _userId;
     if (userId == null || _firestore == null) {
       final notification = _notifications.firstWhere((item) => item.id == id);
-      notification.isRead = true;
+      notification
+        ..isRead = true
+        ..isSeen = true;
       notifyListeners();
       return;
     }
@@ -497,8 +566,16 @@ class NotificationProvider extends ChangeNotifier {
           .doc(userId)
           .collection('notifications')
           .doc(id)
-          .update({'isRead': true});
+          .update({'isRead': true, 'isSeen': true});
+      for (final notification in _notifications.where(
+        (item) => item.id == id,
+      )) {
+        notification
+          ..isRead = true
+          ..isSeen = true;
+      }
       _errorMessage = null;
+      notifyListeners();
     } catch (error) {
       _errorMessage = 'Could not mark notification as read: $error';
       notifyListeners();

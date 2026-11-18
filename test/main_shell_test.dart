@@ -133,10 +133,16 @@ void main() {
     expect(find.byKey(const Key('loans-nav-badge')), findsOneWidget);
     expect(find.text('1'), findsWidgets);
 
-    await notifications.markAllRead();
-    await tester.pump();
+    await tester.tap(find.text('Loans').last);
+    await tester.pumpAndSettle();
 
+    expect(notifications.unseenLoanUpdateCount, 0);
+    expect(notifications.notificationPageNotifications.single.isRead, isFalse);
     expect(find.byKey(const Key('loans-nav-badge')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('loans-back')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dashboard-notification-badge')), findsNothing);
   });
 
   testWidgets('Messages shows admin reply count and clears it when opened', (
@@ -157,7 +163,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(notifications.unreadAdminChatCount, 0);
-    expect(notifications.unreadLoanUpdateCount, 1);
+    expect(notifications.unseenLoanUpdateCount, 1);
 
     await tester.tap(find.byKey(const Key('messages-back')));
     await tester.pumpAndSettle();
@@ -215,15 +221,13 @@ void main() {
     expect(find.byIcon(Icons.arrow_back), findsOneWidget);
     expect(find.text('Admin replied to your chat.'), findsNothing);
     expect(notifications.unreadCount, 2);
+    expect(notifications.unseenLoanUpdateCount, 0);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
     expect(find.text('Lendy'), findsOneWidget);
-    expect(
-      find.byKey(const Key('dashboard-notification-badge')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('dashboard-notification-badge')), findsNothing);
   });
 
   testWidgets('Notification Page marks only tapped feed items as read', (
@@ -243,6 +247,9 @@ void main() {
     expect(find.text('Request approved'), findsOneWidget);
     expect(find.text('Admin replied to your chat.'), findsNothing);
     expect(notifications.unreadCount, 2);
+    expect(notifications.unseenLoanUpdateCount, 0);
+    expect(notifications.notificationPageNotifications.single.isSeen, isTrue);
+    expect(notifications.notificationPageNotifications.single.isRead, isFalse);
 
     await tester.tap(find.text('Request approved'));
     await tester.pumpAndSettle();

@@ -51,6 +51,7 @@ class BorrowRequestModel {
   DateTime? returnedDate;
   String? returnVerificationStatus;
   String? returnRejectionReason;
+  bool returnRejectionSeen;
   RequestStatus status;
 
   BorrowRequestModel({
@@ -67,6 +68,7 @@ class BorrowRequestModel {
     this.returnedDate,
     this.returnVerificationStatus,
     this.returnRejectionReason,
+    this.returnRejectionSeen = false,
     this.status = RequestStatus.pending,
   }) : activityDate = activityDate ?? requestDate;
 }

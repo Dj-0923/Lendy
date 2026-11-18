@@ -159,6 +159,27 @@ void main() {
     expect(requests.rejectedReturnCount(userId), 0);
   });
 
+  test('viewing Loans clears the rejected return badge', () async {
+    const userId = 'return-user';
+    final requestId = await addBorrowing(
+      userId: userId,
+      returnDate: DateTime.now().add(const Duration(days: 3)),
+    );
+    await requests.reportReturn(requestId);
+
+    final request = requests.requestsForUser(userId).single
+      ..status = RequestStatus.borrowed
+      ..returnVerificationStatus = 'rejected'
+      ..returnRejectionReason = 'Return the item to the storage room.';
+
+    expect(requests.rejectedReturnCount(userId), 1);
+
+    await requests.markRejectedReturnsSeen(userId);
+
+    expect(requests.rejectedReturnCount(userId), 0);
+    expect(request.returnRejectionSeen, isTrue);
+  });
+
   test('history includes approved, rejected, and completed requests', () async {
     const userId = 'history-user';
     final requestIds = <String>[];
