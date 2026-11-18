@@ -166,6 +166,20 @@ void main() {
     expect(find.byKey(const Key('loans-nav-badge')), findsOneWidget);
   });
 
+  testWidgets('chat reply count does not appear on the Notification icon', (
+    tester,
+  ) async {
+    await pumpMainShell(tester);
+    notifications.addNotification(
+      'Admin replied to your chat.',
+      type: 'admin_chat_reply',
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('messages-nav-badge')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-notification-badge')), findsNothing);
+  });
+
   testWidgets('system back from Notification returns to Home', (tester) async {
     await pumpMainShell(tester);
     notifications.addNotification('Request approved', type: 'approved');

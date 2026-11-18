@@ -35,7 +35,7 @@ class DashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
     final unreadCount =
-        context.watch<NotificationProvider?>()?.unreadCount ?? 0;
+        context.watch<NotificationProvider?>()?.unreadLoanUpdateCount ?? 0;
     final imageBytes = user?.profileImageBytes;
 
     return Container(
