@@ -238,120 +238,96 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
-  Widget _buildAssistantReplyNotice(String? userId) {
-    if (userId == null) return const SizedBox.shrink();
-    return ValueListenableBuilder<BorrowerAssistantReplyNotice?>(
-      valueListenable: BorrowerAssistantConversationStore.replyNotice,
-      builder: (context, notice, child) {
-        final matchingNotice = notice?.userId == userId ? notice : null;
-        final replying =
-            matchingNotice?.state == BorrowerAssistantNoticeState.replying;
-        final replied =
-            matchingNotice?.state == BorrowerAssistantNoticeState.replied;
-        final idle = !replying && !replied;
-        return SizedBox(
-          height: 24,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              key: const Key('browse-ai-reply-notice'),
-              onTap: replying ? null : () => _openAssistant(),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Row(
-                  children: [
-                    if (replying)
-                      const SizedBox(
-                        width: 13,
-                        height: 13,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white70,
-                        ),
-                      )
-                    else if (replied)
-                      const Icon(
-                        Icons.mark_chat_unread_outlined,
-                        size: 15,
-                        color: Colors.white,
-                      ),
-                    if (!idle) const SizedBox(width: 6),
-                    Expanded(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          idle
-                              ? 'Fabii is waiting...'
-                              : replying
-                              ? 'Fabii is replying...'
-                              : 'Fabii replied · View',
-                          key: const Key('browse-ai-reply-notice-text'),
-                          maxLines: 1,
-                          softWrap: false,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAssistantButton() {
+  Widget _buildAssistantButton(String? userId) {
     return SizedBox(
-      width: 153,
-      height: 180,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: 168,
-            height: 168,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [Color(0xAA9C4DCC), Color(0x009C4DCC)],
-                stops: [0.2, 1],
-              ),
-            ),
-          ),
-          Semantics(
-            button: true,
-            label: 'AI Assistant',
-            child: Material(
-              key: const Key('browse-ai-assistant-button'),
-              color: Colors.transparent,
-              elevation: 0,
-              child: InkWell(
-                onTap: () {
-                  _openAssistant();
-                },
-                child: Ink(
-                  decoration: BoxDecoration(
-                    image: const DecorationImage(
-                      image: AssetImage('assets/images/fabii.webp'),
-                      fit: BoxFit.cover,
-                      alignment: Alignment.topCenter,
-                      filterQuality: FilterQuality.high,
+      width: 64,
+      height: 64,
+      child: ValueListenableBuilder<BorrowerAssistantReplyNotice?>(
+        valueListenable: BorrowerAssistantConversationStore.replyNotice,
+        builder: (context, notice, child) {
+          final replyCount =
+              userId != null &&
+                  notice?.userId == userId &&
+                  notice?.state == BorrowerAssistantNoticeState.replied
+              ? notice!.replyCount
+              : 0;
+          return Stack(
+            fit: StackFit.expand,
+            clipBehavior: Clip.none,
+            children: [
+              Semantics(
+                button: true,
+                label: 'Open Fabii assistant',
+                child: Material(
+                  key: const Key('browse-ai-assistant-button'),
+                  color: Colors.white,
+                  elevation: 2,
+                  shape: const CircleBorder(
+                    side: BorderSide(color: Color(0xFF51B893), width: 3),
+                  ),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _openAssistant,
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/botpfp.png',
+                        width: 58,
+                        height: 58,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+              Positioned(
+                right: -2,
+                bottom: -1,
+                child: Container(
+                  width: 25,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primaryLight, width: 2),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    color: AppColors.primaryLight,
+                    size: 15,
+                  ),
+                ),
+              ),
+              if (replyCount > 0)
+                Positioned(
+                  right: -5,
+                  top: -5,
+                  child: Container(
+                    key: const Key('browse-ai-reply-badge'),
+                    constraints: const BoxConstraints(
+                      minWidth: 20,
+                      minHeight: 20,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE53935),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      replyCount > 99 ? '99+' : '$replyCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -359,6 +335,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   Widget _buildFilterRow(EquipmentProvider equipmentProvider) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
           _FilterDropdown<String?>(
@@ -409,291 +386,315 @@ class _BrowseScreenState extends State<BrowseScreen> {
       ),
       child: Scaffold(
         backgroundColor: AppColors.primary,
-        body: Column(
+        body: Stack(
           children: [
-            ColoredBox(
-              key: const Key('browse-status-bar-background'),
-              color: AppColors.primary,
-              child: SizedBox(width: double.infinity, height: statusBarHeight),
-            ),
-            Expanded(
-              child: ColoredBox(
-                color: AppColors.background,
-                child: ScrollConfiguration(
-                  behavior: const _BrowseScrollBehavior(),
-                  child: CustomScrollView(
-                    key: const Key('browse-scroll-view'),
-                    controller: _browseScrollController,
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: DashboardHeader(
-                          title: 'Lendy',
-                          onProfileTap: widget.onProfileTap,
-                          onNotificationTap: widget.onNotificationTap,
-                          showUserDetails: false,
-                          roundedBottom: false,
-                          tall: true,
-                          bottomContent: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'What do you need today?',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                ),
+            Column(
+              children: [
+                ColoredBox(
+                  key: const Key('browse-status-bar-background'),
+                  color: AppColors.primary,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: statusBarHeight,
+                  ),
+                ),
+                Expanded(
+                  child: ColoredBox(
+                    color: AppColors.background,
+                    child: ScrollConfiguration(
+                      behavior: const _BrowseScrollBehavior(),
+                      child: CustomScrollView(
+                        key: const Key('browse-scroll-view'),
+                        controller: _browseScrollController,
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: DashboardHeader(
+                              title: 'Lendy',
+                              onProfileTap: widget.onProfileTap,
+                              onNotificationTap: widget.onNotificationTap,
+                              showUserDetails: false,
+                              roundedBottom: false,
+                              tall: true,
+                              bottomContent: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'What do you need today?',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Browse equipment or ask Fabii for help.',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Browse equipment or ask Fabii for help.',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _PinnedBrowseFilters(
-                          searchHeight: _isBrowseScrolled
-                              ? _PinnedBrowseFilters.compactSearchHeight
-                              : _PinnedBrowseFilters.assistantSearchHeight,
-                          child: Container(
-                            key: const Key('browse-pinned-controls'),
-                            color: AppColors.background,
-                            child: Column(
-                              children: [
-                                Container(
-                                  key: const Key('browse-pinned-search'),
-                                  height: _isBrowseScrolled
-                                      ? _PinnedBrowseFilters.compactSearchHeight
-                                      : _PinnedBrowseFilters
-                                            .assistantSearchHeight,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.only(
-                                      bottomLeft: Radius.circular(48),
-                                      bottomRight: Radius.circular(48),
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    key: const Key(
-                                      'browse-pinned-search-content-clip',
-                                    ),
-                                    borderRadius: const BorderRadius.only(
-                                      bottomLeft: Radius.circular(48),
-                                      bottomRight: Radius.circular(48),
-                                    ),
-                                    child: ResponsiveContent(
-                                      maxWidth: 980,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                        ),
-                                        child: Stack(
-                                          fit: StackFit.expand,
-                                          clipBehavior: Clip.none,
-                                          children: [
-                                            Positioned(
-                                              left: 0,
-                                              right: _isBrowseScrolled
-                                                  ? 0
-                                                  : 138,
-                                              bottom: _isBrowseScrolled
-                                                  ? 8
-                                                  : 40,
-                                              child: _isBrowseScrolled
-                                                  ? _buildSearchField(
-                                                      equipmentProvider,
-                                                    )
-                                                  : Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        _buildAssistantSuggestions(),
-                                                        const SizedBox(
-                                                          height: 24,
-                                                        ),
-                                                        _buildSearchField(
-                                                          equipmentProvider,
-                                                        ),
-                                                      ],
-                                                    ),
-                                            ),
-                                            if (!_isBrowseScrolled &&
-                                                userId != null)
-                                              Positioned(
-                                                left: 0,
-                                                right: 170,
-                                                bottom: 8,
-                                                child: Align(
-                                                  alignment:
-                                                      Alignment.centerRight,
-                                                  child: SizedBox(
-                                                    width: 120,
-                                                    child:
-                                                        _buildAssistantReplyNotice(
-                                                          userId,
-                                                        ),
-                                                  ),
-                                                ),
-                                              ),
-                                            if (!_isBrowseScrolled)
-                                              Positioned(
-                                                right: -8,
-                                                bottom: 0,
-                                                child: _buildAssistantButton(),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  key: const Key('browse-pinned-filters'),
-                                  height: _PinnedBrowseFilters.filtersHeight,
-                                  color: AppColors.background,
-                                  child: ResponsiveContent(
-                                    maxWidth: 980,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 10,
-                                      ),
-                                      child: _buildFilterRow(equipmentProvider),
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: ResponsiveContent(
-                          maxWidth: 980,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const Text(
-                                  "Check what's on the shelf and request what you need.",
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 13.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                if (equipmentProvider.isLoading)
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: 40),
-                                    child: Center(
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  )
-                                else if (equipmentList.isEmpty &&
-                                    equipmentProvider.loadError != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 40),
-                                    child: Center(
-                                      child: Text(
-                                        equipmentProvider.loadError!,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _PinnedBrowseFilters(
+                              searchHeight: _isBrowseScrolled
+                                  ? _PinnedBrowseFilters.compactSearchHeight
+                                  : _PinnedBrowseFilters.assistantSearchHeight,
+                              child: Container(
+                                key: const Key('browse-pinned-controls'),
+                                color: AppColors.background,
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      key: const Key('browse-pinned-search'),
+                                      height: _isBrowseScrolled
+                                          ? _PinnedBrowseFilters
+                                                .compactSearchHeight
+                                          : _PinnedBrowseFilters
+                                                .assistantSearchHeight,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.primary,
+                                        borderRadius: BorderRadius.only(
+                                          bottomLeft: Radius.circular(48),
+                                          bottomRight: Radius.circular(48),
                                         ),
                                       ),
-                                    ),
-                                  )
-                                else if (equipmentList.isEmpty)
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: 40),
-                                    child: Center(
-                                      child: Text(
-                                        'No equipment matches your filters.',
-                                        style: TextStyle(
-                                          color: AppColors.textSecondary,
+                                      child: ClipRRect(
+                                        key: const Key(
+                                          'browse-pinned-search-content-clip',
                                         ),
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      if (equipmentProvider.loadError != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 12,
+                                        borderRadius: const BorderRadius.only(
+                                          bottomLeft: Radius.circular(48),
+                                          bottomRight: Radius.circular(48),
+                                        ),
+                                        child: ResponsiveContent(
+                                          maxWidth: 980,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                            ),
+                                            child: Stack(
+                                              fit: StackFit.expand,
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                Positioned(
+                                                  left: 0,
+                                                  right: _isBrowseScrolled
+                                                      ? 0
+                                                      : 138,
+                                                  bottom: _isBrowseScrolled
+                                                      ? 8
+                                                      : 40,
+                                                  child: _isBrowseScrolled
+                                                      ? _buildSearchField(
+                                                          equipmentProvider,
+                                                        )
+                                                      : Column(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            _buildAssistantSuggestions(),
+                                                            const SizedBox(
+                                                              height: 24,
+                                                            ),
+                                                            _buildSearchField(
+                                                              equipmentProvider,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                ),
+                                                if (!_isBrowseScrolled)
+                                                  Positioned(
+                                                    right: -8,
+                                                    bottom: 0,
+                                                    child: IgnorePointer(
+                                                      child: SizedBox(
+                                                        key: const Key(
+                                                          'browse-fabii-decoration',
+                                                        ),
+                                                        width: 153,
+                                                        height: 180,
+                                                        child: Image.asset(
+                                                          'assets/images/fabii.webp',
+                                                          fit: BoxFit.cover,
+                                                          alignment: Alignment
+                                                              .topCenter,
+                                                          filterQuality:
+                                                              FilterQuality
+                                                                  .high,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
                                           ),
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      key: const Key('browse-pinned-filters'),
+                                      height:
+                                          _PinnedBrowseFilters.filtersHeight,
+                                      color: AppColors.background,
+                                      child: ResponsiveContent(
+                                        maxWidth: 980,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 10,
+                                          ),
+                                          child: _buildFilterRow(
+                                            equipmentProvider,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          SliverToBoxAdapter(
+                            child: ResponsiveContent(
+                              maxWidth: 980,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  20,
+                                  20,
+                                  100,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const Text(
+                                      "Check what's on the shelf and request what you need.",
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 13.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    if (equipmentProvider.isLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 40),
+                                        child: Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      )
+                                    else if (equipmentList.isEmpty &&
+                                        equipmentProvider.loadError != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 40),
+                                        child: Center(
                                           child: Text(
                                             equipmentProvider.loadError!,
+                                            textAlign: TextAlign.center,
                                             style: const TextStyle(
                                               color: AppColors.textSecondary,
                                             ),
                                           ),
                                         ),
-                                      LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          final cardWidth =
-                                              (constraints.maxWidth - 16) / 2;
+                                      )
+                                    else if (equipmentList.isEmpty)
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 40),
+                                        child: Center(
+                                          child: Text(
+                                            'No equipment matches your filters.',
+                                            style: TextStyle(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (equipmentProvider.loadError !=
+                                              null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 12,
+                                              ),
+                                              child: Text(
+                                                equipmentProvider.loadError!,
+                                                style: const TextStyle(
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
+                                              ),
+                                            ),
+                                          LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              final cardWidth =
+                                                  (constraints.maxWidth - 16) /
+                                                  2;
 
-                                          return Wrap(
-                                            spacing: 16,
-                                            runSpacing: 14,
-                                            children: equipmentList
-                                                .map(
-                                                  (equipment) => SizedBox(
-                                                    width: cardWidth,
-                                                    child: EquipmentCard(
-                                                      equipment: equipment,
-                                                      requested:
-                                                          requestProvider !=
-                                                              null &&
-                                                          userId != null &&
-                                                          requestProvider
-                                                              .hasPendingRequest(
-                                                                userId,
-                                                                equipment.id,
+                                              return Wrap(
+                                                spacing: 16,
+                                                runSpacing: 14,
+                                                children: equipmentList
+                                                    .map(
+                                                      (equipment) => SizedBox(
+                                                        width: cardWidth,
+                                                        child: EquipmentCard(
+                                                          equipment: equipment,
+                                                          requested:
+                                                              requestProvider !=
+                                                                  null &&
+                                                              userId != null &&
+                                                              requestProvider
+                                                                  .hasPendingRequest(
+                                                                    userId,
+                                                                    equipment
+                                                                        .id,
+                                                                  ),
+                                                          onRequest: () {
+                                                            Navigator.push(
+                                                              context,
+                                                              MaterialPageRoute(
+                                                                builder: (_) =>
+                                                                    RequestFormScreen(
+                                                                      equipment:
+                                                                          equipment,
+                                                                    ),
                                                               ),
-                                                      onRequest: () {
-                                                        Navigator.push(
-                                                          context,
-                                                          MaterialPageRoute(
-                                                            builder: (_) =>
-                                                                RequestFormScreen(
-                                                                  equipment:
-                                                                      equipment,
-                                                                ),
-                                                          ),
-                                                        );
-                                                      },
-                                                    ),
-                                                  ),
-                                                )
-                                                .toList(),
-                                          );
-                                        },
+                                                            );
+                                                          },
+                                                        ),
+                                                      ),
+                                                    )
+                                                    .toList(),
+                                              );
+                                            },
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                              ],
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+              ],
+            ),
+            Positioned(
+              right: 16,
+              bottom: 20,
+              child: _buildAssistantButton(userId),
             ),
           ],
         ),

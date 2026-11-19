@@ -35,16 +35,15 @@ void main() {
     );
     expect(tester.widget<Text>(badgeText).style?.fontSize, 9);
     final badgeContainer = tester.widget<Container>(
-      find.descendant(of: statusBadge, matching: find.byType(Container)),
+      find.byKey(const Key('status-badge-container')),
     );
     expect(
       badgeContainer.padding,
-      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
     );
     final imageRect = tester.getRect(find.byType(Image));
-    final badgeContainerFinder = find.descendant(
-      of: find.byType(StatusBadge),
-      matching: find.byType(Container),
+    final badgeContainerFinder = find.byKey(
+      const Key('status-badge-container'),
     );
     final badgeRect = tester.getRect(badgeContainerFinder);
     expect(badgeRect.top, greaterThanOrEqualTo(imageRect.top));
@@ -102,13 +101,13 @@ void main() {
 
     expect(
       tester.getSize(find.byKey(const ValueKey('equipment-card-with-image'))),
-      const Size(170, 350),
+      const Size(170, 310),
     );
     expect(
       tester.getSize(
         find.byKey(const ValueKey('equipment-card-without-image')),
       ),
-      const Size(170, 350),
+      const Size(170, 310),
     );
     expect(tester.takeException(), isNull);
   });

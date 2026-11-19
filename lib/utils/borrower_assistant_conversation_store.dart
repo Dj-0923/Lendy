@@ -11,10 +11,12 @@ class BorrowerAssistantReplyNotice {
   const BorrowerAssistantReplyNotice({
     required this.userId,
     required this.state,
+    this.replyCount = 1,
   });
 
   final String userId;
   final BorrowerAssistantNoticeState state;
+  final int replyCount;
 }
 
 class BorrowerAssistantConversation {
@@ -97,9 +99,10 @@ class BorrowerAssistantConversationMessage {
 class BorrowerAssistantConversationStore {
   BorrowerAssistantConversationStore._();
 
-  static const expiration = Duration(hours: 24);
   static const _keyPrefix = 'borrower_assistant_conversation_';
   static const _unreadReplyKeyPrefix = 'borrower_assistant_unread_reply_';
+  static const _unreadReplyCountKeyPrefix =
+      'borrower_assistant_unread_reply_count_';
   static final replyNotice = ValueNotifier<BorrowerAssistantReplyNotice?>(null);
 
   static void markReplying(String userId) {
@@ -123,6 +126,7 @@ class BorrowerAssistantConversationStore {
       replyNotice.value = BorrowerAssistantReplyNotice(
         userId: userId,
         state: BorrowerAssistantNoticeState.replied,
+        replyCount: await unreadReplyCount(userId),
       );
       return;
     }
@@ -139,9 +143,15 @@ class BorrowerAssistantConversationStore {
     if (!await preferences.setBool(_unreadReplyKeyFor(userId), true)) {
       throw StateError('Could not save the assistant reply notification.');
     }
+    final countKey = _unreadReplyCountKeyFor(userId);
+    final count = (preferences.getInt(countKey) ?? 0) + 1;
+    if (!await preferences.setInt(countKey, count)) {
+      throw StateError('Could not save the assistant reply count.');
+    }
     replyNotice.value = BorrowerAssistantReplyNotice(
       userId: userId,
       state: BorrowerAssistantNoticeState.replied,
+      replyCount: count,
     );
   }
 
@@ -152,11 +162,17 @@ class BorrowerAssistantConversationStore {
         !await preferences.setBool(key, false)) {
       throw StateError('Could not clear the assistant reply notification.');
     }
+    await preferences.remove(_unreadReplyCountKeyFor(userId));
     final notice = replyNotice.value;
     if (notice?.userId == userId &&
         notice?.state == BorrowerAssistantNoticeState.replied) {
       replyNotice.value = null;
     }
+  }
+
+  static Future<int> unreadReplyCount(String userId) async {
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getInt(_unreadReplyCountKeyFor(userId)) ?? 0;
   }
 
   static Future<BorrowerAssistantConversation?> load(
@@ -178,11 +194,6 @@ class BorrowerAssistantConversationStore {
       final startedAt = DateTime.fromMillisecondsSinceEpoch(
         decoded['startedAt'] as int,
       );
-      if ((now ?? DateTime.now()).difference(startedAt) >= expiration) {
-        await _remove(preferences, key);
-        return null;
-      }
-
       final messages = <BorrowerAssistantConversationMessage>[];
       for (final rawMessage in decoded['messages'] as List) {
         if (rawMessage is! Map<String, dynamic>) {
@@ -264,6 +275,7 @@ class BorrowerAssistantConversationStore {
         !await preferences.remove(unreadReplyKey)) {
       throw StateError('Could not clear the assistant reply notification.');
     }
+    await preferences.remove(_unreadReplyCountKeyFor(userId));
     if (replyNotice.value?.userId == userId) {
       replyNotice.value = null;
     }
@@ -272,6 +284,8 @@ class BorrowerAssistantConversationStore {
   static String _keyFor(String userId) => '$_keyPrefix$userId';
   static String _unreadReplyKeyFor(String userId) =>
       '$_unreadReplyKeyPrefix$userId';
+  static String _unreadReplyCountKeyFor(String userId) =>
+      '$_unreadReplyCountKeyPrefix$userId';
 
   static Future<void> _remove(SharedPreferences preferences, String key) async {
     if (!await preferences.remove(key)) {

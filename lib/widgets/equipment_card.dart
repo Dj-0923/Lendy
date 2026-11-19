@@ -22,8 +22,8 @@ class EquipmentCard extends StatelessWidget {
     final imageBytes = equipment.imageBytes;
     return Container(
       key: ValueKey('equipment-card-${equipment.id}'),
-      height: 350,
-      padding: const EdgeInsets.all(16),
+      height: 310,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -59,7 +59,7 @@ class EquipmentCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             equipment.displayCategory.toUpperCase(),
             maxLines: 1,
@@ -78,10 +78,7 @@ class EquipmentCard extends StatelessWidget {
               equipment.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(height: 2),
@@ -120,10 +117,10 @@ class EquipmentCard extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           SizedBox(
             width: double.infinity,
-            height: 42,
+            height: 38,
             child: ElevatedButton(
               onPressed:
                   equipment.status == EquipmentStatus.available && !requested

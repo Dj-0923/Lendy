@@ -190,19 +190,20 @@ void main() {
 
     final assistantButton = find.byKey(const Key('browse-ai-assistant-button'));
     expect(assistantButton, findsOneWidget);
-    expect(tester.getSize(assistantButton), const Size(153, 180));
-    final assistantButtonInk = tester.widget<Ink>(
-      find.descendant(of: assistantButton, matching: find.byType(Ink)),
-    );
+    expect(tester.getSize(assistantButton), const Size(64, 64));
     final assistantButtonMaterial = tester.widget<Material>(assistantButton);
-    expect(assistantButtonMaterial.color, Colors.transparent);
-    expect(assistantButtonMaterial.elevation, 0);
-    final assistantButtonImage =
-        (assistantButtonInk.decoration! as BoxDecoration).image!;
-    expect(assistantButtonImage.fit, BoxFit.cover);
-    expect(assistantButtonImage.alignment, Alignment.topCenter);
-    expect(assistantButtonImage.filterQuality, FilterQuality.high);
+    expect(assistantButtonMaterial.color, Colors.white);
+    expect(assistantButtonMaterial.elevation, 2);
+    expect(find.text('ASK ME'), findsNothing);
     expect(find.byIcon(Icons.auto_awesome), findsNothing);
+    final fabiiDecoration = find.byKey(const Key('browse-fabii-decoration'));
+    expect(fabiiDecoration, findsOneWidget);
+    final decorationPointerGuard = tester.widget<IgnorePointer>(
+      find
+          .ancestor(of: fabiiDecoration, matching: find.byType(IgnorePointer))
+          .first,
+    );
+    expect(decorationPointerGuard.ignoring, isTrue);
     await tester.tap(assistantButton);
     await tester.pumpAndSettle();
 
@@ -292,14 +293,14 @@ void main() {
         of: assistantButton,
         matching: find.byKey(const Key('browse-pinned-search-content-clip')),
       ),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(buttonRect.bottom, pinnedSearchRect.bottom);
-    expect(buttonRect.right, pinnedSearchRect.right - 12);
+    expect(buttonRect.right, 547 - 16);
+    expect(buttonRect.bottom, lessThan(380));
+    expect(find.byKey(const Key('browse-fabii-decoration')), findsOneWidget);
     expect(searchRect.height, 48);
     expect(searchRect.bottom, pinnedSearchRect.bottom - 40);
     expect(suggestionsRect.width, searchRect.width);
-    expect(suggestionsRect.right - buttonRect.left, closeTo(7, 0.01));
     expect(searchRect.top - suggestionsRect.bottom, 24);
     expect(title, findsOneWidget);
     expect(subtitle, findsOneWidget);
@@ -402,7 +403,8 @@ void main() {
     expect(find.text('Available items?'), findsNothing);
     expect(find.text('Camera to borrow?'), findsNothing);
     expect(find.text('Request status?'), findsNothing);
-    expect(find.byKey(const Key('browse-ai-assistant-button')), findsNothing);
+    expect(find.byKey(const Key('browse-ai-assistant-button')), findsOneWidget);
+    expect(find.byKey(const Key('browse-fabii-decoration')), findsNothing);
     expect(tester.getRect(pinnedSearch).top, 24);
     final pinnedSearchRect = tester.getRect(search);
     expect(tester.getRect(pinnedSearch).height, 64);

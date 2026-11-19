@@ -95,7 +95,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Tap Fabii to ask help >>>'), findsOneWidget);
       await tester.tap(find.byKey(const Key('browse-ai-assistant-button')));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -109,7 +108,6 @@ void main() {
       Navigator.of(tester.element(find.byType(BorrowerAssistantScreen))).pop();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Fabii is replying...'), findsOneWidget);
 
       responseCompleter.complete(
         http.Response(
@@ -120,30 +118,32 @@ void main() {
       await tester.pump();
       await tester.pumpAndSettle();
 
+      final replyBadge = find.byKey(const Key('browse-ai-reply-badge'));
+      expect(replyBadge, findsOneWidget);
+      expect(
+        find.descendant(of: replyBadge, matching: find.text('1')),
+        findsOneWidget,
+      );
       final savedConversation = await BorrowerAssistantConversationStore.load(
         userId,
-      );
-      expect(find.text('Fabii replied · View'), findsOneWidget);
-      final noticeRect = tester.getRect(
-        find.byKey(const Key('browse-ai-reply-notice')),
       );
       final assistantRect = tester.getRect(
         find.byKey(const Key('browse-ai-assistant-button')),
       );
-      expect(noticeRect.right, lessThan(assistantRect.left));
-      await tester.tap(find.byKey(const Key('browse-ai-reply-notice')));
+      expect(assistantRect.right, greaterThan(0));
+      await tester.tap(find.byKey(const Key('browse-ai-assistant-button')));
       await tester.pumpAndSettle();
 
       expect(find.text('What items are available?'), findsOneWidget);
       expect(find.text('The projector is available.'), findsOneWidget);
       expect(BorrowerAssistantConversationStore.replyNotice.value, isNull);
+      expect(replyBadge, findsNothing);
       expect(
         savedConversation?.messages.map((message) => message.text),
         contains('The projector is available.'),
       );
       Navigator.of(tester.element(find.byType(BorrowerAssistantScreen))).pop();
       await tester.pumpAndSettle();
-      expect(find.text('Tap Fabii to ask help >>>'), findsOneWidget);
     },
   );
 
@@ -267,14 +267,10 @@ void main() {
         assistantAvatar.backgroundImage,
         const AssetImage('assets/images/botpfp.png'),
       );
-      final firstSuggestion = tester.getRect(
-        find.byKey(const Key('assistant-suggestion-Available items?')),
+      expect(
+        find.byKey(const Key('assistant-suggestions-list')),
+        findsOneWidget,
       );
-      final wrappedSuggestion = tester.getRect(
-        find.byKey(const Key('assistant-suggestion-Request status?')),
-      );
-      expect(wrappedSuggestion.top - firstSuggestion.bottom, greaterThan(3));
-      expect(find.text('Mga puwedeng itanong'), findsOneWidget);
       expect(find.text('Available items?'), findsOneWidget);
       await tester.enterText(
         find.byType(TextField),
@@ -319,7 +315,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Mga puwedeng itanong'), findsNothing);
+      expect(find.byKey(const Key('assistant-suggestions-list')), findsNothing);
       expect(find.text('Projector'), findsOneWidget);
       expect(find.text('PROJECTORS'), findsOneWidget);
       expect(find.text('PRJ-001'), findsOneWidget);
@@ -341,7 +337,7 @@ void main() {
 
       Navigator.of(tester.element(find.text('Request Equipment'))).pop();
       await tester.pumpAndSettle();
-      expect(find.text('Mga puwedeng itanong'), findsNothing);
+      expect(find.byKey(const Key('assistant-suggestions-list')), findsNothing);
       expect(
         find.byKey(const Key('assistant-suggestion-Available items?')),
         findsNothing,
@@ -386,7 +382,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Mga puwedeng itanong'), findsOneWidget);
+    expect(find.byKey(const Key('assistant-suggestions-list')), findsOneWidget);
     await tester.tap(
       find.byKey(const Key('assistant-suggestion-Camera to borrow?')),
     );
@@ -394,10 +390,125 @@ void main() {
 
     expect(find.text('Camera to borrow?'), findsOneWidget);
     expect(find.text('Oo, may camera.'), findsOneWidget);
-    expect(find.text('Mga puwedeng itanong'), findsNothing);
+    expect(find.byKey(const Key('assistant-suggestions-list')), findsNothing);
     expect(
       find.byKey(const Key('assistant-suggestion-Camera to borrow?')),
       findsNothing,
     );
+  });
+
+  testWidgets('item replies show remaining count and hide expanded items', (
+    tester,
+  ) async {
+    final client = MockClient(
+      (_) async => http.Response(
+        jsonEncode({
+          'answer': 'I found 3 cameras.',
+          'items': [
+            {
+              'id': 'camera-1',
+              'name': 'Camera One',
+              'category': 'Cameras',
+              'location': 'Room 1',
+              'tag': 'CAM-001',
+              'status': 'Available',
+            },
+            {
+              'id': 'camera-2',
+              'name': 'Camera Two',
+              'category': 'Cameras',
+              'location': 'Room 2',
+              'tag': 'CAM-002',
+              'status': 'Available',
+            },
+            {
+              'id': 'camera-3',
+              'name': 'Camera Three',
+              'category': 'Cameras',
+              'location': 'Room 3',
+              'tag': 'CAM-003',
+              'status': 'Available',
+            },
+          ],
+        }),
+        200,
+      ),
+    );
+    addTearDown(client.close);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider.forTesting()),
+          ChangeNotifierProvider(create: (_) => EquipmentProvider()),
+        ],
+        child: MaterialApp(
+          home: BorrowerAssistantScreen(
+            service: BorrowerAssistantService(
+              client: client,
+              getIdToken: () async => 'test-token',
+              apiUrl: 'https://example.test',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), 'Cameras');
+    await tester.tap(find.byKey(const Key('borrower-assistant-send')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Camera One'), findsOneWidget);
+    expect(find.text('Camera Two'), findsOneWidget);
+    expect(find.text('Camera Three'), findsNothing);
+    expect(find.text('Show 1 more'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('assistant-show-more-items')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Camera Three'), findsOneWidget);
+    expect(find.text('Hide'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('assistant-show-more-items')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('assistant-show-more-items')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Camera Three'), findsNothing);
+    expect(find.text('Show 1 more'), findsOneWidget);
+  });
+
+  testWidgets('delete conversation menu clears messages and saved data', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    const userId = 'delete-conversation-test-user';
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthProvider.forTesting(
+          currentUser: UserModel(
+            id: userId,
+            fullName: 'Test Borrower',
+            email: 'borrower@example.test',
+            role: UserRole.student,
+            idNumber: 'DELETE-001',
+            mustChangePassword: false,
+          ),
+        ),
+        child: MaterialApp(home: const BorrowerAssistantScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('assistant-conversation-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete-conversation-menu-item')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete-conversation-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(await BorrowerAssistantConversationStore.load(userId), isNull);
   });
 }

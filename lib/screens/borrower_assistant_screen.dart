@@ -57,7 +57,6 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
   String? _loadedUserId;
   int _loadGeneration = 0;
   int _conversationGeneration = 0;
-  Timer? _expirationTimer;
   DateTime? _conversationStartedAt;
 
   BorrowerAssistantService get _service =>
@@ -71,8 +70,6 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
 
     _initializedUser = true;
     _loadedUserId = userId;
-    _expirationTimer?.cancel();
-    _expirationTimer = null;
     _conversationGeneration++;
     _conversationStartedAt = null;
     _hasStartedConversation = false;
@@ -113,7 +110,6 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
           (message) => message.fromUser,
         );
         _conversationStartedAt = conversation.startedAt;
-        _scheduleExpiration(userId, conversation.startedAt);
         _messages
           ..clear()
           ..addAll(
@@ -151,7 +147,6 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
 
   @override
   void dispose() {
-    _expirationTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -169,9 +164,6 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
     setState(() {
       if (_conversationStartedAt == null) {
         _conversationStartedAt = DateTime.now();
-        if (userId != null) {
-          _scheduleExpiration(userId, _conversationStartedAt!);
-        }
       }
       startedAt = _conversationStartedAt!;
       _hasStartedConversation = true;
@@ -361,46 +353,112 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
       _loadedUserId == userId &&
       _conversationGeneration == generation;
 
-  void _scheduleExpiration(String userId, DateTime startedAt) {
-    _expirationTimer?.cancel();
-    final remaining = startedAt
-        .add(BorrowerAssistantConversationStore.expiration)
-        .difference(DateTime.now());
-    _expirationTimer = Timer(
-      remaining.isNegative ? Duration.zero : remaining,
-      () => _expireConversation(userId, startedAt),
-    );
-  }
-
-  void _expireConversation(String userId, DateTime startedAt) {
-    if (!mounted ||
-        _loadedUserId != userId ||
-        _conversationStartedAt != startedAt) {
-      return;
-    }
-    _expirationTimer = null;
-    _conversationStartedAt = null;
-    _hasStartedConversation = false;
-    _conversationGeneration++;
-    _messages
-      ..clear()
-      ..add(_welcomeMessage);
-    setState(() => _sending = false);
-    unawaited(_clearConversation(userId));
-  }
-
   Future<void> _clearConversation(String userId) async {
     try {
       await BorrowerAssistantConversationStore.clear(userId);
     } catch (error) {
-      debugPrint('Could not clear expired assistant conversation: $error');
+      debugPrint('Could not clear assistant conversation: $error');
       if (mounted && _loadedUserId == userId) {
         AppNotice.show(
           context,
-          'The expired AI conversation could not be cleared from this device.',
+          'The AI conversation could not be deleted from this device.',
           type: AppNoticeType.error,
         );
       }
+    }
+  }
+
+  Future<void> _deleteConversation() async {
+    final userId = _loadedUserId;
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        backgroundColor: Colors.white,
+        icon: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.danger.withValues(alpha: 0.10),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.delete_outline,
+            color: AppColors.danger,
+            size: 24,
+          ),
+        ),
+        title: const Text(
+          'Delete conversation?',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: const Text(
+          'This will permanently remove all messages and item cards in this chat.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+            height: 1.45,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.fieldBorder),
+                    minimumSize: const Size(0, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  key: const Key('delete-conversation-confirm'),
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.danger,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    minimumSize: const Size(0, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Delete'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true) return;
+
+    _conversationGeneration++;
+    _conversationStartedAt = null;
+    _hasStartedConversation = false;
+    _messages
+      ..clear()
+      ..add(_welcomeMessage);
+    setState(() => _sending = false);
+    if (userId != null) {
+      await _clearConversation(userId);
     }
   }
 
@@ -599,6 +657,24 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
         titleSpacing: 0,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          PopupMenuButton<String>(
+            key: const Key('assistant-conversation-menu'),
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'delete') {
+                unawaited(_deleteConversation());
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem<String>(
+                key: Key('delete-conversation-menu-item'),
+                value: 'delete',
+                child: Text('Delete conversation'),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -630,31 +706,23 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
           if (!_hasStartedConversation && !_sending && !_loadingConversation)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Mga puwedeng itanong',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final suggestion in _suggestions)
-                        ActionChip(
-                          key: ValueKey('assistant-suggestion-$suggestion'),
-                          visualDensity: VisualDensity.compact,
-                          label: Text(suggestion),
-                          onPressed: () => _sendQuestion(suggestion),
-                        ),
-                    ],
-                  ),
-                ],
+              child: SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  key: const Key('assistant-suggestions-list'),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _suggestions.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final suggestion = _suggestions[index];
+                    return ActionChip(
+                      key: ValueKey('assistant-suggestion-$suggestion'),
+                      visualDensity: VisualDensity.compact,
+                      label: Text(suggestion),
+                      onPressed: () => _sendQuestion(suggestion),
+                    );
+                  },
+                ),
               ),
             ),
           SafeArea(
@@ -736,7 +804,7 @@ class _AssistantMessage {
   final String? replyToRequestId;
 }
 
-class _MessageBubble extends StatelessWidget {
+class _MessageBubble extends StatefulWidget {
   const _MessageBubble({
     required this.message,
     required this.equipmentProvider,
@@ -750,7 +818,15 @@ class _MessageBubble extends StatelessWidget {
   final ValueChanged<BorrowerAssistantItem> onRequest;
 
   @override
+  State<_MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends State<_MessageBubble> {
+  int _visibleItemCount = 2;
+
+  @override
   Widget build(BuildContext context) {
+    final message = widget.message;
     final color = message.fromUser ? AppColors.primary : Colors.white;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final bubbleMaxWidth = (screenWidth - (message.fromUser ? 48 : 76)).clamp(
@@ -775,14 +851,47 @@ class _MessageBubble extends StatelessWidget {
               color: message.fromUser ? Colors.white : AppColors.textPrimary,
             ),
           ),
-          for (final item in message.items)
+          for (final item in message.items.take(_visibleItemCount))
             _AssistantLandscapeItemCard(
               key: ValueKey('assistant-landscape-item-${item.id}'),
               equipment: item.toEquipmentModel(
-                inventoryItem: equipmentProvider?.findById(item.id),
+                inventoryItem: widget.equipmentProvider?.findById(item.id),
               ),
-              requested: requestedItemIds.contains(item.id),
-              onRequest: () => onRequest(item),
+              requested: widget.requestedItemIds.contains(item.id),
+              onRequest: () => widget.onRequest(item),
+            ),
+          if (message.items.length > 2)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: OutlinedButton(
+                      key: const Key('assistant-show-more-items'),
+                      onPressed: () => setState(() {
+                        _visibleItemCount = _visibleItemCount == 2
+                            ? message.items.length
+                            : 2;
+                      }),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.fieldBorder),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        _visibleItemCount == 2
+                            ? 'Show ${message.items.length - 2} more'
+                            : 'Hide',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
         ],
       ),
@@ -852,7 +961,7 @@ class _AssistantLandscapeItemCard extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final imageWidth = constraints.maxWidth < 250 ? 72.0 : 92.0;
+          final imageWidth = constraints.maxWidth < 220 ? 64.0 : 76.0;
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -860,7 +969,7 @@ class _AssistantLandscapeItemCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: SizedBox(
                   width: imageWidth,
-                  height: 128,
+                  height: 118,
                   child: ColoredBox(
                     color: Colors.white,
                     child: imageBytes == null
