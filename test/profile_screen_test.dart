@@ -54,7 +54,8 @@ void main() {
         idNumber: 'FAC-001',
       ),
     );
-    auth.currentUser!.college = 'BSIT';
+    auth.currentUser!.college =
+        'College of Information and Technology Education';
     auth.currentUser!.gender = 'Female';
     return auth;
   }
@@ -81,7 +82,7 @@ void main() {
       findsNothing,
     );
     expect(find.text('College'), findsOneWidget);
-    expect(find.text('BSIT'), findsOneWidget);
+    expect(find.text('CITE'), findsOneWidget);
     expect(find.text('Gender'), findsOneWidget);
     expect(find.text('Female'), findsOneWidget);
     expect(find.text('Year Level'), findsNothing);
@@ -93,6 +94,7 @@ void main() {
     tester,
   ) async {
     final auth = await loginStudent(tester);
+    auth.currentUser!.college = 'BS Information Technology';
     await pumpProfile(tester, auth);
 
     expect(find.text('Account role'), findsOneWidget);
@@ -100,6 +102,7 @@ void main() {
     expect(find.text('College'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
     expect(find.text('Gender'), findsOneWidget);
+    expect(find.text('BSIT'), findsOneWidget);
     expect(find.text('Department'), findsNothing);
   });
 

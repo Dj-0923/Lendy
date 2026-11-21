@@ -131,6 +131,8 @@ class _MainShellState extends State<MainShell> {
     final unreadLoanUpdates =
         (notificationProvider?.unseenLoanUpdateCount ?? 0) +
         (requestProvider?.rejectedReturnCount(userId) ?? 0);
+    final loanBadgeCount =
+        unreadLoanUpdates + (requestProvider?.dueSoonCount(userId) ?? 0);
     final screens = [
       BrowseScreen(
         onProfileTap: () => _goToTab(_profileTabIndex),
@@ -192,8 +194,15 @@ class _MainShellState extends State<MainShell> {
                           icon: Icon(Icons.home_outlined),
                           label: Text('Home'),
                         ),
-                        const NavigationRailDestination(
-                          icon: Icon(Icons.bookmark_outline),
+                        NavigationRailDestination(
+                          icon: _NavigationRailBadgeIcon(
+                            icon: Icons.bookmark_outline,
+                            badgeCount: loanBadgeCount,
+                          ),
+                          selectedIcon: _NavigationRailBadgeIcon(
+                            icon: Icons.bookmark,
+                            badgeCount: loanBadgeCount,
+                          ),
                           label: Text('Loans'),
                         ),
                         const NavigationRailDestination(
@@ -270,7 +279,8 @@ class _MainShellState extends State<MainShell> {
                           selectedIcon: Icons.bookmark,
                           selected: _currentIndex == _loansTabIndex,
                           onTap: () => _goToTab(_loansTabIndex),
-                          badgeCount: unreadLoanUpdates,
+                          badgeCount: loanBadgeCount,
+                          badgeDescription: 'due soon or unread updates',
                         ),
                       ),
                       SizedBox(
@@ -318,6 +328,53 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
+class _NavigationRailBadgeIcon extends StatelessWidget {
+  const _NavigationRailBadgeIcon({
+    required this.icon,
+    required this.badgeCount,
+  });
+
+  final IconData icon;
+  final int badgeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: badgeCount > 0
+          ? '$badgeCount due soon or unread loan updates'
+          : null,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Icon(icon),
+          if (badgeCount > 0)
+            Positioned(
+              top: -6,
+              right: -9,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: const BoxDecoration(
+                  color: Colors.redAccent,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  badgeCount > 9 ? '9+' : '$badgeCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _NavigationButton extends StatelessWidget {
   const _NavigationButton({
     required this.label,
@@ -326,6 +383,7 @@ class _NavigationButton extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.badgeCount = 0,
+    this.badgeDescription = 'new updates',
   });
 
   final String label;
@@ -334,6 +392,7 @@ class _NavigationButton extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final int badgeCount;
+  final String badgeDescription;
 
   @override
   Widget build(BuildContext context) {
@@ -341,7 +400,7 @@ class _NavigationButton extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: badgeCount > 0 ? '$label, $badgeCount new updates' : label,
+      label: badgeCount > 0 ? '$label, $badgeCount $badgeDescription' : label,
       child: InkWell(
         onTap: onTap,
         child: Column(

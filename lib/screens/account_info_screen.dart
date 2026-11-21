@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/college_programs.dart';
 import '../utils/responsive_layout.dart';
-import '../utils/text_formatters.dart';
 import '../utils/year_level.dart';
 import '../widgets/simple_header.dart';
 import '../widgets/plain_text_field.dart';
@@ -24,10 +24,11 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _fullNameController;
   late final TextEditingController _emailController;
-  late final TextEditingController _collegeController;
   bool _isLoading = false;
 
   String? _selectedGender;
+  CollegeProgram? _selectedCollege;
+  FacultyCollege? _selectedFacultyCollege;
   String? _selectedYearLevel;
   String? _selectedBlock;
 
@@ -35,7 +36,21 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
   /// hold anything else — a dropdown, not a text box, so nothing can be typed.
   static const List<String> _genders = ['Male', 'Female'];
   static const List<String> _yearLevels = yearLevelOptions;
-  static const List<String> _blocks = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+  static const List<String> _blocks = [
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '10',
+    '11',
+  ];
+  static const double _collegeMenuMaxHeight =
+      PlainDropdownField.menuRowHeight * 5;
 
   @override
   void initState() {
@@ -43,7 +58,11 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
     final user = context.read<AuthProvider>().currentUser;
     _fullNameController = TextEditingController(text: user?.fullName ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
-    _collegeController = TextEditingController(text: user?.college ?? '');
+    if (user?.role == UserRole.faculty) {
+      _selectedFacultyCollege = facultyCollegeFor(user?.college);
+    } else {
+      _selectedCollege = collegeProgramFor(user?.college);
+    }
     _selectedYearLevel = yearLevelToDigit(user?.yearLevel);
     final savedBlock = user?.block;
     _selectedBlock = _blocks.contains(savedBlock) ? savedBlock : null;
@@ -57,7 +76,6 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
-    _collegeController.dispose();
     super.dispose();
   }
 
@@ -77,13 +95,15 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+    final isFaculty =
+        context.read<AuthProvider>().currentUser?.role == UserRole.faculty;
     final error = await context.read<AuthProvider>().updateProfile(
       fullName: _fullNameController.text,
       email: _emailController.text,
       gender: _selectedGender,
-      college: _collegeController.text.trim().isEmpty
-          ? null
-          : _collegeController.text.trim(),
+      college: isFaculty
+          ? _selectedFacultyCollege?.short
+          : _selectedCollege?.short,
       yearLevel: yearLevelToLabel(_selectedYearLevel),
       block: _selectedBlock,
     );
@@ -151,17 +171,28 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                         validator: _validateEmail,
                       ),
                       const SizedBox(height: 16),
-                      // Free text on purpose: the student may type either the
-                      // shortcut or the full title. The 22-letter limit is a
-                      // Profile display rule, not an input rule, so a long title
-                      // can still be entered here and shortened when displayed.
-                      PlainTextField(
-                        label: 'College',
-                        hint: 'e.g. BSIT or BS Information Technology',
-                        controller: _collegeController,
-                        textCapitalization: TextCapitalization.characters,
-                        inputFormatters: const [UpperCaseTextInputFormatter()],
-                      ),
+                      if (isFaculty)
+                        PlainDropdownField<FacultyCollege>(
+                          label: 'College',
+                          hint: 'Select college',
+                          value: _selectedFacultyCollege,
+                          options: facultyCollegeOptions,
+                          menuMaxHeight: _collegeMenuMaxHeight,
+                          labelOf: (college) => college.menuLabel,
+                          onChanged: (college) =>
+                              setState(() => _selectedFacultyCollege = college),
+                        )
+                      else
+                        PlainDropdownField<CollegeProgram>(
+                          label: 'Course',
+                          hint: 'Select course',
+                          value: _selectedCollege,
+                          options: collegeProgramOptions,
+                          menuMaxHeight: _collegeMenuMaxHeight,
+                          labelOf: (program) => program.menuLabel,
+                          onChanged: (program) =>
+                              setState(() => _selectedCollege = program),
+                        ),
                       if (!isFaculty) ...[
                         const SizedBox(height: 16),
                         Row(

@@ -10,9 +10,8 @@
 //       their supported options.
 //    2. The Gender dropdown must look identical to the text fields above it
 //       and must never move when an option is chosen.
-//    3. The College field accepts either the shortcut or the full programme
-//       title, and the Profile screen always shows the shortcut when the typed
-//       wording is longer than 22 letters (spaces not counted).
+//    3. The College dropdown offers the supported programmes without changing
+//       the size of its field, and the Profile screen shortens long saved values.
 //
 //  Run just this file:  flutter test test/account_info_test.dart
 //  Run every test:      flutter test
@@ -79,17 +78,51 @@ void main() {
   // Plain unit tests for the Profile screen's college shortening rule. This is
   // display-only: the value stored on the user record is never changed.
   group('college shown on the profile', () {
-    test('a title of 22 letters or fewer is shown in full', () {
-      // Letters are counted without spaces, so a long-looking title can still
-      // fit: "BS COMPUTER ENGINEERING" is 21.
+    test(
+      'student Course dropdown options match the requested order and labels',
+      () {
+        expect(
+          collegeProgramOptions.map((program) => program.menuLabel).toList(),
+          [
+            'BS Information Technology (BSIT)',
+            'BS Computer Science (BSCS)',
+            'BS Criminology (BSCRIM)',
+            'BS Nursing (BSN)',
+            'BS Psychology (BS Psychology)',
+            'BS Accountancy (BSA)',
+            'BS Civil Engineering (BSCE)',
+            'Bachelor of Elementary Education (BEEd)',
+            'Bachelor of Secondary Education (BSEd)',
+            'BS Hospitality Management (BSHM)',
+          ],
+        );
+      },
+    );
+
+    test('unlisted short college values are unchanged', () {
       expect(collegeDisplay('BSIT'), 'BSIT');
-      expect(collegeDisplay('BS NURSING'), 'BS NURSING');
       expect(countLetters('BS COMPUTER ENGINEERING'), 21);
       expect(
         collegeDisplay('BS COMPUTER ENGINEERING'),
         'BS COMPUTER ENGINEERING',
       );
     });
+
+    test(
+      'supported student courses and faculty colleges display shortcuts',
+      () {
+        for (final program in collegeProgramOptions) {
+          expect(collegeDisplay(program.full), program.short);
+          expect(collegeDisplay(program.short), program.short);
+        }
+        for (final college in facultyCollegeOptions) {
+          expect(collegeDisplay(college.full), college.short);
+          expect(collegeDisplay(college.short), college.short);
+        }
+        expect(collegeDisplay('College of Health Sciences'), 'COHS');
+        expect(collegeDisplay('College of Human Sciences'), 'CHS');
+      },
+    );
 
     test('a longer title falls back to the programme shortcut', () {
       expect(
@@ -119,7 +152,7 @@ void main() {
         'BSIT',
       );
       expect(collegeDisplay('BS INFORMATION TECHNOLOGY (BSIT)'), 'BSIT');
-      // The full title is only 21 letters, so it stays readable as it is.
+      // This programme is not one of the selectable student courses.
       expect(
         collegeDisplay('BS COMPUTER ENGINEERING'),
         'BS COMPUTER ENGINEERING',
@@ -174,10 +207,6 @@ void main() {
     );
 
     // The actual typing area of a text field (the part that holds the text).
-    Finder editableIn(String hint) => find.descendant(
-      of: fieldWithHint(hint),
-      matching: find.byType(EditableText),
-    );
     Finder dropdownField(String label) {
       final anchor = find
           .ancestor(
@@ -268,28 +297,41 @@ void main() {
       );
     });
 
-    // The input takes either the shortcut or the whole title, upper cased, and
-    // is not length-capped: shortening to 22 letters happens on the Profile.
-    testWidgets('college accepts the shortcut or the full title', (
+    testWidgets('course options scroll within a fixed-height field', (
       tester,
     ) async {
       await pumpScreen(tester);
-      final field = editableIn('e.g. BSIT');
+      final collegeArrow = find.byTooltip('Select Course');
+      final collegeAnchor = find
+          .ancestor(of: collegeArrow, matching: find.byType(MenuAnchor))
+          .first;
+      final collegeField = find
+          .descendant(of: collegeAnchor, matching: find.byType(InputDecorator))
+          .first;
+      final originalRect = tester.getRect(collegeField);
 
-      await tester.enterText(field, 'bsit');
-      await tester.pump();
-      expect(tester.widget<EditableText>(field).controller.text, 'BSIT');
+      await tester.tap(collegeArrow);
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsNWidgets(10));
 
-      // A title well past 22 letters must still be accepted here.
-      await tester.enterText(
-        field,
-        'Bachelor of Science in Information Technology',
-      );
-      await tester.pump();
+      final menuViewport = find.byType(SingleChildScrollView).last;
+      expect(tester.getSize(menuViewport).height, lessThanOrEqualTo(240));
+      await tester.ensureVisible(find.text('BS Hospitality Management (BSHM)'));
+      await tester.pumpAndSettle();
       expect(
-        tester.widget<EditableText>(field).controller.text,
-        'BACHELOR OF SCIENCE IN INFORMATION TECHNOLOGY',
+        tester
+            .getRect(find.text('BS Hospitality Management (BSHM)').last)
+            .bottom,
+        lessThanOrEqualTo(tester.getRect(menuViewport).bottom),
       );
+
+      await tester.ensureVisible(
+        find.text('BS Information Technology (BSIT)').last,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('BS Information Technology (BSIT)').last);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(collegeField), originalRect);
     });
 
     // The filled boxes must keep their full size: the height the widget
@@ -300,11 +342,7 @@ void main() {
     ) async {
       await pumpScreen(tester);
 
-      for (final hint in [
-        'e.g. Juan Dela Cruz',
-        'e.g. dhie@gmail.com',
-        'e.g. BSIT',
-      ]) {
+      for (final hint in ['e.g. Juan Dela Cruz', 'e.g. dhie@gmail.com']) {
         expect(
           tester.getRect(fieldWithHint(hint)).height,
           PlainTextField.fieldHeight,
@@ -318,6 +356,10 @@ void main() {
       );
       expect(
         tester.getRect(dropdownField('Block')).height,
+        PlainTextField.fieldHeight,
+      );
+      expect(
+        tester.getRect(dropdownField('Course')).height,
         PlainTextField.fieldHeight,
       );
     });
@@ -442,6 +484,15 @@ void main() {
       expect(fieldWithHint('e.g. 7'), findsNothing);
       expect(find.byTooltip('Select Year level'), findsNothing);
       expect(find.byTooltip('Select Block'), findsNothing);
+
+      await tester.ensureVisible(find.byTooltip('Select College'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Select College'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsNWidgets(8));
+      for (final college in facultyCollegeOptions) {
+        expect(find.text(college.menuLabel).last, findsOneWidget);
+      }
     });
   });
 }

@@ -5,12 +5,13 @@ import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../theme/app_colors.dart';
 
-/// Teal dashboard header with the logged-in user's name, role, and avatar.
+/// Dashboard header with account actions and an optional image backdrop.
 class DashboardHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onProfileTap;
   final VoidCallback? onNotificationTap;
   final Widget? bottomContent;
+  final String? backgroundImageAsset;
   final bool showUserDetails;
   final bool roundedBottom;
   final bool tall;
@@ -21,6 +22,7 @@ class DashboardHeader extends StatelessWidget {
     this.onProfileTap,
     this.onNotificationTap,
     this.bottomContent,
+    this.backgroundImageAsset,
     this.showUserDetails = true,
     this.roundedBottom = true,
     this.tall = false,
@@ -37,6 +39,8 @@ class DashboardHeader extends StatelessWidget {
     final unreadCount =
         context.watch<NotificationProvider?>()?.unseenLoanUpdateCount ?? 0;
     final imageBytes = user?.profileImageBytes;
+    final background = backgroundImageAsset;
+    final pinBrandingToTop = background != null && bottomContent != null;
 
     return Container(
       key: const Key('dashboard-header'),
@@ -54,10 +58,18 @@ class DashboardHeader extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.primary,
+        image: background == null
+            ? null
+            : DecorationImage(
+                image: AssetImage(background),
+                fit: BoxFit.cover,
+                alignment: Alignment.centerRight,
+                filterQuality: FilterQuality.high,
+              ),
         borderRadius: roundedBottom
             ? const BorderRadius.only(
-                bottomLeft: Radius.circular(40),
-                bottomRight: Radius.circular(40),
+                bottomLeft: Radius.circular(48),
+                bottomRight: Radius.circular(48),
               )
             : null,
       ),
@@ -66,7 +78,9 @@ class DashboardHeader extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 760),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: pinBrandingToTop
+                ? MainAxisSize.max
+                : MainAxisSize.min,
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -251,7 +265,12 @@ class DashboardHeader extends StatelessWidget {
                   ),
                 ],
               ),
-              if (bottomContent != null) ...[
+              if (pinBrandingToTop) ...[
+                const SizedBox(height: 8),
+                const Spacer(),
+                bottomContent!,
+                const Spacer(),
+              ] else if (bottomContent != null) ...[
                 const SizedBox(height: 8),
                 bottomContent!,
               ],

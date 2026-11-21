@@ -37,11 +37,7 @@ class BrowseScreen extends StatefulWidget {
 }
 
 class _BrowseScreenState extends State<BrowseScreen> {
-  static const _assistantSuggestions = [
-    'Available items?',
-    'Camera to borrow?',
-    'Request status?',
-  ];
+  static const _homeHeroAspectRatio = 2.0;
 
   final _searchController = TextEditingController();
   final _browseScrollController = ScrollController();
@@ -90,127 +86,120 @@ class _BrowseScreenState extends State<BrowseScreen> {
     super.dispose();
   }
 
-  Widget _buildSearchField(EquipmentProvider equipmentProvider) {
-    return TextField(
-      key: const Key('browse-search-field'),
-      controller: _searchController,
-      onChanged: equipmentProvider.setSearchQuery,
-      decoration: InputDecoration(
-        hintText: 'Search by name, room or asset code...',
-        hintStyle: const TextStyle(color: Colors.grey, fontSize: 13.5),
-        prefixIcon: const Icon(Icons.search, size: 20),
-        prefixIconConstraints: const BoxConstraints.tightFor(
-          width: 40,
-          height: 40,
-        ),
-        suffixIcon: widget.onScannerTap == null
-            ? null
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    key: const Key('browse-search-scanner'),
-                    tooltip: 'Scan item code',
-                    onPressed: widget.onScannerTap,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 48,
-                      height: 40,
-                    ),
-                    icon: const Icon(Icons.qr_code_scanner, size: 19),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    child: VerticalDivider(width: 1),
-                  ),
-                ],
-              ),
-        filled: true,
-        fillColor: Colors.white,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-        constraints: const BoxConstraints(minHeight: 48),
-        suffixIconConstraints: const BoxConstraints.tightFor(
-          width: 50,
-          height: 40,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.fieldBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.fieldBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.primaryLight),
-        ),
+  Widget _buildHomeGreeting(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final titleSize = (screenWidth * 0.08).clamp(28.0, 60.0).toDouble();
+    final subtitleSize = (screenWidth * 0.026).clamp(13.0, 20.0).toDouble();
+    final textWidthFactor = screenWidth < 520 ? 0.82 : 0.68;
+
+    return FractionallySizedBox(
+      widthFactor: textWidthFactor,
+      alignment: Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text.rich(
+            const TextSpan(
+              children: [
+                TextSpan(text: 'What do you\nneed '),
+                TextSpan(
+                  text: 'today?',
+                  style: TextStyle(color: Color(0xFF31E6B5)),
+                ),
+              ],
+            ),
+            key: const Key('browse-home-greeting'),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: titleSize,
+              fontWeight: FontWeight.w900,
+              height: 0.9,
+              letterSpacing: -0.7,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Browse equipment or ask Fabii for help.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: subtitleSize,
+              height: 1.2,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildAssistantSuggestions() {
-    return SizedBox(
-      height: 40,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const gap = 8.0;
-          final pillWidth =
-              (constraints.maxWidth -
-                  gap * (_assistantSuggestions.length - 1)) /
-              _assistantSuggestions.length;
-
-          return Row(
-            key: const Key('browse-ai-suggestions'),
-            children: [
-              for (
-                var index = 0;
-                index < _assistantSuggestions.length;
-                index++
-              ) ...[
-                if (index > 0) const SizedBox(width: gap),
-                SizedBox(
-                  width: pillWidth,
-                  height: 40,
-                  child: Material(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: const BorderSide(color: AppColors.fieldBorder),
-                    ),
-                    child: InkWell(
-                      key: Key('browse-ai-suggestion-$index'),
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () {
-                        _openAssistant(
-                          initialQuestion: _assistantSuggestions[index],
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        child: Center(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              _assistantSuggestions[index],
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              softWrap: false,
-                            ),
-                          ),
-                        ),
+  Widget _buildSearchField(
+    EquipmentProvider equipmentProvider, {
+    required double height,
+  }) {
+    return Container(
+      key: const Key('browse-search-field-container'),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(height / 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: TextField(
+        key: const Key('browse-search-field'),
+        controller: _searchController,
+        onChanged: equipmentProvider.setSearchQuery,
+        decoration: InputDecoration(
+          hintText: 'Search by name, room or asset code...',
+          hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+          prefixIcon: const Icon(Icons.search, size: 22),
+          prefixIconConstraints: BoxConstraints.tightFor(
+            width: height * 0.62,
+            height: height,
+          ),
+          suffixIcon: widget.onScannerTap == null
+              ? null
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      key: const Key('browse-search-scanner'),
+                      tooltip: 'Scan item code',
+                      onPressed: widget.onScannerTap,
+                      constraints: BoxConstraints.tightFor(
+                        width: height * 0.62,
+                        height: height,
                       ),
+                      icon: const Icon(Icons.qr_code_scanner, size: 21),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ],
-          );
-        },
+          filled: true,
+          fillColor: Colors.white,
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(vertical: height * 0.2),
+          constraints: BoxConstraints.tightFor(height: height),
+          suffixIconConstraints: BoxConstraints.tightFor(
+            width: height * 0.72,
+            height: height,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(height / 2),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(height / 2),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(height / 2),
+            borderSide: const BorderSide(color: AppColors.primaryLight),
+          ),
+        ),
       ),
     );
   }
@@ -332,10 +321,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
     );
   }
 
-  Widget _buildFilterRow(EquipmentProvider equipmentProvider) {
+  Widget _buildFilterRow(
+    EquipmentProvider equipmentProvider, {
+    required double horizontalInset,
+  }) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: EdgeInsets.symmetric(horizontal: horizontalInset),
       child: Row(
         children: [
           _FilterDropdown<String?>(
@@ -379,6 +371,25 @@ class _BrowseScreenState extends State<BrowseScreen> {
     final userId = context.watch<AuthProvider>().currentUser?.id;
     final equipmentList = equipmentProvider.filteredEquipment;
     final statusBarHeight = MediaQuery.of(context).padding.top;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final searchInset = (screenWidth * 0.052).clamp(20.0, 40.0).toDouble();
+    final filterInset = (screenWidth * 0.023).clamp(12.0, 18.0).toDouble();
+    final initialSearchFieldHeight = (screenWidth * 0.115)
+        .clamp(52.0, 90.0)
+        .toDouble();
+    final compactSearchFieldHeight = (screenWidth * 0.083)
+        .clamp(48.0, 64.0)
+        .toDouble();
+    final initialSearchPadding = (screenWidth * 0.04)
+        .clamp(16.0, 31.0)
+        .toDouble();
+    final searchFieldHeight = _isBrowseScrolled
+        ? compactSearchFieldHeight
+        : initialSearchFieldHeight;
+    final searchVerticalPadding = _isBrowseScrolled
+        ? 6.0
+        : initialSearchPadding;
+    final searchSectionHeight = searchFieldHeight + searchVerticalPadding * 2;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
@@ -408,43 +419,44 @@ class _BrowseScreenState extends State<BrowseScreen> {
                         controller: _browseScrollController,
                         slivers: [
                           SliverToBoxAdapter(
-                            child: DashboardHeader(
-                              title: 'Lendy',
-                              onProfileTap: widget.onProfileTap,
-                              onNotificationTap: widget.onNotificationTap,
-                              showUserDetails: false,
-                              roundedBottom: false,
-                              tall: true,
-                              bottomContent: const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'What do you need today?',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final naturalHeroHeight =
+                                    constraints.maxWidth /
+                                        _homeHeroAspectRatio -
+                                    statusBarHeight;
+                                final compactWidthMinimum =
+                                    constraints.maxWidth < 520
+                                    ? constraints.maxWidth * 0.55
+                                    : 0.0;
+                                final heroHeight =
+                                    (naturalHeroHeight > compactWidthMinimum
+                                            ? naturalHeroHeight
+                                            : compactWidthMinimum)
+                                        .clamp(180.0, 380.0)
+                                        .toDouble();
+
+                                return SizedBox(
+                                  height: heroHeight,
+                                  child: DashboardHeader(
+                                    title: 'Lendy',
+                                    onProfileTap: widget.onProfileTap,
+                                    onNotificationTap: widget.onNotificationTap,
+                                    showUserDetails: false,
+                                    backgroundImageAsset:
+                                        'assets/images/bg-mobile.png',
+                                    roundedBottom: true,
+                                    tall: true,
+                                    bottomContent: _buildHomeGreeting(context),
                                   ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Browse equipment or ask Fabii for help.',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                );
+                              },
                             ),
                           ),
                           SliverPersistentHeader(
                             pinned: true,
                             delegate: _PinnedBrowseFilters(
-                              searchHeight: _isBrowseScrolled
-                                  ? _PinnedBrowseFilters.compactSearchHeight
-                                  : _PinnedBrowseFilters.assistantSearchHeight,
+                              searchHeight: searchSectionHeight,
                               child: Container(
                                 key: const Key('browse-pinned-controls'),
                                 color: AppColors.background,
@@ -452,87 +464,18 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                   children: [
                                     Container(
                                       key: const Key('browse-pinned-search'),
-                                      height: _isBrowseScrolled
-                                          ? _PinnedBrowseFilters
-                                                .compactSearchHeight
-                                          : _PinnedBrowseFilters
-                                                .assistantSearchHeight,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.primary,
-                                        borderRadius: BorderRadius.only(
-                                          bottomLeft: Radius.circular(48),
-                                          bottomRight: Radius.circular(48),
-                                        ),
-                                      ),
-                                      child: ClipRRect(
-                                        key: const Key(
-                                          'browse-pinned-search-content-clip',
-                                        ),
-                                        borderRadius: const BorderRadius.only(
-                                          bottomLeft: Radius.circular(48),
-                                          bottomRight: Radius.circular(48),
-                                        ),
-                                        child: ResponsiveContent(
-                                          maxWidth: 980,
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 20,
-                                            ),
-                                            child: Stack(
-                                              fit: StackFit.expand,
-                                              clipBehavior: Clip.none,
-                                              children: [
-                                                Positioned(
-                                                  left: 0,
-                                                  right: _isBrowseScrolled
-                                                      ? 0
-                                                      : 138,
-                                                  bottom: _isBrowseScrolled
-                                                      ? 8
-                                                      : 40,
-                                                  child: _isBrowseScrolled
-                                                      ? _buildSearchField(
-                                                          equipmentProvider,
-                                                        )
-                                                      : Column(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            _buildAssistantSuggestions(),
-                                                            const SizedBox(
-                                                              height: 24,
-                                                            ),
-                                                            _buildSearchField(
-                                                              equipmentProvider,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                ),
-                                                if (!_isBrowseScrolled)
-                                                  Positioned(
-                                                    right: -8,
-                                                    bottom: 0,
-                                                    child: IgnorePointer(
-                                                      child: SizedBox(
-                                                        key: const Key(
-                                                          'browse-fabii-decoration',
-                                                        ),
-                                                        width: 153,
-                                                        height: 180,
-                                                        child: Image.asset(
-                                                          'assets/images/fabii.webp',
-                                                          fit: BoxFit.cover,
-                                                          alignment: Alignment
-                                                              .topCenter,
-                                                          filterQuality:
-                                                              FilterQuality
-                                                                  .high,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
+                                      height: searchSectionHeight,
+                                      color: AppColors.background,
+                                      child: ResponsiveContent(
+                                        maxWidth: 980,
+                                        child: Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: searchInset,
+                                            vertical: searchVerticalPadding,
+                                          ),
+                                          child: _buildSearchField(
+                                            equipmentProvider,
+                                            height: searchFieldHeight,
                                           ),
                                         ),
                                       ),
@@ -550,6 +493,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                           ),
                                           child: _buildFilterRow(
                                             equipmentProvider,
+                                            horizontalInset: filterInset,
                                           ),
                                         ),
                                       ),
@@ -709,8 +653,6 @@ class _PinnedBrowseFilters extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double searchHeight;
 
-  static const double assistantSearchHeight = 180;
-  static const double compactSearchHeight = 64;
   static const double filtersHeight = 58;
 
   @override

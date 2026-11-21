@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lendy/models/user_model.dart';
 import 'package:lendy/providers/auth_provider.dart';
 import 'package:lendy/providers/equipment_provider.dart';
 import 'package:lendy/providers/notification_provider.dart';
@@ -14,8 +15,11 @@ void main() {
   late RequestProvider requests;
   late NotificationProvider notifications;
 
-  Future<void> pumpMainShell(WidgetTester tester) async {
-    auth = AuthProvider.forTesting();
+  Future<void> pumpMainShell(
+    WidgetTester tester, {
+    UserModel? currentUser,
+  }) async {
+    auth = AuthProvider.forTesting(currentUser: currentUser);
     equipment = EquipmentProvider();
     requests = RequestProvider(equipment);
     notifications = NotificationProvider();
@@ -69,7 +73,13 @@ void main() {
       tester.view.physicalSize.width / tester.view.devicePixelRatio,
     );
     final headerDecoration = header.decoration! as BoxDecoration;
-    expect(headerDecoration.borderRadius, isNull);
+    expect(
+      headerDecoration.borderRadius,
+      const BorderRadius.only(
+        bottomLeft: Radius.circular(48),
+        bottomRight: Radius.circular(48),
+      ),
+    );
     final notificationCircle = tester.widget<Container>(
       find.byKey(const Key('dashboard-notification-circle')),
     );
@@ -143,6 +153,64 @@ void main() {
     await tester.tap(find.byKey(const Key('loans-back')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('dashboard-notification-badge')), findsNothing);
+  });
+
+  testWidgets('Loans badge counts items approaching their due date', (
+    tester,
+  ) async {
+    const userId = 'due-user';
+    await pumpMainShell(
+      tester,
+      currentUser: UserModel(
+        id: userId,
+        fullName: 'Due User',
+        email: 'due@example.com',
+        role: UserRole.student,
+        idNumber: '12345678',
+      ),
+    );
+
+    final today = DateUtils.dateOnly(DateTime.now());
+    Future<void> addActiveLoan(String equipmentId, DateTime returnDate) async {
+      await requests.submitRequest(
+        userId: userId,
+        equipmentId: equipmentId,
+        equipmentName: equipmentId,
+        borrowerName: 'Due User',
+        borrowDate: today.subtract(const Duration(days: 3)),
+        returnDate: returnDate,
+      );
+      final request = requests
+          .requestsForUser(userId)
+          .singleWhere((item) => item.equipmentId == equipmentId);
+      await requests.checkOut(request.id);
+    }
+
+    await addActiveLoan('due-today', today);
+    await addActiveLoan('due-soon', today.add(const Duration(days: 2)));
+    await addActiveLoan('not-due-soon', today.add(const Duration(days: 5)));
+    await tester.pump();
+
+    final badge = find.byKey(const Key('loans-nav-badge'));
+    expect(badge, findsOneWidget);
+    expect(
+      find.descendant(of: badge, matching: find.text('2')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Loans').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('loans-back')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('loans-nav-badge')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('loans-nav-badge')),
+        matching: find.text('2'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Messages shows admin reply count and clears it when opened', (

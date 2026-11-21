@@ -3,7 +3,7 @@ import 'text_formatters.dart';
 
 /// One degree programme offered by the school.
 class CollegeProgram {
-  /// What gets saved to the user record and shown in the closed field.
+  /// The shortcut saved to the user record.
   /// For programmes the school has no official acronym for, this is the same
   /// text as [full].
   final String short;
@@ -13,9 +13,8 @@ class CollegeProgram {
 
   const CollegeProgram(this.short, this.full);
 
-  /// The dropdown row: "BSIT — BS Information Technology", or just the title
-  /// when the programme has no acronym of its own.
-  String get menuLabel => short == full ? full : '$short — $full';
+  /// The dropdown row, for example "BS Information Technology (BSIT)".
+  String get menuLabel => '$full ($short)';
 
   /// The part of [full] that actually identifies the programme, with the
   /// degree prefix dropped: "BS Information Technology" becomes
@@ -38,13 +37,11 @@ class CollegeProgram {
   String toString() => short;
 }
 
-/// Every programme a student can pick, in the order shown in the dropdown.
-///
-/// The school did not publish acronyms for every programme, so only the ones
-/// that were supplied are shortened; the rest keep their full title.
+/// Programme names used to recognize existing saved college values.
 const List<CollegeProgram> collegePrograms = [
   CollegeProgram('BSIT', 'BS Information Technology'),
   CollegeProgram('BSCS', 'BS Computer Science'),
+  CollegeProgram('BSCRIM', 'BS Criminology'),
   CollegeProgram('BSIS', 'BS Information Systems'),
   CollegeProgram('BSCpE', 'BS Computer Engineering'),
   CollegeProgram('BSBA', 'BS Business Administration'),
@@ -54,13 +51,16 @@ const List<CollegeProgram> collegePrograms = [
   CollegeProgram('BS Marketing Management', 'BS Marketing Management'),
   CollegeProgram('BEEd', 'Bachelor of Elementary Education'),
   CollegeProgram('BSEd', 'Bachelor of Secondary Education'),
-  CollegeProgram('BTVTEd', 'Bachelor of Technical-Vocational Teacher Education'),
-  CollegeProgram('BS Civil Engineering', 'BS Civil Engineering'),
+  CollegeProgram(
+    'BTVTEd',
+    'Bachelor of Technical-Vocational Teacher Education',
+  ),
+  CollegeProgram('BSCE', 'BS Civil Engineering'),
   CollegeProgram('BS Mechanical Engineering', 'BS Mechanical Engineering'),
   CollegeProgram('BS Electrical Engineering', 'BS Electrical Engineering'),
   CollegeProgram('BS Electronics Engineering', 'BS Electronics Engineering'),
   CollegeProgram('BS Industrial Engineering', 'BS Industrial Engineering'),
-  CollegeProgram('BS Nursing', 'BS Nursing'),
+  CollegeProgram('BSN', 'BS Nursing'),
   CollegeProgram('BS Medical Technology', 'BS Medical Technology'),
   CollegeProgram('BS Pharmacy', 'BS Pharmacy'),
   CollegeProgram('BS Psychology', 'BS Psychology'),
@@ -69,7 +69,7 @@ const List<CollegeProgram> collegePrograms = [
   CollegeProgram('BA English Language', 'BA English Language'),
   CollegeProgram('BA Political Science', 'BA Political Science'),
   CollegeProgram('BA Sociology', 'BA Sociology'),
-  CollegeProgram('BS Hospitality Management', 'BS Hospitality Management'),
+  CollegeProgram('BSHM', 'BS Hospitality Management'),
   CollegeProgram('BS Tourism Management', 'BS Tourism Management'),
   CollegeProgram('BS Culinary Management', 'BS Culinary Management'),
   CollegeProgram('BS Biology', 'BS Biology'),
@@ -78,6 +78,56 @@ const List<CollegeProgram> collegePrograms = [
   CollegeProgram('BS Agriculture', 'BS Agriculture'),
   CollegeProgram('BS Environmental Science', 'BS Environmental Science'),
 ];
+
+/// Programmes offered in the student Course dropdown, in the requested order.
+const List<CollegeProgram> collegeProgramOptions = [
+  CollegeProgram('BSIT', 'BS Information Technology'),
+  CollegeProgram('BSCS', 'BS Computer Science'),
+  CollegeProgram('BSCRIM', 'BS Criminology'),
+  CollegeProgram('BSN', 'BS Nursing'),
+  CollegeProgram('BS Psychology', 'BS Psychology'),
+  CollegeProgram('BSA', 'BS Accountancy'),
+  CollegeProgram('BSCE', 'BS Civil Engineering'),
+  CollegeProgram('BEEd', 'Bachelor of Elementary Education'),
+  CollegeProgram('BSEd', 'Bachelor of Secondary Education'),
+  CollegeProgram('BSHM', 'BS Hospitality Management'),
+];
+
+/// One college available to Faculty accounts.
+class FacultyCollege {
+  final String short;
+  final String full;
+
+  const FacultyCollege(this.short, this.full);
+
+  String get menuLabel => '$full ($short)';
+}
+
+/// Colleges offered in the Faculty dropdown, in the requested display order.
+const List<FacultyCollege> facultyCollegeOptions = [
+  FacultyCollege('CITE', 'College of Information and Technology Education'),
+  FacultyCollege('CCJE', 'College of Criminal Justice Education'),
+  FacultyCollege('COHS', 'College of Health Sciences'),
+  FacultyCollege('CBMA', 'College of Business Management and Accountancy'),
+  FacultyCollege('CEA', 'College of Engineering and Architecture'),
+  FacultyCollege('CTE', 'College of Teacher Education'),
+  FacultyCollege('CHTM', 'College of Hospitality and Tourism Management'),
+  FacultyCollege('CHS', 'College of Human Sciences'),
+];
+
+/// Resolves either the shortcut or full Faculty college name.
+FacultyCollege? facultyCollegeFor(String? saved) {
+  final value = saved?.trim().toLowerCase();
+  if (value == null || value.isEmpty) return null;
+
+  for (final college in facultyCollegeOptions) {
+    if (college.short.toLowerCase() == value ||
+        college.full.toLowerCase() == value) {
+      return college;
+    }
+  }
+  return null;
+}
 
 /// Finds the programme a saved college value refers to, ignoring case.
 ///
@@ -126,29 +176,35 @@ CollegeProgram? collegeProgramFor(String? saved) {
 
 /// Splits text into comparable words, dropping punctuation so hyphens and
 /// brackets do not affect a match.
-Set<String> _wordsOf(String text) => text
-    .split(RegExp('[^a-z0-9]+'))
-    .where((word) => word.isNotEmpty)
-    .toSet();
+Set<String> _wordsOf(String text) =>
+    text.split(RegExp('[^a-z0-9]+')).where((word) => word.isNotEmpty).toSet();
 
-/// The most characters, spaces not counted, that the Profile screen shows for a
-/// college before it falls back to the programme's shortcut.
+/// The legacy display limit for college values that are not in the dropdowns.
 const int collegeDisplayLimit = 22;
 
-/// The college text to display on the Profile screen.
+/// The college text to display on the Profile screen and admin user views.
 ///
-/// A full title is shown when it fits inside [collegeDisplayLimit] letters
-/// ("BS NURSING" is short enough), otherwise the programme's shortcut is shown
-/// instead ("BTVTEd"), because a truncated half-title is harder to read than
-/// the acronym. This is a display concern only: the value saved on the user
-/// record is left untouched, so switching back to the full title stays possible.
+/// Supported student programmes and faculty colleges always display their
+/// shortcut, even when a legacy account has the full title saved. Other legacy
+/// values retain the previous length-based display behavior.
 String collegeDisplay(String? saved) {
   final value = saved?.trim() ?? '';
   if (value.isEmpty) return '';
 
-  if (countLetters(value) <= collegeDisplayLimit) return value;
+  final facultyCollege = facultyCollegeFor(value);
+  if (facultyCollege != null) return facultyCollege.short;
 
   final program = collegeProgramFor(value);
+  if (program != null) {
+    for (final option in collegeProgramOptions) {
+      if (option.short.toLowerCase() == program.short.toLowerCase()) {
+        return option.short;
+      }
+    }
+  }
+
+  if (countLetters(value) <= collegeDisplayLimit) return value;
+
   if (program != null) return program.short;
 
   // Not a listed programme at all, so trim to the limit on a word boundary

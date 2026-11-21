@@ -1,9 +1,11 @@
 // lib/screens/request_account_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/college_programs.dart';
 import '../utils/year_level.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/app_notice.dart';
@@ -25,11 +27,12 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
   final _emailFieldKey = GlobalKey<FormFieldState<String>>();
   final _fullNameController = TextEditingController();
   final _idNumberController = TextEditingController();
-  final _collegeController = TextEditingController();
   final _emailController = TextEditingController();
 
   static const List<String> _genders = ['Male', 'Female'];
   static const List<String> _yearLevels = ['1', '2', '3', '4', '5'];
+  static const double _collegeMenuMaxHeight =
+      PlainDropdownField.menuRowHeight * 5;
   static final List<String> _blocks = List.generate(
     11,
     (index) => '${index + 1}',
@@ -37,6 +40,8 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
 
   UserRole _selectedRole = UserRole.student;
   String? _selectedGender;
+  CollegeProgram? _selectedCollege;
+  FacultyCollege? _selectedFacultyCollege;
   String? _selectedYearLevel;
   String? _selectedBlock;
   bool _isLoading = false;
@@ -48,13 +53,24 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
   void dispose() {
     _fullNameController.dispose();
     _idNumberController.dispose();
-    _collegeController.dispose();
     _emailController.dispose();
     super.dispose();
   }
 
   String? _required(String? value, String fieldName) {
     if (value == null || value.trim().isEmpty) return '$fieldName is required';
+    return null;
+  }
+
+  String? _validateIdNumber(String? value) {
+    final requiredError = _required(value, 'ID number');
+    if (requiredError != null) return requiredError;
+    if (value!.trim().length != 8) {
+      final label = _selectedRole == UserRole.student
+          ? 'Student ID No.'
+          : 'Faculty ID No.';
+      return '$label must be exactly 8 characters';
+    }
     return null;
   }
 
@@ -75,7 +91,9 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
       email: _emailController.text,
       role: _selectedRole,
       idNumber: _idNumberController.text,
-      college: _collegeController.text,
+      college: _selectedRole == UserRole.student
+          ? _selectedCollege!.short
+          : _selectedFacultyCollege!.short,
       gender: _selectedGender!,
       yearLevel: _selectedRole == UserRole.student
           ? yearLevelToLabel(_selectedYearLevel)
@@ -254,9 +272,11 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                                 ? 'Student ID No.'
                                 : 'Faculty ID No.',
                             hint: 'e.g. 20243781',
-                            icon: Icons.badge_outlined,
                             controller: _idNumberController,
-                            validator: (v) => _required(v, 'ID number'),
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(8),
+                            ],
+                            validator: _validateIdNumber,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -315,13 +335,32 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                       ),
                     ],
                     const SizedBox(height: 16),
-                    AppTextField(
-                      label: 'College',
-                      hint: 'e.g. College of Computer Studies',
-                      icon: Icons.school_outlined,
-                      controller: _collegeController,
-                      validator: (v) => _required(v, 'College'),
-                    ),
+                    if (_selectedRole == UserRole.student)
+                      PlainDropdownField<CollegeProgram>(
+                        label: 'Course',
+                        hint: 'Select course',
+                        value: _selectedCollege,
+                        options: collegeProgramOptions,
+                        menuMaxHeight: _collegeMenuMaxHeight,
+                        labelOf: (program) => program.menuLabel,
+                        onChanged: (program) =>
+                            setState(() => _selectedCollege = program),
+                        validator: (program) =>
+                            program == null ? 'Course is required' : null,
+                      )
+                    else
+                      PlainDropdownField<FacultyCollege>(
+                        label: 'College',
+                        hint: 'Select college',
+                        value: _selectedFacultyCollege,
+                        options: facultyCollegeOptions,
+                        menuMaxHeight: _collegeMenuMaxHeight,
+                        labelOf: (college) => college.menuLabel,
+                        onChanged: (college) =>
+                            setState(() => _selectedFacultyCollege = college),
+                        validator: (college) =>
+                            college == null ? 'College is required' : null,
+                      ),
                     const SizedBox(height: 16),
                     AppTextField(
                       fieldKey: _emailFieldKey,

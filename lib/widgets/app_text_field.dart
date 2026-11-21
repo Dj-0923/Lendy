@@ -1,5 +1,6 @@
 // lib/widgets/app_text_field.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 
 /// Reusable labeled text field matching the app's rounded input style.
@@ -11,6 +12,7 @@ class AppTextField extends StatelessWidget {
   final bool obscureText;
   final Widget? suffixIcon;
   final TextInputType keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
   final String? Function(String?)? validator;
   final ValueChanged<String>? onChanged;
   final Key? fieldKey;
@@ -24,6 +26,7 @@ class AppTextField extends StatelessWidget {
     this.obscureText = false,
     this.suffixIcon,
     this.keyboardType = TextInputType.text,
+    this.inputFormatters,
     this.validator,
     this.onChanged,
     this.fieldKey,
@@ -48,6 +51,7 @@ class AppTextField extends StatelessWidget {
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           validator: validator,
           onChanged: onChanged,
           style: const TextStyle(fontSize: 14),

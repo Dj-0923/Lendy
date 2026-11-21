@@ -217,9 +217,9 @@ class ProfileScreen extends StatelessWidget {
                         if (user.role == UserRole.faculty) ...[
                           _InfoRow(
                             label: 'College',
-                            value: user.college?.trim().isNotEmpty == true
-                                ? user.college!.trim()
-                                : 'N/A',
+                            value: collegeDisplay(user.college).isEmpty
+                                ? 'N/A'
+                                : collegeDisplay(user.college),
                           ),
                           const Divider(height: 24),
                         ] else ...[
