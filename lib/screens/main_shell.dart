@@ -137,7 +137,6 @@ class _MainShellState extends State<MainShell> {
       BrowseScreen(
         onProfileTap: () => _goToTab(_profileTabIndex),
         onNotificationTap: _openNotifications,
-        onScannerTap: _openScanner,
       ),
       MyRequestsScreen(onBackTap: () => _goToTab(_homeTabIndex)),
       _hasOpenedMessages

@@ -21,14 +21,12 @@ import 'request_form_screen.dart';
 class BrowseScreen extends StatefulWidget {
   final VoidCallback? onProfileTap;
   final VoidCallback? onNotificationTap;
-  final VoidCallback? onScannerTap;
   final BorrowerAssistantService? assistantService;
 
   const BrowseScreen({
     super.key,
     this.onProfileTap,
     this.onNotificationTap,
-    this.onScannerTap,
     this.assistantService,
   });
 
@@ -38,6 +36,8 @@ class BrowseScreen extends StatefulWidget {
 
 class _BrowseScreenState extends State<BrowseScreen> {
   static const _homeHeroAspectRatio = 2.0;
+  static const _compactHeroMaxWidth = 480.0;
+  static const _homeHeroReferenceWidth = 773.0;
 
   final _searchController = TextEditingController();
   final _browseScrollController = ScrollController();
@@ -87,10 +87,21 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   Widget _buildHomeGreeting(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final titleSize = (screenWidth * 0.08).clamp(28.0, 60.0).toDouble();
+    final screenSize = MediaQuery.sizeOf(context);
+    final screenWidth = screenSize.width;
+    final titleSizeByWidth = (screenWidth * 0.09).clamp(28.0, 60.0).toDouble();
+    final titleSizeByHeight = (screenSize.height * 0.075)
+        .clamp(28.0, 60.0)
+        .toDouble();
+    final titleSize = titleSizeByWidth < titleSizeByHeight
+        ? titleSizeByWidth
+        : titleSizeByHeight;
     final subtitleSize = (screenWidth * 0.026).clamp(13.0, 20.0).toDouble();
-    final textWidthFactor = screenWidth < 520 ? 0.82 : 0.68;
+    final textWidthFactor = screenWidth < 480
+        ? 0.82
+        : screenWidth >= 520
+        ? 0.68
+        : 0.82 - ((screenWidth - 480) / 40 * 0.14);
 
     return FractionallySizedBox(
       widthFactor: textWidthFactor,
@@ -136,6 +147,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
     EquipmentProvider equipmentProvider, {
     required double height,
   }) {
+    final searchIconWidth = (height * 0.62).clamp(48.0, height).toDouble();
+
     return Container(
       key: const Key('browse-search-field-container'),
       decoration: BoxDecoration(
@@ -143,9 +156,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
         borderRadius: BorderRadius.circular(height / 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 30,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -156,35 +169,19 @@ class _BrowseScreenState extends State<BrowseScreen> {
         decoration: InputDecoration(
           hintText: 'Search by name, room or asset code...',
           hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-          prefixIcon: const Icon(Icons.search, size: 22),
-          prefixIconConstraints: BoxConstraints.tightFor(
-            width: height * 0.62,
-            height: height,
-          ),
-          suffixIcon: widget.onScannerTap == null
-              ? null
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      key: const Key('browse-search-scanner'),
-                      tooltip: 'Scan item code',
-                      onPressed: widget.onScannerTap,
-                      constraints: BoxConstraints.tightFor(
-                        width: height * 0.62,
-                        height: height,
-                      ),
-                      icon: const Icon(Icons.qr_code_scanner, size: 21),
-                    ),
-                  ],
-                ),
+          suffixIcon: const Icon(Icons.search, size: 22),
           filled: true,
           fillColor: Colors.white,
           isDense: true,
-          contentPadding: EdgeInsets.symmetric(vertical: height * 0.2),
+          contentPadding: EdgeInsets.fromLTRB(
+            20,
+            height * 0.2,
+            8,
+            height * 0.2,
+          ),
           constraints: BoxConstraints.tightFor(height: height),
           suffixIconConstraints: BoxConstraints.tightFor(
-            width: height * 0.72,
+            width: searchIconWidth,
             height: height,
           ),
           border: OutlineInputBorder(
@@ -374,14 +371,14 @@ class _BrowseScreenState extends State<BrowseScreen> {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final searchInset = (screenWidth * 0.052).clamp(20.0, 40.0).toDouble();
     final filterInset = (screenWidth * 0.023).clamp(12.0, 18.0).toDouble();
-    final initialSearchFieldHeight = (screenWidth * 0.115)
-        .clamp(52.0, 90.0)
+    final initialSearchFieldHeight = (screenWidth * 0.083)
+        .clamp(48.0, 64.0)
         .toDouble();
     final compactSearchFieldHeight = (screenWidth * 0.083)
         .clamp(48.0, 64.0)
         .toDouble();
     final initialSearchPadding = (screenWidth * 0.04)
-        .clamp(16.0, 31.0)
+        .clamp(16.0, 20.0)
         .toDouble();
     final searchFieldHeight = _isBrowseScrolled
         ? compactSearchFieldHeight
@@ -392,9 +389,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
     final searchSectionHeight = searchFieldHeight + searchVerticalPadding * 2;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: AppColors.primary,
-      ),
+      value: SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.black),
       child: Scaffold(
         backgroundColor: AppColors.primary,
         body: Stack(
@@ -403,7 +398,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
               children: [
                 ColoredBox(
                   key: const Key('browse-status-bar-background'),
-                  color: AppColors.primary,
+                  color: Colors.black,
                   child: SizedBox(
                     width: double.infinity,
                     height: statusBarHeight,
@@ -425,16 +420,40 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                     constraints.maxWidth /
                                         _homeHeroAspectRatio -
                                     statusBarHeight;
-                                final compactWidthMinimum =
-                                    constraints.maxWidth < 520
-                                    ? constraints.maxWidth * 0.55
-                                    : 0.0;
-                                final heroHeight =
-                                    (naturalHeroHeight > compactWidthMinimum
-                                            ? naturalHeroHeight
-                                            : compactWidthMinimum)
-                                        .clamp(180.0, 380.0)
+                                final compactHeroScale =
+                                    0.64 +
+                                    ((360 - constraints.maxWidth).clamp(
+                                          0.0,
+                                          40.0,
+                                        ) /
+                                        40 *
+                                        0.08);
+                                final compactHeroHeight =
+                                    constraints.maxWidth * compactHeroScale;
+                                final heroTransitionProgress =
+                                    ((constraints.maxWidth -
+                                                _compactHeroMaxWidth) /
+                                            (_homeHeroReferenceWidth -
+                                                _compactHeroMaxWidth))
+                                        .clamp(0.0, 1.0)
                                         .toDouble();
+                                final wideHeroReferenceHeight =
+                                    _homeHeroReferenceWidth /
+                                        _homeHeroAspectRatio -
+                                    statusBarHeight;
+                                final responsiveHeroHeight =
+                                    constraints.maxWidth <= _compactHeroMaxWidth
+                                    ? compactHeroHeight
+                                    : constraints.maxWidth <
+                                          _homeHeroReferenceWidth
+                                    ? _compactHeroMaxWidth * 0.64 +
+                                          (wideHeroReferenceHeight -
+                                                  _compactHeroMaxWidth * 0.64) *
+                                              heroTransitionProgress
+                                    : naturalHeroHeight;
+                                final heroHeight = responsiveHeroHeight
+                                    .clamp(180.0, 380.0)
+                                    .toDouble();
 
                                 return SizedBox(
                                   height: heroHeight,
@@ -444,7 +463,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                     onNotificationTap: widget.onNotificationTap,
                                     showUserDetails: false,
                                     backgroundImageAsset:
-                                        'assets/images/bg-mobile.png',
+                                        'assets/images/bg-fabi.png',
                                     roundedBottom: true,
                                     tall: true,
                                     bottomContent: _buildHomeGreeting(context),

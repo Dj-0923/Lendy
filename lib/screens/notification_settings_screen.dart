@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/notification_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive_layout.dart';
+import '../widgets/app_notice.dart';
 import '../widgets/simple_header.dart';
 import '../widgets/toggle_setting_row.dart';
 
@@ -30,13 +31,27 @@ class NotificationSettingsScreen extends StatelessWidget {
                     title: 'Request approved / rejected',
                     subtitle: 'Get notified when Admin responds',
                     value: notificationProvider.requestUpdatesEnabled,
-                    onChanged: notificationProvider.setRequestUpdatesEnabled,
+                    onChanged: (value) {
+                      notificationProvider.setRequestUpdatesEnabled(value);
+                      _showPreferenceNotice(
+                        context,
+                        'Request approved / rejected',
+                        value,
+                      );
+                    },
                   ),
                   ToggleSettingRow(
                     title: 'Returns reminders',
                     subtitle: 'Get due-soon, overdue, and return alerts',
                     value: notificationProvider.returnRemindersEnabled,
-                    onChanged: notificationProvider.setReturnRemindersEnabled,
+                    onChanged: (value) {
+                      notificationProvider.setReturnRemindersEnabled(value);
+                      _showPreferenceNotice(
+                        context,
+                        'Returns reminders',
+                        value,
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   const _SectionTitle('General'),
@@ -46,7 +61,14 @@ class NotificationSettingsScreen extends StatelessWidget {
                     subtitle:
                         'Allow Lendy to send notifications to this device',
                     value: notificationProvider.pushNotificationsEnabled,
-                    onChanged: notificationProvider.setPushNotificationsEnabled,
+                    onChanged: (value) {
+                      notificationProvider.setPushNotificationsEnabled(value);
+                      _showPreferenceNotice(
+                        context,
+                        'Push notifications',
+                        value,
+                      );
+                    },
                   ),
                   if (notificationProvider.permissionMessage != null)
                     Padding(
@@ -77,6 +99,10 @@ class NotificationSettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showPreferenceNotice(BuildContext context, String label, bool enabled) {
+    AppNotice.show(context, '$label ${enabled ? 'on' : 'off'}');
   }
 }
 

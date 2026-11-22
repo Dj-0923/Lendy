@@ -24,7 +24,11 @@ The Messages tab is a private, real-time conversation between the signed-in
 user and administrators. Administrators can open the Messages section in the
 web dashboard to select a user and reply. Both clients use the same Firestore
 `chats/{userId}/messages` data, protected by the Firestore rules in
-`../admin/firestore.rules`; deploy those rules before using chat.
+`../admin/firestore.rules`; deploy those rules before using chat. Users can
+attach JPEG, PNG, or WebP images; they are compressed to JPEG files of at most
+400 KB and stored in their Firestore message documents, so no Firebase Storage
+setup is required. Image messages count toward Firestore's free storage and
+usage quotas.
 
 The notification feed is synced from Firestore. Push alerts cover admin chat
 replies, Fabii replies, item request and return decisions, account request

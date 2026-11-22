@@ -54,7 +54,18 @@ void main() {
     expect(find.text('Lendy'), findsOneWidget);
     expect(find.text('Browse Items'), findsNothing);
     expect(find.byKey(const Key('main-scan-button')), findsOneWidget);
-    expect(find.byKey(const Key('browse-search-scanner')), findsOneWidget);
+    expect(find.byIcon(Icons.qr_code_scanner_rounded), findsOneWidget);
+    expect(find.byKey(const Key('browse-search-scanner')), findsNothing);
+    final searchField = find.byKey(const Key('browse-search-field'));
+    final searchIcon = find.descendant(
+      of: searchField,
+      matching: find.byIcon(Icons.search),
+    );
+    expect(searchIcon, findsOneWidget);
+    expect(
+      tester.getCenter(searchIcon).dx,
+      greaterThan(tester.getRect(searchField).center.dx),
+    );
     expect(find.byIcon(Icons.mic_none_outlined), findsNothing);
     final avatarOutline = tester.widget<Container>(
       find.byKey(const Key('dashboard-profile-outline')),
@@ -356,10 +367,22 @@ void main() {
     expect(find.text('Admin'), findsOneWidget);
     expect(find.text('Online'), findsOneWidget);
     expect(find.byKey(const Key('messages-admin-online')), findsOneWidget);
+    expect(find.byKey(const Key('messages-attach-image')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-notifications')), findsNothing);
     expect(find.byKey(const Key('main-scan-button')), findsNothing);
     expect(find.text('Scan'), findsNothing);
     expect(find.text('Home'), findsNothing);
+
+    tester.view.devicePixelRatio = 1;
+    for (final width in [390.0, 768.0, 1024.0]) {
+      tester.view.physicalSize = Size(width, 720);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byKey(const Key('messages-composer'))).width,
+        closeTo(width < 980 ? width : 980, 0.1),
+        reason: 'message composer should fit a $width px viewport',
+      );
+    }
 
     await tester.tap(find.byKey(const Key('messages-back')));
     await tester.pumpAndSettle();

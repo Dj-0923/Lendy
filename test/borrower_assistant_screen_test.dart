@@ -49,6 +49,35 @@ Future<void> pumpMaintenanceAssistant(
 }
 
 void main() {
+  testWidgets('assistant composer fits phone, tablet, and wide screens', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider.forTesting()),
+          ChangeNotifierProvider(create: (_) => EquipmentProvider()),
+        ],
+        child: const MaterialApp(home: BorrowerAssistantScreen()),
+      ),
+    );
+
+    for (final width in [390.0, 768.0, 1024.0]) {
+      tester.view.physicalSize = Size(width, 720);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byKey(const Key('assistant-composer'))).width,
+        closeTo(width < 980 ? width : 980, 0.1),
+        reason: 'assistant composer should fit a $width px viewport',
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets(
     'saves a reply after leaving the assistant and shows a Browse notice',
     (tester) async {
@@ -397,9 +426,14 @@ void main() {
     );
   });
 
-  testWidgets('item replies show remaining count and hide expanded items', (
+  testWidgets('item replies use phone or tablet columns and expand correctly', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final client = MockClient(
       (_) async => http.Response(
         jsonEncode({
@@ -462,6 +496,33 @@ void main() {
     expect(find.text('Camera Two'), findsOneWidget);
     expect(find.text('Camera Three'), findsNothing);
     expect(find.text('Show 1 more'), findsOneWidget);
+
+    final firstCard = find.byKey(
+      const Key('assistant-landscape-item-camera-1'),
+    );
+    final secondCard = find.byKey(
+      const Key('assistant-landscape-item-camera-2'),
+    );
+    final phoneFirstRect = tester.getRect(firstCard);
+    final phoneSecondRect = tester.getRect(secondCard);
+    expect(phoneSecondRect.left, closeTo(phoneFirstRect.left, 0.01));
+    expect(phoneSecondRect.top, greaterThanOrEqualTo(phoneFirstRect.bottom));
+    expect(tester.takeException(), isNull);
+
+    tester.view.physicalSize = const Size(768, 1024);
+    await tester.pumpAndSettle();
+    expect(
+      MediaQuery.sizeOf(
+        tester.element(find.byType(BorrowerAssistantScreen)),
+      ).width,
+      768,
+    );
+
+    final tabletFirstRect = tester.getRect(firstCard);
+    final tabletSecondRect = tester.getRect(secondCard);
+    expect(tabletSecondRect.left, greaterThan(tabletFirstRect.left));
+    expect(tabletSecondRect.top, closeTo(tabletFirstRect.top, 0.01));
+    expect(tester.takeException(), isNull);
 
     await tester.tap(find.byKey(const Key('assistant-show-more-items')));
     await tester.pumpAndSettle();

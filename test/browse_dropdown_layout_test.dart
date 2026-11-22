@@ -19,7 +19,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lendy/models/equipment_model.dart';
 import 'package:lendy/providers/auth_provider.dart';
 import 'package:lendy/providers/equipment_provider.dart';
-import 'package:lendy/screens/borrower_assistant_screen.dart';
 import 'package:lendy/screens/browse_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -194,6 +193,58 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('browse layout fits mobile and tablet widths', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final width in [
+      773.0,
+      700.0,
+      600.0,
+      520.0,
+      500.0,
+      480.0,
+      430.0,
+      390.0,
+      360.0,
+      320.0,
+    ]) {
+      final height = width * 1.8;
+      tester.view.physicalSize = Size(width, height);
+      await pumpBrowse(tester);
+
+      expect(tester.takeException(), isNull, reason: 'at ${width.toInt()}px');
+
+      final searchRect = tester.getRect(
+        find.byKey(const Key('browse-search-field')),
+      );
+      expect(
+        searchRect.height,
+        lessThanOrEqualTo(64),
+        reason: 'search field should stay compact at ${width.toInt()}px',
+      );
+      final searchIcon = find.descendant(
+        of: find.byKey(const Key('browse-search-field')),
+        matching: find.byIcon(Icons.search),
+      );
+      expect(searchIcon, findsOneWidget);
+      expect(find.byIcon(Icons.qr_code_scanner), findsNothing);
+      expect(
+        tester.getCenter(searchIcon).dx,
+        greaterThan(searchRect.center.dx),
+      );
+      final assistantRect = tester.getRect(
+        find.byKey(const Key('browse-ai-assistant-button')),
+      );
+      expect(searchRect.left, greaterThanOrEqualTo(0));
+      expect(searchRect.right, lessThanOrEqualTo(width));
+      expect(assistantRect.left, greaterThanOrEqualTo(0));
+      expect(assistantRect.right, lessThanOrEqualTo(width));
+      expect(assistantRect.bottom, lessThanOrEqualTo(height));
+    }
+  });
+
   testWidgets('AI assistant button opens the borrower assistant', (
     tester,
   ) async {
@@ -266,7 +317,7 @@ void main() {
 
     expect(
       headerDecoration.image!.image,
-      const AssetImage('assets/images/bg-mobile.png'),
+      const AssetImage('assets/images/bg-fabi.png'),
     );
     expect(headerDecoration.image!.fit, BoxFit.cover);
     expect(
@@ -294,7 +345,7 @@ void main() {
       reason: 'the search field should have the wide reference inset',
     );
     expect(searchRect.width, closeTo(693, 0.1));
-    expect(searchRect.height, closeTo(773 * 0.115, 0.1));
+    expect(searchRect.height, 64);
     expect((searchContainer.decoration! as BoxDecoration).color, Colors.white);
     expect(
       find.descendant(of: search, matching: find.byType(VerticalDivider)),
@@ -350,6 +401,7 @@ void main() {
     final filters = find.byKey(const Key('browse-pinned-filters'));
     final statusBar = find.byKey(const Key('browse-status-bar-background'));
     final scrollView = find.byKey(const Key('browse-scroll-view'));
+    expect(tester.widget<ColoredBox>(statusBar).color, Colors.black);
     expect(find.text('Lendy'), findsOneWidget);
     expect(find.text('Browse Items'), findsNothing);
     expect(search, findsNothing);
@@ -359,7 +411,7 @@ void main() {
         tester.widget<Container>(header).decoration! as BoxDecoration;
     expect(
       headerDecoration.image!.image,
-      const AssetImage('assets/images/bg-mobile.png'),
+      const AssetImage('assets/images/bg-fabi.png'),
     );
     expect(
       headerDecoration.borderRadius,

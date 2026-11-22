@@ -41,6 +41,8 @@ class DashboardHeader extends StatelessWidget {
     final imageBytes = user?.profileImageBytes;
     final background = backgroundImageAsset;
     final pinBrandingToTop = background != null && bottomContent != null;
+    final compactBranding =
+        pinBrandingToTop && MediaQuery.sizeOf(context).width < 520;
 
     return Container(
       key: const Key('dashboard-header'),
@@ -48,10 +50,16 @@ class DashboardHeader extends StatelessWidget {
       margin: EdgeInsets.zero,
       padding: EdgeInsets.fromLTRB(
         16,
-        tall && bottomContent == null ? 24 : 16,
+        compactBranding
+            ? 8
+            : tall && bottomContent == null
+            ? 24
+            : 16,
         16,
         bottomContent != null
-            ? 8
+            ? compactBranding
+                  ? 4
+                  : 8
             : tall
             ? 30
             : 16,

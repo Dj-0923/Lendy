@@ -11,6 +11,7 @@ import '../providers/request_provider.dart';
 import '../services/borrower_assistant_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/borrower_assistant_conversation_store.dart';
+import '../utils/responsive_layout.dart';
 import '../utils/status_style.dart';
 import '../widgets/app_notice.dart';
 import '../widgets/status_badge.dart';
@@ -162,9 +163,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
     late final DateTime startedAt;
     _controller.clear();
     setState(() {
-      if (_conversationStartedAt == null) {
-        _conversationStartedAt = DateTime.now();
-      }
+      _conversationStartedAt ??= DateTime.now();
       startedAt = _conversationStartedAt!;
       _hasStartedConversation = true;
       _sending = true;
@@ -677,6 +676,7 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: ListView(
@@ -727,50 +727,59 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
             ),
           SafeArea(
             top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      enabled: !_sending && !_loadingConversation,
-                      maxLength: 200,
-                      maxLines: 4,
-                      minLines: 1,
-                      textCapitalization: TextCapitalization.sentences,
-                      onSubmitted: (_) => _sendQuestion(),
-                      decoration: InputDecoration(
-                        hintText: 'Ask in English, Tagalog, or Taglish...',
-                        counterText: '',
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(22),
-                          borderSide: BorderSide.none,
+            child: ResponsiveContent(
+              maxWidth: 980,
+              child: Container(
+                key: const Key('assistant-composer'),
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: AppColors.fieldBorder)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        enabled: !_sending && !_loadingConversation,
+                        maxLength: 200,
+                        maxLines: 4,
+                        minLines: 1,
+                        textCapitalization: TextCapitalization.sentences,
+                        onSubmitted: (_) => _sendQuestion(),
+                        decoration: InputDecoration(
+                          hintText: 'Ask in English, Tagalog, or Taglish...',
+                          counterText: '',
+                          filled: true,
+                          fillColor: AppColors.fieldFill,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    key: const Key('borrower-assistant-send'),
-                    tooltip: 'Send question',
-                    onPressed: _sending || _loadingConversation
-                        ? null
-                        : _sendQuestion,
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      key: const Key('borrower-assistant-send'),
+                      tooltip: 'Send question',
+                      onPressed: _sending || _loadingConversation
+                          ? null
+                          : _sendQuestion,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.send),
                     ),
-                    icon: const Icon(Icons.send),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -829,9 +838,11 @@ class _MessageBubbleState extends State<_MessageBubble> {
     final message = widget.message;
     final color = message.fromUser ? AppColors.primary : Colors.white;
     final screenWidth = MediaQuery.sizeOf(context).width;
+    final tabletItemMessage =
+        !message.fromUser && message.items.isNotEmpty && screenWidth >= 600;
     final bubbleMaxWidth = (screenWidth - (message.fromUser ? 48 : 76)).clamp(
       0.0,
-      320.0,
+      tabletItemMessage ? 640.0 : 320.0,
     );
     final bubble = Container(
       constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
@@ -851,14 +862,32 @@ class _MessageBubbleState extends State<_MessageBubble> {
               color: message.fromUser ? Colors.white : AppColors.textPrimary,
             ),
           ),
-          for (final item in message.items.take(_visibleItemCount))
-            _AssistantLandscapeItemCard(
-              key: ValueKey('assistant-landscape-item-${item.id}'),
-              equipment: item.toEquipmentModel(
-                inventoryItem: widget.equipmentProvider?.findById(item.id),
-              ),
-              requested: widget.requestedItemIds.contains(item.id),
-              onRequest: () => widget.onRequest(item),
+          if (message.items.isNotEmpty)
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final cardWidth = tabletItemMessage
+                    ? (constraints.maxWidth - 8) / 2
+                    : constraints.maxWidth;
+                return Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final item in message.items.take(_visibleItemCount))
+                      SizedBox(
+                        width: cardWidth,
+                        child: _AssistantLandscapeItemCard(
+                          key: ValueKey('assistant-landscape-item-${item.id}'),
+                          equipment: item.toEquipmentModel(
+                            inventoryItem: widget.equipmentProvider?.findById(
+                              item.id,
+                            ),
+                          ),
+                          requested: widget.requestedItemIds.contains(item.id),
+                          onRequest: () => widget.onRequest(item),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           if (message.items.length > 2)
             Padding(

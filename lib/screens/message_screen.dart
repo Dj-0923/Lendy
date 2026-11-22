@@ -1,11 +1,15 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/chat_image_compressor.dart';
 import '../utils/responsive_layout.dart';
 import '../widgets/app_notice.dart';
 
@@ -23,7 +27,11 @@ class _MessageScreenState extends State<MessageScreen> {
   Stream<QuerySnapshot<Map<String, dynamic>>>? _messagesStream;
   Stream<DocumentSnapshot<Map<String, dynamic>>>? _adminProfileStream;
   String? _streamUserId;
+  XFile? _selectedImage;
+  Uint8List? _selectedImageBytes;
   bool _sending = false;
+
+  static const _chatImageDataPrefix = 'data:image/jpeg;base64,';
 
   String _chatName(String name) => String.fromCharCodes(name.runes.take(150));
 
@@ -55,7 +63,10 @@ class _MessageScreenState extends State<MessageScreen> {
   Future<void> _sendMessage() async {
     final user = context.read<AuthProvider>().currentUser;
     final text = _messageController.text.trim();
-    if (_sending || user == null || text.isEmpty) return;
+    final imageBytes = _selectedImageBytes;
+    if (_sending || user == null || (text.isEmpty && imageBytes == null)) {
+      return;
+    }
 
     setState(() => _sending = true);
     try {
@@ -63,12 +74,16 @@ class _MessageScreenState extends State<MessageScreen> {
           .collection('chats')
           .doc(user.id);
       final messageRef = chatRef.collection('messages').doc();
+      final imageData = imageBytes == null
+          ? null
+          : '$_chatImageDataPrefix${base64Encode(imageBytes)}';
+
       final batch = FirebaseFirestore.instance.batch();
       batch.set(chatRef, {
         'userId': user.id,
         'userName': _chatName(user.fullName),
         'userEmail': user.email,
-        'lastMessage': text,
+        'lastMessage': text.isEmpty ? 'Image' : text,
         'lastMessageAt': FieldValue.serverTimestamp(),
         'lastSenderId': user.id,
         'lastSenderRole': 'user',
@@ -78,10 +93,16 @@ class _MessageScreenState extends State<MessageScreen> {
         'senderName': _chatName(user.fullName),
         'senderRole': 'user',
         'text': text,
+        ...?(imageData == null ? null : {'imageData': imageData}),
         'createdAt': FieldValue.serverTimestamp(),
       });
       await batch.commit();
+      if (!mounted) return;
       _messageController.clear();
+      setState(() {
+        _selectedImage = null;
+        _selectedImageBytes = null;
+      });
     } catch (error) {
       if (mounted) {
         AppNotice.show(
@@ -93,6 +114,81 @@ class _MessageScreenState extends State<MessageScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  Future<void> _pickChatImage() async {
+    if (_sending) return;
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 95,
+        maxWidth: 2400,
+        maxHeight: 2400,
+      );
+      if (image == null) return;
+
+      final sourceBytes = await image.readAsBytes();
+      final bytes = await compute(compressChatImage, sourceBytes);
+      if (bytes.length > maxChatImageBytes ||
+          base64Encode(bytes).length + _chatImageDataPrefix.length >
+              maxChatImageDataLength) {
+        if (mounted) {
+          AppNotice.show(
+            context,
+            'Image could not be compressed to the 400 KB limit.',
+            type: AppNoticeType.error,
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _selectedImage = image;
+        _selectedImageBytes = bytes;
+      });
+    } catch (error) {
+      if (mounted) {
+        AppNotice.show(
+          context,
+          'Could not select image: $error',
+          type: AppNoticeType.error,
+        );
+      }
+    }
+  }
+
+  Uint8List? _decodeChatImageData(dynamic imageData) {
+    if (imageData is! String ||
+        imageData.length > maxChatImageDataLength ||
+        !imageData.startsWith(_chatImageDataPrefix)) {
+      return null;
+    }
+    try {
+      return base64Decode(imageData.substring(_chatImageDataPrefix.length));
+    } on FormatException {
+      return null;
+    }
+  }
+
+  void _showImage(Uint8List imageBytes) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.memory(
+            imageBytes,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Padding(
+              padding: EdgeInsets.all(32),
+              child: Icon(Icons.broken_image_outlined, color: Colors.white),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   String _formatTime(Timestamp? timestamp) {
@@ -243,8 +339,9 @@ class _MessageScreenState extends State<MessageScreen> {
               ),
               Expanded(
                 child: ResponsiveContent(
-                  maxWidth: 760,
+                  maxWidth: 980,
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
                         child: _messagesStream == null
@@ -411,6 +508,7 @@ class _MessageScreenState extends State<MessageScreen> {
                               ),
                       ),
                       Container(
+                        key: const Key('messages-composer'),
                         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                         decoration: const BoxDecoration(
                           color: Colors.white,
@@ -420,54 +518,112 @@ class _MessageScreenState extends State<MessageScreen> {
                         ),
                         child: SafeArea(
                           top: false,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _messageController,
-                                  minLines: 1,
-                                  maxLines: 4,
-                                  maxLength: 500,
-                                  textCapitalization:
-                                      TextCapitalization.sentences,
-                                  onSubmitted: (_) => _sendMessage(),
-                                  decoration: InputDecoration(
-                                    hintText: 'Message the admin...',
-                                    filled: true,
-                                    fillColor: AppColors.fieldFill,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 12,
-                                    ),
-                                    counterText: '',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(24),
-                                      borderSide: BorderSide.none,
-                                    ),
+                              if (_selectedImageBytes != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: Row(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.memory(
+                                          _selectedImageBytes!,
+                                          width: 48,
+                                          height: 48,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          _selectedImage?.name ?? 'Image',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: _sending
+                                            ? null
+                                            : () => setState(() {
+                                                _selectedImage = null;
+                                                _selectedImageBytes = null;
+                                              }),
+                                        tooltip: 'Remove image',
+                                        icon: const Icon(Icons.close_rounded),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton.filled(
-                                onPressed: _sending || user == null
-                                    ? null
-                                    : _sendMessage,
-                                style: IconButton.styleFrom(
-                                  backgroundColor: AppColors.primaryLight,
-                                  foregroundColor: Colors.white,
-                                ),
-                                tooltip: 'Send message',
-                                icon: _sending
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    key: const Key('messages-attach-image'),
+                                    onPressed: _sending || user == null
+                                        ? null
+                                        : _pickChatImage,
+                                    tooltip: 'Attach image',
+                                    icon: const Icon(
+                                      Icons.image_outlined,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _messageController,
+                                      minLines: 1,
+                                      maxLines: 4,
+                                      maxLength: 500,
+                                      textCapitalization:
+                                          TextCapitalization.sentences,
+                                      onSubmitted: (_) => _sendMessage(),
+                                      decoration: InputDecoration(
+                                        hintText: 'Message the admin...',
+                                        filled: true,
+                                        fillColor: AppColors.fieldFill,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 12,
+                                            ),
+                                        counterText: '',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            24,
+                                          ),
+                                          borderSide: BorderSide.none,
                                         ),
-                                      )
-                                    : const Icon(Icons.send_rounded, size: 19),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton.filled(
+                                    onPressed: _sending || user == null
+                                        ? null
+                                        : _sendMessage,
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: AppColors.primaryLight,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    tooltip: 'Send message',
+                                    icon: _sending
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.send_rounded,
+                                            size: 19,
+                                          ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -490,6 +646,11 @@ class _MessageScreenState extends State<MessageScreen> {
     Timestamp? timestamp, {
     required bool isMine,
   }) {
+    final imageBytes = _decodeChatImageData(data['imageData']);
+    final text = data['text'] as String? ?? '';
+    final imageWidth = MediaQuery.sizeOf(context).width < 414
+        ? MediaQuery.sizeOf(context).width * 0.58
+        : 240.0;
     return Container(
       constraints: BoxConstraints(
         maxWidth: MediaQuery.sizeOf(context).width * (isMine ? 0.76 : 0.68),
@@ -518,12 +679,51 @@ class _MessageScreenState extends State<MessageScreen> {
               borderRadius: BorderRadius.circular(16),
               border: isMine ? null : Border.all(color: AppColors.fieldBorder),
             ),
-            child: Text(
-              data['text'] as String? ?? '',
-              style: TextStyle(
-                color: isMine ? Colors.white : AppColors.textPrimary,
-                fontSize: 14,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (imageBytes != null)
+                  GestureDetector(
+                    onTap: () => _showImage(imageBytes),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.memory(
+                        imageBytes,
+                        width: imageWidth,
+                        height: 190,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => SizedBox(
+                          width: imageWidth,
+                          height: 100,
+                          child: Center(
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              color: isMine
+                                  ? Colors.white70
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (text.isNotEmpty) ...[
+                  if (imageBytes != null) const SizedBox(height: 8),
+                  Text(
+                    text,
+                    style: TextStyle(
+                      color: isMine ? Colors.white : AppColors.textPrimary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+                if (imageBytes == null && text.isEmpty)
+                  const Text(
+                    'Image unavailable',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+              ],
             ),
           ),
         ],
