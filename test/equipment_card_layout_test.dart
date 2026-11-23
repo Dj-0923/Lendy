@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lendy/models/equipment_model.dart';
+import 'package:lendy/theme/app_colors.dart';
 import 'package:lendy/widgets/equipment_card.dart';
 import 'package:lendy/widgets/status_badge.dart';
 
 void main() {
+  test('equipment model reads optional brand and details fields', () {
+    final equipment = EquipmentModel.fromFirestore(
+      documentId: 'EQ-014',
+      data: {
+        'name': 'Aula Keyboard',
+        'category': 'Input Devices',
+        'tag': 'KB-001',
+        'brand': 'Aula',
+        'details': 'Mechanical keyboard',
+        'location': 'Storage Room',
+      },
+      status: EquipmentStatus.available,
+    );
+
+    expect(equipment.brand, 'Aula');
+    expect(equipment.details, 'Mechanical keyboard');
+  });
+
   testWidgets('item image uses a compact card height', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -25,7 +44,14 @@ void main() {
       ),
     );
 
-    expect(tester.getSize(find.byType(Image)).height, 110);
+    final locationIcon = tester.widget<Icon>(find.byIcon(Icons.location_on));
+    expect(locationIcon.color, AppColors.primaryLight);
+    expect(find.text('Tap for details'), findsNothing);
+    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+    expect(tester.getSize(find.byType(Image)).height, 118);
+    final codeRect = tester.getRect(find.text('CM-01AB'));
+    final locationRect = tester.getRect(find.text('AV Storage'));
+    expect(locationRect.top - codeRect.bottom, lessThan(50));
     expect(tester.widget<Image>(find.byType(Image)).fit, BoxFit.contain);
     final statusBadge = find.byType(StatusBadge);
     expect(tester.widget<StatusBadge>(statusBadge).compact, isTrue);
@@ -48,6 +74,145 @@ void main() {
     final badgeRect = tester.getRect(badgeContainerFinder);
     expect(badgeRect.top, greaterThanOrEqualTo(imageRect.top));
     expect(badgeRect.right, closeTo(imageRect.right - 8, 1));
+  });
+
+  testWidgets('tapping an item opens its details and request action', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var requested = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 280,
+              child: EquipmentCard(
+                equipment: EquipmentModel(
+                  id: 'EQ-001',
+                  name: 'Aula Keyboard',
+                  category: EquipmentCategory.accessories,
+                  categoryName: 'Input Devices',
+                  assetTag: 'KB-001',
+                  brand: 'Aula',
+                  details:
+                      'A high-performance mechanical keyboard with responsive keys.',
+                  location: 'Storage Room',
+                  image: 'R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=',
+                  status: EquipmentStatus.available,
+                ),
+                onRequest: () => requested = true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('equipment-card-view-details')));
+    await tester.pumpAndSettle();
+
+    final detailsDialog = find.byKey(const Key('equipment-details-dialog'));
+    expect(detailsDialog, findsOneWidget);
+    final dialog = tester.widget<Dialog>(detailsDialog);
+    expect(dialog.backgroundColor, Colors.white);
+    expect(dialog.surfaceTintColor, Colors.white);
+    final closeBackground = tester.widget<DecoratedBox>(
+      find.byKey(const Key('equipment-details-close-background')),
+    );
+    final closeDecoration = closeBackground.decoration as BoxDecoration;
+    expect(closeDecoration.color, const Color(0xFFE4F0EC));
+    expect(closeDecoration.shape, BoxShape.circle);
+    expect(
+      find.descendant(of: detailsDialog, matching: find.text('Input Devices')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: detailsDialog, matching: find.text('Aula Keyboard')),
+      findsOneWidget,
+    );
+    expect(find.text('Code: KB-001'), findsOneWidget);
+    expect(find.text('Brand: Aula'), findsOneWidget);
+    expect(
+      find.text('A high-performance mechanical keyboard with responsive keys.'),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: detailsDialog, matching: find.text('Location')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: detailsDialog, matching: find.text('Storage Room')),
+      findsOneWidget,
+    );
+
+    final requestButton = find.byKey(const Key('equipment-details-request'));
+    expect(
+      find.descendant(of: requestButton, matching: find.byType(Icon)),
+      findsNothing,
+    );
+    await tester.tap(requestButton);
+    await tester.pumpAndSettle();
+
+    expect(requested, isTrue);
+    expect(detailsDialog, findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('request button on the item card does not open details', (
+    tester,
+  ) async {
+    var requested = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: EquipmentCard(
+            equipment: EquipmentModel(
+              id: 'EQ-015',
+              name: 'Projector',
+              category: EquipmentCategory.projector,
+              location: 'AV Storage',
+              status: EquipmentStatus.available,
+            ),
+            onRequest: () => requested = true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Request'));
+    await tester.pumpAndSettle();
+
+    expect(requested, isTrue);
+    expect(find.byKey(const Key('equipment-details-dialog')), findsNothing);
+  });
+
+  testWidgets('tapping item content does not open details', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: EquipmentCard(
+            equipment: EquipmentModel(
+              id: 'EQ-016',
+              name: 'Camera',
+              category: EquipmentCategory.camera,
+              location: 'AV Storage',
+              status: EquipmentStatus.available,
+            ),
+            onRequest: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Camera'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('equipment-details-dialog')), findsNothing);
   });
 
   testWidgets('items with different optional content have equal card heights', (
@@ -101,13 +266,13 @@ void main() {
 
     expect(
       tester.getSize(find.byKey(const ValueKey('equipment-card-with-image'))),
-      const Size(170, 310),
+      const Size(170, 290),
     );
     expect(
       tester.getSize(
         find.byKey(const ValueKey('equipment-card-without-image')),
       ),
-      const Size(170, 310),
+      const Size(170, 290),
     );
     expect(tester.takeException(), isNull);
   });

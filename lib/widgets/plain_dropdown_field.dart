@@ -19,6 +19,7 @@ class PlainDropdownField<T> extends StatelessWidget {
   final T? value;
   final List<T> options;
   final double? menuMaxHeight;
+  final double rightContentPadding;
   final String Function(T value) labelOf;
   final ValueChanged<T?>? onChanged;
   final String? Function(T? value)? validator;
@@ -32,6 +33,7 @@ class PlainDropdownField<T> extends StatelessWidget {
     required this.labelOf,
     required this.onChanged,
     this.menuMaxHeight,
+    this.rightContentPadding = 14,
     this.validator,
   });
 
@@ -52,118 +54,137 @@ class PlainDropdownField<T> extends StatelessWidget {
         FormField<T>(
           initialValue: value,
           validator: validator,
-          builder: (fieldState) => LayoutBuilder(
-            builder: (context, constraints) => MenuAnchor(
-              style: MenuStyle(
-                minimumSize: WidgetStatePropertyAll(
-                  Size(constraints.maxWidth, 0),
-                ),
-                maximumSize: menuMaxHeight == null
-                    ? null
-                    : WidgetStatePropertyAll(
-                        Size(constraints.maxWidth, menuMaxHeight!),
+          builder: (fieldState) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) => MenuAnchor(
+                  style: MenuStyle(
+                    minimumSize: WidgetStatePropertyAll(
+                      Size(constraints.maxWidth, 0),
+                    ),
+                    maximumSize: menuMaxHeight == null
+                        ? null
+                        : WidgetStatePropertyAll(
+                            Size(constraints.maxWidth, menuMaxHeight!),
+                          ),
+                  ),
+                  menuChildren: options
+                      .map(
+                        (option) => MenuItemButton(
+                          onPressed: () {
+                            fieldState.didChange(option);
+                            onChanged?.call(option);
+                          },
+                          child: SizedBox(
+                            width: constraints.maxWidth - 32,
+                            height: menuRowHeight,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(labelOf(option)),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  builder: (context, controller, child) {
+                    final borderColor = fieldState.hasError
+                        ? Colors.redAccent
+                        : AppColors.fieldBorder;
+                    return InputDecorator(
+                      isEmpty: fieldState.value == null,
+                      decoration: InputDecoration(
+                        hintText: hint,
+                        hintStyle: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
+                        contentPadding: EdgeInsets.only(
+                          top: 14,
+                          bottom: 14,
+                          left: 14,
+                          right: rightContentPadding,
+                        ),
+                        constraints: const BoxConstraints.tightFor(
+                          height: PlainTextField.fieldHeight,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: fieldState.hasError
+                                ? Colors.redAccent
+                                : AppColors.primaryLight,
+                            width: 1.4,
+                          ),
+                        ),
                       ),
-              ),
-              menuChildren: options
-                  .map(
-                    (option) => MenuItemButton(
-                      onPressed: () {
-                        fieldState.didChange(option);
-                        onChanged?.call(option);
-                      },
                       child: SizedBox(
-                        width: constraints.maxWidth - 32,
-                        height: menuRowHeight,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(labelOf(option)),
+                        width: constraints.maxWidth,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                fieldState.value == null
+                                    ? ''
+                                    : labelOf(fieldState.value as T),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: IconButton(
+                                onPressed: controller.isOpen
+                                    ? controller.close
+                                    : controller.open,
+                                tooltip: 'Select $label',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 40,
+                                  height: 40,
+                                ),
+                                icon: const Icon(
+                                  Icons.keyboard_arrow_down,
+                                  color: AppColors.textSecondary,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  )
-                  .toList(),
-              builder: (context, controller, child) => InputDecorator(
-                isEmpty: fieldState.value == null,
-                decoration: InputDecoration(
-                  hintText: hint,
-                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                  errorText: fieldState.errorText,
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 14,
-                  ),
-                  constraints: const BoxConstraints.tightFor(
-                    height: PlainTextField.fieldHeight,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.fieldBorder),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.fieldBorder),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: AppColors.primaryLight,
-                      width: 1.4,
-                    ),
-                  ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.redAccent),
-                  ),
-                  focusedErrorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Colors.redAccent,
-                      width: 1.4,
-                    ),
-                  ),
-                ),
-                child: SizedBox(
-                  width: constraints.maxWidth,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          fieldState.value == null
-                              ? ''
-                              : labelOf(fieldState.value as T),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: IconButton(
-                          onPressed: controller.isOpen
-                              ? controller.close
-                              : controller.open,
-                          tooltip: 'Select $label',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints.tightFor(
-                            width: 40,
-                            height: 40,
-                          ),
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down,
-                            color: AppColors.textSecondary,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
-            ),
+              if (fieldState.errorText != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 14, top: 4),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      fieldState.errorText!,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],

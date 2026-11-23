@@ -77,6 +77,8 @@ void main() {
     await pumpProfile(tester, auth);
 
     expect(find.text('Account role'), findsOneWidget);
+    expect(find.text('ID No.'), findsOneWidget);
+    expect(find.text('FAC-001'), findsOneWidget);
     expect(
       find.text('This is the role you selected when you signed in.'),
       findsNothing,
@@ -98,6 +100,8 @@ void main() {
     await pumpProfile(tester, auth);
 
     expect(find.text('Account role'), findsOneWidget);
+    expect(find.text('ID No.'), findsOneWidget);
+    expect(find.text('STU-001'), findsOneWidget);
     expect(find.text('Year Level'), findsOneWidget);
     expect(find.text('College'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);

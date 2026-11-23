@@ -13,6 +13,7 @@ import 'package:lendy/models/user_model.dart';
 import 'package:lendy/screens/borrower_assistant_screen.dart';
 import 'package:lendy/screens/browse_screen.dart';
 import 'package:lendy/services/borrower_assistant_service.dart';
+import 'package:lendy/theme/app_colors.dart';
 import 'package:lendy/utils/borrower_assistant_conversation_store.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -292,10 +293,20 @@ void main() {
       final assistantAvatar = tester.widget<CircleAvatar>(
         find.byKey(const Key('assistant-profile-avatar')),
       );
-      expect(
-        assistantAvatar.backgroundImage,
-        const AssetImage('assets/images/botpfp.png'),
+      expect(assistantAvatar.backgroundImage, isNull);
+      final assistantImage = tester.widget<Image>(
+        find.descendant(
+          of: find.byKey(const Key('assistant-profile-avatar')),
+          matching: find.byType(Image),
+        ),
       );
+      expect(
+        assistantImage.image,
+        const AssetImage('assets/images/fabi_pfp.png'),
+      );
+      expect(assistantImage.width, 38);
+      expect(assistantImage.height, 38);
+      expect(assistantImage.filterQuality, FilterQuality.high);
       expect(
         find.byKey(const Key('assistant-suggestions-list')),
         findsOneWidget,
@@ -349,6 +360,8 @@ void main() {
       expect(find.text('PROJECTORS'), findsOneWidget);
       expect(find.text('PRJ-001'), findsOneWidget);
       expect(find.text('AV Room'), findsOneWidget);
+      final locationIcon = tester.widget<Icon>(find.byIcon(Icons.location_on));
+      expect(locationIcon.color, AppColors.primaryLight);
       expect(tester.takeException(), isNull);
       expect(
         find.byKey(const Key('assistant-landscape-item-projector-1')),

@@ -69,6 +69,8 @@ class EquipmentModel {
   final EquipmentCategory category;
   final String? categoryName;
   final String? assetTag;
+  final String? brand;
+  final String? details;
   final String location;
   final String? image;
   EquipmentStatus status; // mutable — updated by RequestProvider
@@ -81,6 +83,8 @@ class EquipmentModel {
     required this.status,
     this.categoryName,
     this.assetTag,
+    this.brand,
+    this.details,
     this.image,
   });
 
@@ -99,6 +103,8 @@ class EquipmentModel {
           ? category.trim()
           : null,
       assetTag: data['tag'] is String ? data['tag'] as String : null,
+      brand: data['brand'] is String ? data['brand'] as String : null,
+      details: data['details'] is String ? data['details'] as String : null,
       location: data['location'] is String ? data['location'] as String : '',
       image: data['image'] is String ? data['image'] as String : null,
       status: status,

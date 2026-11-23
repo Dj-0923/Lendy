@@ -256,10 +256,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     onTap: _openAssistant,
                     child: ClipOval(
                       child: Image.asset(
-                        'assets/images/botpfp.png',
+                        'assets/images/botFabii.png',
                         width: 58,
                         height: 58,
                         fit: BoxFit.cover,
+                        filterQuality: FilterQuality.high,
                       ),
                     ),
                   ),
@@ -277,10 +278,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     border: Border.all(color: AppColors.primaryLight, width: 2),
                   ),
                   alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    color: AppColors.primaryLight,
-                    size: 15,
+                  child: CustomPaint(
+                    key: const Key('browse-ai-message-icon'),
+                    size: const Size(17, 15),
+                    painter: _AssistantMessageIconPainter(
+                      color: AppColors.primaryLight,
+                    ),
                   ),
                 ),
               ),
@@ -528,7 +531,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(
                                   20,
-                                  20,
+                                  12,
                                   20,
                                   100,
                                 ),
@@ -543,7 +546,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                         fontSize: 13.5,
                                       ),
                                     ),
-                                    const SizedBox(height: 20),
+                                    const SizedBox(height: 12),
                                     if (equipmentProvider.isLoading)
                                       const Padding(
                                         padding: EdgeInsets.only(top: 40),
@@ -664,6 +667,79 @@ class _BrowseScreenState extends State<BrowseScreen> {
       ),
     );
   }
+}
+
+class _AssistantMessageIconPainter extends CustomPainter {
+  const _AssistantMessageIconPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / 20;
+    final scaleY = size.height / 18;
+    final bubblePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8 * scaleX
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final bubble = Path()
+      ..moveTo(2 * scaleX, 9 * scaleY)
+      ..cubicTo(
+        2 * scaleX,
+        4.6 * scaleY,
+        5.6 * scaleX,
+        scaleY,
+        10 * scaleX,
+        scaleY,
+      )
+      ..cubicTo(
+        14.4 * scaleX,
+        scaleY,
+        18 * scaleX,
+        4.6 * scaleY,
+        18 * scaleX,
+        9 * scaleY,
+      )
+      ..cubicTo(
+        18 * scaleX,
+        13.4 * scaleY,
+        14.4 * scaleX,
+        16 * scaleY,
+        10 * scaleX,
+        16 * scaleY,
+      )
+      ..cubicTo(
+        7.7 * scaleX,
+        16 * scaleY,
+        5.8 * scaleX,
+        15.2 * scaleY,
+        4.4 * scaleX,
+        14 * scaleY,
+      )
+      ..lineTo(1.5 * scaleX, 17 * scaleY)
+      ..lineTo(2.7 * scaleX, 13.4 * scaleY)
+      ..cubicTo(
+        2.2 * scaleX,
+        12.3 * scaleY,
+        2 * scaleX,
+        10.7 * scaleY,
+        2 * scaleX,
+        9 * scaleY,
+      )
+      ..close();
+    canvas.drawPath(bubble, bubblePaint);
+
+    final dotPaint = Paint()..color = color;
+    for (final x in [6.0, 10.0, 14.0]) {
+      canvas.drawCircle(Offset(x * scaleX, 9 * scaleY), 1.1 * scaleX, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AssistantMessageIconPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _PinnedBrowseFilters extends SliverPersistentHeaderDelegate {

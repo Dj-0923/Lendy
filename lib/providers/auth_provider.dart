@@ -17,16 +17,10 @@ class RequestAccountResult {
   final bool success;
   final String? error;
   final String? code;
-  final String? warning;
 
-  RequestAccountResult.success({this.warning})
-    : success = true,
-      error = null,
-      code = null;
+  RequestAccountResult.success() : success = true, error = null, code = null;
 
-  RequestAccountResult.failure(this.error, {this.code})
-    : success = false,
-      warning = null;
+  RequestAccountResult.failure(this.error, {this.code}) : success = false;
 }
 
 class AuthProvider extends ChangeNotifier {
@@ -110,21 +104,6 @@ class AuthProvider extends ChangeNotifier {
       if (_disposed) return;
       _authError = 'Could not restore account request status: $error';
       notifyListeners();
-    }
-  }
-
-  Future<void> _storeRequestStatusCredentials(
-    String requestId,
-    String token,
-  ) async {
-    final preferences = await SharedPreferences.getInstance();
-    final savedId = await preferences.setString(_storedRequestIdKey, requestId);
-    final savedToken = await preferences.setString(
-      _storedRequestTokenKey,
-      token,
-    );
-    if (!savedId || !savedToken) {
-      throw StateError('Could not save the account request status locally.');
     }
   }
 
@@ -544,28 +523,7 @@ class AuthProvider extends ChangeNotifier {
           code: responseData['code'] as String?,
         );
       }
-      final requestId = responseData['requestId'] as String;
-      final statusToken = responseData['statusToken'] as String;
-      _requestStatusId = requestId;
-      _requestStatusToken = statusToken;
-      _accountRequestData = {
-        'id': requestId,
-        'name': fullName.trim(),
-        'email': email.trim().toLowerCase(),
-        'status': 'pending',
-      };
-      _approvalRequestId = requestId;
-      String? warning;
-      try {
-        await _storeRequestStatusCredentials(requestId, statusToken);
-      } catch (error) {
-        warning =
-            'This device could not save the request status check. Keep the app open to follow the request.';
-        debugPrint('Could not persist account request status: $error');
-      }
-      _startRequestStatusPolling();
-      unawaited(_refreshAccountRequestStatus());
-      return RequestAccountResult.success(warning: warning);
+      return RequestAccountResult.success();
     } catch (error) {
       return RequestAccountResult.failure(
         'Could not submit the account request: $error',

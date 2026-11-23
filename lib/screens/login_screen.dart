@@ -9,7 +9,6 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'forgot_password_screen.dart';
 import 'request_account_screen.dart';
-import 'account_request_status_screen.dart';
 import '../widgets/app_notice.dart';
 
 const Color _teal = Color(0xFF1F7F74);
@@ -115,7 +114,24 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       return;
     }
-    if (auth.accountRequestData != null) return;
+    if (auth.currentUser == null) {
+      final requestStatus = auth.accountRequestData?['status'];
+      AppNotice.show(
+        context,
+        requestStatus == 'rejected'
+            ? 'Your account request was not approved. Please contact an admin.'
+            : requestStatus == 'pending'
+            ? 'Your account request is awaiting admin approval. If approved, a temporary password will be emailed to you.'
+            : 'Could not finish signing in. Please try again.',
+        type: AppNoticeType.info,
+        title: requestStatus == 'rejected'
+            ? 'Request not approved'
+            : requestStatus == 'pending'
+            ? 'Request pending'
+            : null,
+      );
+      return;
+    }
 
     // Accounts marked for a password change must update it before continuing.
     if (auth.currentUser!.mustChangePassword) {
@@ -128,37 +144,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _returnToLogin(String email) async {
-    await context.read<AuthProvider>().logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => LoginScreen(initialEmail: email)),
-      (_) => false,
-    );
-  }
-
-  Future<void> _requestAgain() async {
-    await context.read<AuthProvider>().logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const RequestAccountScreen()),
-      (_) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final accountRequest = auth.accountRequestData;
-    if (accountRequest != null) {
-      final requestEmail =
-          accountRequest['email'] as String? ?? widget.initialEmail;
-      return AccountRequestStatusScreen(
-        email: requestEmail,
-        onContinueToLogin: () => _returnToLogin(requestEmail),
-        onRequestAgain: _requestAgain,
-      );
-    }
     if (_allowExistingSessionRedirect &&
         auth.isReady &&
         auth.currentUser != null) {

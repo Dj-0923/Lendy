@@ -253,6 +253,19 @@ void main() {
     final assistantButton = find.byKey(const Key('browse-ai-assistant-button'));
     expect(assistantButton, findsOneWidget);
     expect(tester.getSize(assistantButton), const Size(64, 64));
+    final homeAvatarImage = tester.widget<Image>(
+      find.descendant(of: assistantButton, matching: find.byType(Image)),
+    );
+    expect(
+      homeAvatarImage.image,
+      const AssetImage('assets/images/botFabii.png'),
+    );
+    expect(homeAvatarImage.width, 58);
+    expect(homeAvatarImage.height, 58);
+    expect(homeAvatarImage.filterQuality, FilterQuality.high);
+    final messageIcon = find.byKey(const Key('browse-ai-message-icon'));
+    expect(messageIcon, findsOneWidget);
+    expect(tester.getSize(messageIcon), const Size(17, 15));
     final assistantButtonMaterial = tester.widget<Material>(assistantButton);
     expect(assistantButtonMaterial.color, Colors.white);
     expect(assistantButtonMaterial.elevation, 2);
@@ -267,10 +280,20 @@ void main() {
     final assistantHeaderAvatar = tester.widget<CircleAvatar>(
       find.byKey(const Key('assistant-header-avatar')),
     );
-    expect(
-      assistantHeaderAvatar.backgroundImage,
-      const AssetImage('assets/images/botpfp.png'),
+    expect(assistantHeaderAvatar.backgroundImage, isNull);
+    final assistantHeaderImage = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(const Key('assistant-header-avatar')),
+        matching: find.byType(Image),
+      ),
     );
+    expect(
+      assistantHeaderImage.image,
+      const AssetImage('assets/images/fabi_pfp.png'),
+    );
+    expect(assistantHeaderImage.width, 48);
+    expect(assistantHeaderImage.height, 48);
+    expect(assistantHeaderImage.filterQuality, FilterQuality.high);
     final titleRect = tester.getRect(find.text('Fabii'));
     final subtitleRect = tester.getRect(find.text('your AI assistant'));
     expect(subtitleRect.top - titleRect.bottom, lessThanOrEqualTo(2));

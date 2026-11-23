@@ -86,6 +86,8 @@ class BorrowerAssistantItem {
           ? category
           : inventoryItem?.categoryName,
       assetTag: tag.isNotEmpty ? tag : inventoryItem?.assetTag,
+      brand: inventoryItem?.brand,
+      details: inventoryItem?.details,
       location: location.isNotEmpty ? location : inventoryItem?.location ?? '',
       image: inventoryItem?.image,
       status: status,

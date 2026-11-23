@@ -35,7 +35,8 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.location_on_outlined), findsOneWidget);
+    final locationIcon = tester.widget<Icon>(find.byIcon(Icons.location_on));
+    expect(locationIcon.color, AppColors.primaryLight);
     expect(find.text('Storage Room'), findsOneWidget);
   });
 

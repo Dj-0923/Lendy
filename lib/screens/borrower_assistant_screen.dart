@@ -597,8 +597,11 @@ class _BorrowerAssistantScreenState extends State<BorrowerAssistantScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            const _AssistantAvatar(avatarKey: Key('assistant-header-avatar')),
-            const SizedBox(width: 8),
+            const _AssistantAvatar(
+              avatarKey: Key('assistant-header-avatar'),
+              radius: 24,
+            ),
+            const SizedBox(width: 6),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -948,17 +951,26 @@ class _MessageBubbleState extends State<_MessageBubble> {
 }
 
 class _AssistantAvatar extends StatelessWidget {
-  const _AssistantAvatar({this.avatarKey});
+  const _AssistantAvatar({this.avatarKey, this.radius = 19});
 
   final Key? avatarKey;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
     return CircleAvatar(
       key: avatarKey ?? const Key('assistant-profile-avatar'),
-      radius: 18,
+      radius: radius,
       backgroundColor: AppColors.primaryLight,
-      backgroundImage: const AssetImage('assets/images/botpfp.png'),
+      child: ClipOval(
+        child: Image.asset(
+          'assets/images/fabi_pfp.png',
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
+        ),
+      ),
     );
   }
 }
@@ -1066,9 +1078,9 @@ class _AssistantLandscapeItemCard extends StatelessWidget {
                       Row(
                         children: [
                           const Icon(
-                            Icons.location_on_outlined,
+                            Icons.location_on,
                             size: 13,
-                            color: AppColors.textSecondary,
+                            color: AppColors.primaryLight,
                           ),
                           const SizedBox(width: 3),
                           Expanded(
@@ -1163,7 +1175,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
           mainAxisSize: MainAxisSize.min,
           children: [
             const _AssistantAvatar(),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Container(
               margin: const EdgeInsets.symmetric(vertical: 5),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),

@@ -11,10 +11,9 @@ import '../widgets/app_text_field.dart';
 import '../widgets/app_notice.dart';
 import '../widgets/plain_dropdown_field.dart';
 import '../widgets/primary_button.dart';
-import 'account_request_status_screen.dart';
 import 'login_screen.dart';
 
-/// Lets a Student/Faculty request an account and wait for admin approval.
+/// Lets a Student/Faculty submit an account request for admin review.
 class RequestAccountScreen extends StatefulWidget {
   const RequestAccountScreen({super.key});
 
@@ -45,7 +44,6 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
   String? _selectedYearLevel;
   String? _selectedBlock;
   bool _isLoading = false;
-  bool _submitted = false;
   String? _requestEmail;
   String? _emailValidationError;
 
@@ -118,13 +116,26 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
       return;
     }
 
-    if (result.warning != null) {
-      AppNotice.show(context, result.warning!, type: AppNoticeType.info);
-    }
-    setState(() {
-      _submitted = true;
-      _requestEmail = _emailController.text.trim();
-    });
+    _requestEmail = _emailController.text.trim();
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Request submitted'),
+        content: Text(
+          'Your request was submitted successfully. The admin will review it. '
+          'If approved, a temporary password will be emailed to $_requestEmail.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Back to sign in'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    await _goToLogin();
   }
 
   Future<void> _goToLogin() async {
@@ -138,26 +149,9 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
     );
   }
 
-  Future<void> _requestAgain() async {
-    await context.read<AuthProvider>().logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const RequestAccountScreen()),
-      (_) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
-
-    if (_submitted) {
-      return AccountRequestStatusScreen(
-        email: _requestEmail ?? _emailController.text.trim(),
-        onContinueToLogin: _goToLogin,
-        onRequestAgain: _requestAgain,
-      );
-    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -286,6 +280,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                             hint: 'Select gender',
                             value: _selectedGender,
                             options: _genders,
+                            rightContentPadding: 0,
                             labelOf: (gender) => gender,
                             onChanged: (gender) =>
                                 setState(() => _selectedGender = gender),
@@ -306,6 +301,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                               hint: 'Select year',
                               value: _selectedYearLevel,
                               options: _yearLevels,
+                              rightContentPadding: 0,
                               labelOf: (yearLevel) => yearLevel,
                               onChanged: (yearLevel) => setState(
                                 () => _selectedYearLevel = yearLevel,
@@ -324,6 +320,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                               options: _blocks,
                               menuMaxHeight:
                                   PlainDropdownField.menuRowHeight * 5,
+                              rightContentPadding: 0,
                               labelOf: (block) => block,
                               onChanged: (block) =>
                                   setState(() => _selectedBlock = block),
@@ -342,6 +339,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                         value: _selectedCollege,
                         options: collegeProgramOptions,
                         menuMaxHeight: _collegeMenuMaxHeight,
+                        rightContentPadding: 0,
                         labelOf: (program) => program.menuLabel,
                         onChanged: (program) =>
                             setState(() => _selectedCollege = program),
@@ -355,6 +353,7 @@ class _RequestAccountScreenState extends State<RequestAccountScreen> {
                         value: _selectedFacultyCollege,
                         options: facultyCollegeOptions,
                         menuMaxHeight: _collegeMenuMaxHeight,
+                        rightContentPadding: 0,
                         labelOf: (college) => college.menuLabel,
                         onChanged: (college) =>
                             setState(() => _selectedFacultyCollege = college),

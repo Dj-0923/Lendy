@@ -214,6 +214,13 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         _InfoRow(label: 'Account role', value: user.role.label),
                         const Divider(height: 24),
+                        _InfoRow(
+                          label: 'ID No.',
+                          value: user.idNumber.trim().isEmpty
+                              ? 'N/A'
+                              : user.idNumber,
+                        ),
+                        const Divider(height: 24),
                         if (user.role == UserRole.faculty) ...[
                           _InfoRow(
                             label: 'College',

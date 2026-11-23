@@ -88,9 +88,9 @@ class RequestCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
-                      Icons.location_on_outlined,
+                      Icons.location_on,
                       size: 14,
-                      color: AppColors.textSecondary,
+                      color: AppColors.primaryLight,
                     ),
                     const SizedBox(width: 3),
                     Text(
