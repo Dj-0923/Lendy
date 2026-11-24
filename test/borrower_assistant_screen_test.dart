@@ -269,7 +269,24 @@ void main() {
         MultiProvider(
           providers: [
             ChangeNotifierProvider(create: (_) => AuthProvider.forTesting()),
-            ChangeNotifierProvider(create: (_) => EquipmentProvider()),
+            ChangeNotifierProvider(
+              create: (_) => EquipmentProvider(
+                initialEquipment: [
+                  EquipmentModel.fromFirestore(
+                    documentId: 'projector-1',
+                    data: {
+                      'name': 'Projector',
+                      'category': 'Projectors',
+                      'location': 'AV Room',
+                      'tag': 'PRJ-001',
+                      'brand': 'Epson',
+                      'details': 'HD projector with HDMI input.',
+                    },
+                    status: EquipmentStatus.available,
+                  ),
+                ],
+              ),
+            ),
             ChangeNotifierProxyProvider<EquipmentProvider, RequestProvider>(
               create: (context) =>
                   RequestProvider(context.read<EquipmentProvider>()),
@@ -371,6 +388,18 @@ void main() {
         const Key('assistant-request-item-projector-1'),
       );
       expect(requestButton, findsOneWidget);
+      final detailsButton = find.byKey(
+        const Key('assistant-view-details-item-projector-1'),
+      );
+      expect(detailsButton, findsOneWidget);
+
+      await tester.tap(detailsButton);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('equipment-details-dialog')), findsOneWidget);
+      expect(find.text('Brand: Epson'), findsOneWidget);
+      expect(find.text('HD projector with HDMI input.'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('equipment-details-close')));
+      await tester.pumpAndSettle();
 
       await tester.tap(requestButton);
       await tester.pumpAndSettle();

@@ -76,6 +76,39 @@ void main() {
     expect(badgeRect.right, closeTo(imageRect.right - 8, 1));
   });
 
+  testWidgets('status badge stays on one line in a narrow card', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 112,
+              child: EquipmentCard(
+                equipment: EquipmentModel(
+                  id: 'EQ-017',
+                  name: 'Projector',
+                  category: EquipmentCategory.projector,
+                  location: 'AV Storage',
+                  status: EquipmentStatus.maintenance,
+                ),
+                onRequest: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final badgeText = find.descendant(
+      of: find.byType(StatusBadge),
+      matching: find.byType(Text),
+    );
+    expect(tester.getSize(badgeText).height, lessThan(14));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('tapping an item opens its details and request action', (
     tester,
   ) async {

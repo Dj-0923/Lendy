@@ -4,6 +4,22 @@ import '../theme/app_colors.dart';
 import '../utils/status_style.dart';
 import 'status_badge.dart';
 
+void showEquipmentDetailsDialog({
+  required BuildContext context,
+  required EquipmentModel equipment,
+  required bool requested,
+  required VoidCallback onRequest,
+}) {
+  showDialog<void>(
+    context: context,
+    builder: (_) => _EquipmentDetailsDialog(
+      equipment: equipment,
+      requested: requested,
+      onRequest: onRequest,
+    ),
+  );
+}
+
 /// Card shown in the Browse Item list for a single piece of equipment.
 class EquipmentCard extends StatelessWidget {
   final EquipmentModel equipment;
@@ -18,13 +34,11 @@ class EquipmentCard extends StatelessWidget {
   });
 
   void _showDetails(BuildContext context) {
-    showDialog<void>(
+    showEquipmentDetailsDialog(
       context: context,
-      builder: (_) => _EquipmentDetailsDialog(
-        equipment: equipment,
-        requested: requested,
-        onRequest: onRequest,
-      ),
+      equipment: equipment,
+      requested: requested,
+      onRequest: onRequest,
     );
   }
 
@@ -99,10 +113,14 @@ class EquipmentCard extends StatelessWidget {
                       Positioned(
                         top: 8,
                         right: 8,
-                        child: StatusBadge(
-                          style: equipmentStatusStyle(equipment.status),
-                          uppercase: true,
-                          compact: true,
+                        child: FittedBox(
+                          alignment: Alignment.topRight,
+                          fit: BoxFit.scaleDown,
+                          child: StatusBadge(
+                            style: equipmentStatusStyle(equipment.status),
+                            uppercase: true,
+                            compact: true,
+                          ),
                         ),
                       ),
                     ],

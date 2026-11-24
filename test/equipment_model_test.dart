@@ -33,7 +33,7 @@ void main() {
         final equipment = EquipmentModel.fromFirestore(
           documentId: 'firestore-document-id',
           data: {
-            'name': 'Sony A7 Camera',
+            'name': 'Camera A',
             'category': 'Cameras',
             'tag': 'CM-01AB',
             'location': 'AV Storage, Room 101',
@@ -44,7 +44,7 @@ void main() {
         );
 
         expect(equipment.id, 'firestore-document-id');
-        expect(equipment.name, 'Sony A7 Camera');
+        expect(equipment.name, 'Camera A');
         expect(equipment.category, EquipmentCategory.camera);
         expect(equipment.displayCategory, 'Cameras');
         expect(equipment.assetTag, 'CM-01AB');

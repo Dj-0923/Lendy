@@ -14,6 +14,7 @@ import '../utils/borrower_assistant_conversation_store.dart';
 import '../utils/responsive_layout.dart';
 import '../utils/status_style.dart';
 import '../widgets/app_notice.dart';
+import '../widgets/equipment_card.dart';
 import '../widgets/status_badge.dart';
 import 'request_form_screen.dart';
 
@@ -1105,33 +1106,97 @@ class _AssistantLandscapeItemCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     SizedBox(
-                      width: double.infinity,
                       height: 36,
-                      child: ElevatedButton(
-                        key: Key('assistant-request-item-${equipment.id}'),
-                        onPressed: isAvailable && !requested ? onRequest : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryLight,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(9),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 8,
+                            child: OutlinedButton(
+                              key: Key(
+                                'assistant-view-details-item-${equipment.id}',
+                              ),
+                              onPressed: () => showEquipmentDetailsDialog(
+                                context: context,
+                                equipment: equipment,
+                                requested: requested,
+                                onRequest: onRequest,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.primaryLight,
+                                side: const BorderSide(
+                                  color: AppColors.primaryLight,
+                                  width: 1.5,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                minimumSize: const Size(0, 36),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.visibility_outlined,
+                                      size: 15,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    const Text(
+                                      'View Details',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          requested
-                              ? 'Requested'
-                              : isAvailable
-                              ? 'Request'
-                              : equipment.status.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                          const SizedBox(width: 6),
+                          Expanded(
+                            flex: 6,
+                            child: ElevatedButton(
+                              key: Key(
+                                'assistant-request-item-${equipment.id}',
+                              ),
+                              onPressed: isAvailable && !requested
+                                  ? onRequest
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryLight,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                                minimumSize: const Size(0, 36),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                              ),
+                              child: Text(
+                                requested
+                                    ? 'Requested'
+                                    : isAvailable
+                                    ? 'Request'
+                                    : equipment.status.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ],
