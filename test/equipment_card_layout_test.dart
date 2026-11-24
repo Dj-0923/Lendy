@@ -168,7 +168,7 @@ void main() {
       find.descendant(of: detailsDialog, matching: find.text('Aula Keyboard')),
       findsOneWidget,
     );
-    expect(find.text('Code: KB-001'), findsOneWidget);
+    expect(find.text('Tag: KB-001'), findsOneWidget);
     expect(find.text('Brand: Aula'), findsOneWidget);
     expect(
       find.text('A high-performance mechanical keyboard with responsive keys.'),
@@ -310,7 +310,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('item code is left-aligned below the item name', (tester) async {
+  testWidgets('item tag is left-aligned below the item name', (tester) async {
     const cardWidth = 350.0;
     await tester.pumpWidget(
       MaterialApp(

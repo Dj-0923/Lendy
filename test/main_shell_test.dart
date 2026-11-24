@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lendy/models/equipment_model.dart';
 import 'package:lendy/models/user_model.dart';
 import 'package:lendy/providers/auth_provider.dart';
 import 'package:lendy/providers/equipment_provider.dart';
@@ -141,6 +142,38 @@ void main() {
       tester.getSize(find.byKey(const Key('dashboard-header'))).height,
       greaterThan(loansHeaderHeight),
     );
+  });
+
+  testWidgets('tapping Home again resets the Browse filters and search', (
+    tester,
+  ) async {
+    await pumpMainShell(tester);
+
+    equipment
+      ..setCategory('Cameras')
+      ..setAvailability(EquipmentStatus.borrowed)
+      ..setSearchQuery('projector');
+    await tester.pumpAndSettle();
+
+    expect(equipment.selectedCategory, 'Cameras');
+    expect(equipment.selectedAvailability, EquipmentStatus.borrowed);
+    expect(equipment.searchQuery, 'projector');
+
+    await tester.tap(find.text('Home').last);
+    await tester.pumpAndSettle();
+
+    expect(equipment.selectedCategory, isNull);
+    expect(equipment.selectedAvailability, isNull);
+    expect(equipment.searchQuery, isEmpty);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('browse-search-field')))
+          .controller!
+          .text,
+      isEmpty,
+    );
+    expect(find.text('All Categories'), findsOneWidget);
+    expect(find.text('Any Availability'), findsOneWidget);
   });
 
   testWidgets('Loans shows a badge for unread loan updates', (tester) async {

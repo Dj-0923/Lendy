@@ -17,10 +17,8 @@ import 'request_form_screen.dart';
 
 enum _ScanState { ready, scanning, complete }
 
-/// Camera-based QR scanner. Scans an equipment QR code (its equipment ID),
-/// looks it up, and shows a result card so the user can submit a borrow
-/// request to the Admin. Checking equipment in/out is handled separately
-/// (via My Requests), not from this screen.
+/// Camera-based QR scanner. Scans an equipment QR code, looks up the item,
+/// and shows its tag and details so the user can submit a borrow request.
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
 
@@ -68,7 +66,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     if (equipment == null) {
       AppNotice.show(
         context,
-        'No equipment found for code "$code".',
+        'No item found for this QR code.',
         type: AppNoticeType.error,
       );
       setState(() {
@@ -235,9 +233,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              equipment.id,
+              'Tag: ${equipment.displayTag}',
               style: const TextStyle(
-                fontSize: 29,
+                fontSize: 24,
                 color: Color(0xFF888888),
                 fontWeight: FontWeight.w500,
               ),

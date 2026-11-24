@@ -48,6 +48,7 @@ void main() {
         expect(equipment.category, EquipmentCategory.camera);
         expect(equipment.displayCategory, 'Cameras');
         expect(equipment.assetTag, 'CM-01AB');
+        expect(equipment.displayTag, 'CM-01AB');
         expect(equipment.location, 'AV Storage, Room 101');
         expect(equipment.imageBytes, [104, 101, 108, 108, 111]);
       },
@@ -70,12 +71,13 @@ void main() {
     test('handles missing optional fields and invalid image data', () {
       final equipment = EquipmentModel.fromFirestore(
         documentId: 'item-without-optionals',
-        data: {'name': 'Item', 'image': 'not-base64'},
+        data: {'name': 'Item', 'category': 'Cameras', 'image': 'not-base64'},
         status: EquipmentStatus.maintenance,
       );
 
-      expect(equipment.category, EquipmentCategory.accessories);
+      expect(equipment.category, EquipmentCategory.camera);
       expect(equipment.assetTag, isNull);
+      expect(equipment.displayTag, 'CM-ITEM');
       expect(equipment.location, isEmpty);
       expect(equipment.imageBytes, isNull);
       expect(equipment.status, EquipmentStatus.maintenance);

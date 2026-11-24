@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/equipment_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/request_provider.dart';
 import '../theme/app_colors.dart';
@@ -28,6 +29,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   int _previousTabIndex = 0;
+  int _browseRefreshCount = 0;
   DateTime? _lastBackPress;
   bool _hasOpenedMessages = false;
 
@@ -85,6 +87,19 @@ class _MainShellState extends State<MainShell> {
 
   void _openNotifications() => _goToTab(_notificationsTabIndex);
 
+  void _handleHomeTap() {
+    if (_currentIndex != _homeTabIndex) {
+      _goToTab(_homeTabIndex);
+      return;
+    }
+
+    context.read<EquipmentProvider>().resetBrowseFilters();
+    setState(() {
+      _browseRefreshCount++;
+      _lastBackPress = null;
+    });
+  }
+
   void _openScanner() {
     Navigator.push(
       context,
@@ -135,6 +150,7 @@ class _MainShellState extends State<MainShell> {
         unreadLoanUpdates + (requestProvider?.dueSoonCount(userId) ?? 0);
     final screens = [
       BrowseScreen(
+        key: ValueKey(_browseRefreshCount),
         onProfileTap: () => _goToTab(_profileTabIndex),
         onNotificationTap: _openNotifications,
       ),
@@ -176,7 +192,13 @@ class _MainShellState extends State<MainShell> {
                       selectedIndex: _currentIndex <= _profileTabIndex
                           ? _currentIndex
                           : _homeTabIndex,
-                      onDestinationSelected: _goToTab,
+                      onDestinationSelected: (index) {
+                        if (index == _homeTabIndex) {
+                          _handleHomeTap();
+                        } else {
+                          _goToTab(index);
+                        }
+                      },
                       labelType: NavigationRailLabelType.all,
                       selectedIconTheme: const IconThemeData(
                         color: AppColors.primaryLight,
@@ -268,7 +290,7 @@ class _MainShellState extends State<MainShell> {
                           icon: Icons.home_outlined,
                           selectedIcon: Icons.home,
                           selected: _currentIndex == _homeTabIndex,
-                          onTap: () => _goToTab(_homeTabIndex),
+                          onTap: _handleHomeTap,
                         ),
                       ),
                       Expanded(

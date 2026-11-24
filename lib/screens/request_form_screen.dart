@@ -146,7 +146,7 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${widget.equipment.location}  •  ${widget.equipment.id}',
+                        '${widget.equipment.location}  •  Tag: ${widget.equipment.displayTag}',
                         style: const TextStyle(
                           fontSize: 12.5,
                           color: AppColors.textSecondary,

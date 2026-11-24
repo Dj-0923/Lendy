@@ -113,6 +113,23 @@ class EquipmentModel {
 
   String get displayCategory => categoryName ?? category.label;
 
+  String get displayTag {
+    final tag = assetTag?.trim();
+    if (tag != null && tag.isNotEmpty && tag != id) return tag;
+
+    final prefix = switch (displayCategory.trim().toLowerCase()) {
+      'computer' || 'computers' => 'LT',
+      'camera' || 'cameras' => 'CM',
+      'tablet' || 'tablets' => 'TB',
+      'display' || 'displays' || 'projector' || 'projectors' => 'PJ',
+      'robotics' => 'RB',
+      'audio' => 'AU',
+      _ => 'OT',
+    };
+    final suffix = id.length > 4 ? id.substring(0, 4) : id;
+    return suffix.isEmpty ? 'Tag not set' : '$prefix-${suffix.toUpperCase()}';
+  }
+
   Uint8List? get imageBytes {
     final imageData = image;
     if (imageData == null || imageData.isEmpty) return null;

@@ -154,9 +154,7 @@ class EquipmentCard extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                equipment.assetTag?.isNotEmpty == true
-                    ? equipment.assetTag!
-                    : equipment.id,
+                equipment.displayTag,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -292,9 +290,6 @@ class _EquipmentDetailsDialog extends StatelessWidget {
     final brand = equipment.brand?.trim();
     final details = equipment.details?.trim();
     final location = equipment.location.trim();
-    final code = equipment.assetTag?.isNotEmpty == true
-        ? equipment.assetTag!
-        : equipment.id;
     final canRequest =
         equipment.status == EquipmentStatus.available && !requested;
     final requestLabel = requested
@@ -398,7 +393,7 @@ class _EquipmentDetailsDialog extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Code: $code',
+                          'Tag: ${equipment.displayTag}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

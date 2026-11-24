@@ -38,6 +38,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
   static const _homeHeroAspectRatio = 2.0;
   static const _compactHeroMaxWidth = 480.0;
   static const _homeHeroReferenceWidth = 773.0;
+  static const _assistantButtonSize = 64.0;
+  static const _assistantButtonBottomOffset = 20.0;
+  static const _browseContentBottomPadding = 16.0;
 
   final _searchController = TextEditingController();
   final _browseScrollController = ScrollController();
@@ -226,8 +229,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   Widget _buildAssistantButton(String? userId) {
     return SizedBox(
-      width: 64,
-      height: 64,
+      width: _assistantButtonSize,
+      height: _assistantButtonSize,
       child: ValueListenableBuilder<BorrowerAssistantReplyNotice?>(
         valueListenable: BorrowerAssistantConversationStore.replyNotice,
         builder: (context, notice, child) {
@@ -370,6 +373,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
     final requestProvider = context.watch<RequestProvider?>();
     final userId = context.watch<AuthProvider>().currentUser?.id;
     final equipmentList = equipmentProvider.filteredEquipment;
+    final listBottomPadding =
+        equipmentList.isNotEmpty && equipmentList.length.isEven
+        ? _assistantButtonSize + _assistantButtonBottomOffset
+        : _browseContentBottomPadding;
     final statusBarHeight = MediaQuery.of(context).padding.top;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final searchInset = (screenWidth * 0.052).clamp(20.0, 40.0).toDouble();
@@ -529,11 +536,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
                             child: ResponsiveContent(
                               maxWidth: 980,
                               child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
+                                padding: EdgeInsets.fromLTRB(
                                   20,
                                   12,
                                   20,
-                                  100,
+                                  listBottomPadding,
                                 ),
                                 child: Column(
                                   crossAxisAlignment:
@@ -659,7 +666,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
             ),
             Positioned(
               right: 16,
-              bottom: 20,
+              bottom: _assistantButtonBottomOffset,
               child: _buildAssistantButton(userId),
             ),
           ],

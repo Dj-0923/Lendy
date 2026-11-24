@@ -1064,9 +1064,7 @@ class _AssistantLandscapeItemCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      equipment.assetTag?.isNotEmpty == true
-                          ? equipment.assetTag!
-                          : equipment.id,
+                      equipment.displayTag,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

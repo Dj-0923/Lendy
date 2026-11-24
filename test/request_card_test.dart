@@ -66,6 +66,7 @@ void main() {
               category: EquipmentCategory.projector,
               location: 'Storage Room',
               status: EquipmentStatus.borrowed,
+              assetTag: 'PJ-OY3I',
             ),
           ),
         ),
@@ -80,6 +81,8 @@ void main() {
       find.text('Verified by Admin: November 16, 2026 at 10:30 AM'),
       findsOneWidget,
     );
+    expect(find.text('PJ-OY3I'), findsOneWidget);
+    expect(find.text('EQ-014'), findsNothing);
   });
 
   testWidgets('overdue borrowed card is styled red', (tester) async {

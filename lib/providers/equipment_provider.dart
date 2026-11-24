@@ -204,6 +204,18 @@ class EquipmentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void resetBrowseFilters() {
+    if (_searchQuery.isEmpty &&
+        _selectedCategory == null &&
+        _selectedAvailability == null) {
+      return;
+    }
+    _searchQuery = '';
+    _selectedCategory = null;
+    _selectedAvailability = null;
+    notifyListeners();
+  }
+
   /// Updates a single equipment item's status.
   /// Called by RequestProvider as part of the borrow request lifecycle —
   /// UI screens should never set equipment status directly.

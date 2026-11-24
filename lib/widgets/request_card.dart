@@ -28,6 +28,7 @@ class RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = equipment?.name ?? 'Unknown equipment';
     final location = equipment?.location ?? '';
+    final tag = equipment?.displayTag ?? 'Tag unavailable';
     final today = DateUtils.dateOnly(DateTime.now());
     final dueDate = DateUtils.dateOnly(request.requestedReturnDate);
     final isOverdue =
@@ -60,7 +61,10 @@ class RequestCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                request.equipmentId,
+                tag,
+                key: const Key('request-card-equipment-tag'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 12.5,
                   color: AppColors.textSecondary,

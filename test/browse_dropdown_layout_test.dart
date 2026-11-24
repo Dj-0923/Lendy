@@ -30,13 +30,16 @@ void main() {
     WidgetTester tester, {
     VoidCallback? onProfileTap,
     VoidCallback? onNotificationTap,
+    List<EquipmentModel> initialEquipment = const [],
   }) async {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider.forTesting()),
           ChangeNotifierProvider(
-            create: (_) => equipment = EquipmentProvider(),
+            create: (_) => equipment = EquipmentProvider(
+              initialEquipment: initialEquipment,
+            ),
           ),
         ],
         child: MaterialApp(
@@ -243,6 +246,45 @@ void main() {
       expect(assistantRect.right, lessThanOrEqualTo(width));
       expect(assistantRect.bottom, lessThanOrEqualTo(height));
     }
+  });
+
+  testWidgets('odd inventory list ends close to the bottom navigation', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await pumpBrowse(
+      tester,
+      initialEquipment: List.generate(
+        5,
+        (index) => EquipmentModel(
+          id: 'item-$index',
+          name: 'Item $index',
+          category: EquipmentCategory.camera,
+          location: 'Storage Room',
+          status: EquipmentStatus.available,
+          assetTag: 'CM-000$index',
+        ),
+      ),
+    );
+
+    final scrollView = find.byKey(const Key('browse-scroll-view'));
+    await tester.drag(scrollView, const Offset(0, -2000));
+    await tester.pumpAndSettle();
+
+    final lastCard = find.byKey(const Key('equipment-card-item-4'));
+    final assistantButton = find.byKey(const Key('browse-ai-assistant-button'));
+    final lastCardRect = tester.getRect(lastCard);
+    final assistantButtonRect = tester.getRect(assistantButton);
+
+    expect(
+      tester.getRect(scrollView).bottom - lastCardRect.bottom,
+      closeTo(16, 1),
+    );
+    expect(lastCardRect.right, lessThan(assistantButtonRect.left));
   });
 
   testWidgets('AI assistant button opens the borrower assistant', (
