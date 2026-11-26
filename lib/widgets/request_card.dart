@@ -33,6 +33,20 @@ class RequestCard extends StatelessWidget {
     final dueDate = DateUtils.dateOnly(request.requestedReturnDate);
     final isOverdue =
         request.status == RequestStatus.borrowed && dueDate.isBefore(today);
+    final showLoanReminder = {
+      RequestStatus.approved,
+      RequestStatus.borrowed,
+      RequestStatus.returnPending,
+    }.contains(request.status);
+    final borrowPeriod = request.durationType == BorrowDurationType.hours
+        ? '${formatShortDate(request.requestedBorrowDate)} · '
+              '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(request.requestedBorrowDate))}'
+              ' – ${formatShortDate(request.requestedReturnDate)} · '
+              '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(request.requestedReturnDate))}'
+        : formatDateRange(
+            request.requestedBorrowDate,
+            request.requestedReturnDate,
+          );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -78,10 +92,7 @@ class RequestCard extends StatelessWidget {
             spacing: 8,
             children: [
               Text(
-                formatDateRange(
-                  request.requestedBorrowDate,
-                  request.requestedReturnDate,
-                ),
+                borrowPeriod,
                 style: const TextStyle(
                   fontSize: 12.5,
                   color: AppColors.textSecondary,
@@ -108,6 +119,37 @@ class RequestCard extends StatelessWidget {
                 ),
             ],
           ),
+          if (showLoanReminder)
+            Container(
+              key: const Key('loan-policy-reminder'),
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E7),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF0E1B7)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Loan reminders',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text('Do not take borrowed items home.'),
+                  SizedBox(height: 2),
+                  Text(
+                    'Borrowers are responsible for repair or replacement '
+                    'costs for lost or damaged items.',
+                  ),
+                ],
+              ),
+            ),
           if (request.status == RequestStatus.returnPending) ...[
             const SizedBox(height: 8),
             const Text(
@@ -184,6 +226,108 @@ class RequestCard extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class GroupedRequestCard extends StatelessWidget {
+  const GroupedRequestCard({
+    super.key,
+    required this.requests,
+    required this.equipments,
+    required this.onCancel,
+  });
+
+  final List<BorrowRequestModel> requests;
+  final List<EquipmentModel?> equipments;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final request = requests.first;
+    final borrowPeriod = request.durationType == BorrowDurationType.hours
+        ? '${formatShortDate(request.requestedBorrowDate)} · '
+              '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(request.requestedBorrowDate))}'
+              ' – ${formatShortDate(request.requestedReturnDate)} · '
+              '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(request.requestedReturnDate))}'
+        : formatDateRange(
+            request.requestedBorrowDate,
+            request.requestedReturnDate,
+          );
+
+    return Container(
+      key: Key('request-group-card-${request.requestGroupId}'),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.fieldBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${requests.length} items requested',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          for (var index = 0; index < requests.length; index++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      equipments[index]?.name ?? 'Unknown equipment',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    equipments[index]?.displayTag ?? 'Tag unavailable',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 4),
+          Text(
+            borrowPeriod,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: StatusBadge(style: requestStatusStyle(request.status)),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: OutlinedButton(
+              onPressed: onCancel,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.danger,
+                side: const BorderSide(color: AppColors.danger),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Cancel request',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
         ],
       ),
     );

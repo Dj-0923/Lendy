@@ -111,6 +111,30 @@ void main() {
     expect(fieldRect(tester, 1), baseline, reason: 'field moved on reset');
   });
 
+  testWidgets('search field loses focus when tapping a homepage filter', (
+    tester,
+  ) async {
+    await pumpBrowse(tester);
+
+    final searchField = find.byKey(const Key('browse-search-field'));
+    await tester.tap(searchField);
+    await tester.enterText(searchField, 'mouse');
+    await tester.pump();
+
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus,
+      isTrue,
+    );
+
+    await tester.tap(find.text('All Categories').first);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus,
+      isFalse,
+    );
+  });
+
   testWidgets('dropdown icons stay pinned to the right as selections change', (
     tester,
   ) async {

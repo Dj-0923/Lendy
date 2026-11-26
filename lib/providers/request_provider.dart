@@ -19,6 +19,7 @@ class RequestProvider extends ChangeNotifier {
   String? _errorMessage;
   bool _loanPageVisible = false;
   final Set<String> _submittingEquipmentIds = {};
+  int _localRequestGroupSequence = 0;
 
   /// Called by the ProxyProviders whenever a dependency changes.
   void updateEquipmentProvider(EquipmentProvider equipmentProvider) {
@@ -106,6 +107,16 @@ class RequestProvider extends ChangeNotifier {
   List<BorrowRequestModel> pendingRequests(String userId) => requestsForUser(
     userId,
   ).where((r) => r.status == RequestStatus.pending).toList();
+
+  List<List<BorrowRequestModel>> pendingRequestGroups(String userId) {
+    final groups = <String, List<BorrowRequestModel>>{};
+    for (final request in pendingRequests(userId)) {
+      final key = request.requestGroupId ?? request.id;
+      groups.putIfAbsent(key, () => []).add(request);
+    }
+    return groups.values.toList()
+      ..sort((a, b) => b.first.requestDate.compareTo(a.first.requestDate));
+  }
 
   List<BorrowRequestModel> historyRequests(String userId) =>
       requestsForUser(userId)
@@ -226,7 +237,14 @@ class RequestProvider extends ChangeNotifier {
     required String borrowerName,
     required DateTime borrowDate,
     required DateTime returnDate,
+    BorrowDurationType durationType = BorrowDurationType.days,
   }) async {
+    _validateLoanPeriod(
+      borrowDate: borrowDate,
+      returnDate: returnDate,
+      durationType: durationType,
+    );
+
     final submissionKey = '$userId::$equipmentId';
     if (hasPendingRequest(userId, equipmentId) ||
         !_submittingEquipmentIds.add(submissionKey)) {
@@ -244,6 +262,7 @@ class RequestProvider extends ChangeNotifier {
             equipmentId: equipmentId,
             requestedBorrowDate: borrowDate,
             requestedReturnDate: returnDate,
+            durationType: durationType,
             requestDate: now,
             status: RequestStatus.pending,
           ),
@@ -261,6 +280,9 @@ class RequestProvider extends ChangeNotifier {
         'borrower': borrowerName,
         'start': _dateOnly(borrowDate),
         'end': _dateOnly(returnDate),
+        'startAt': borrowDate.toIso8601String(),
+        'endAt': returnDate.toIso8601String(),
+        'durationType': durationType.name,
         'status': 'pending',
         'returnedOn': null,
         'updatedAt': now.millisecondsSinceEpoch,
@@ -273,6 +295,7 @@ class RequestProvider extends ChangeNotifier {
           equipmentId: equipmentId,
           requestedBorrowDate: borrowDate,
           requestedReturnDate: returnDate,
+          durationType: durationType,
           requestDate: now,
           status: RequestStatus.pending,
         ),
@@ -280,6 +303,121 @@ class RequestProvider extends ChangeNotifier {
       notifyListeners();
     } finally {
       _submittingEquipmentIds.remove(submissionKey);
+    }
+  }
+
+  /// Submits one shared request for several equipment items.
+  Future<void> submitGroupRequest({
+    required String userId,
+    required List<EquipmentModel> equipment,
+    required String borrowerName,
+    required DateTime borrowDate,
+    required DateTime returnDate,
+    BorrowDurationType durationType = BorrowDurationType.days,
+  }) async {
+    _validateLoanPeriod(
+      borrowDate: borrowDate,
+      returnDate: returnDate,
+      durationType: durationType,
+    );
+    if (equipment.length < 2) {
+      throw ArgumentError('A grouped request must contain at least two items.');
+    }
+    if (equipment.length > 500) {
+      throw ArgumentError('A request can include up to 500 items.');
+    }
+    final equipmentIds = equipment.map((item) => item.id).toSet();
+    if (equipmentIds.length != equipment.length) {
+      throw ArgumentError('A request cannot contain the same item twice.');
+    }
+
+    final reservedKeys = <String>[];
+    for (final item in equipment) {
+      final key = '$userId::${item.id}';
+      if (hasPendingRequest(userId, item.id) ||
+          !_submittingEquipmentIds.add(key)) {
+        _submittingEquipmentIds.removeAll(reservedKeys);
+        throw StateError(
+          'You already have a pending request for one of these items.',
+        );
+      }
+      reservedKeys.add(key);
+    }
+
+    final now = DateTime.now();
+    final groupId =
+        _firestore?.collection('loans').doc().id ??
+        'local_${now.microsecondsSinceEpoch}_${_localRequestGroupSequence++}';
+    try {
+      if (_firestore == null) {
+        var localRequestNumber = _requests.length;
+        _requests.addAll(
+          equipment.map((item) {
+            localRequestNumber++;
+            return BorrowRequestModel(
+              id: 'r${localRequestNumber}_${now.microsecondsSinceEpoch}',
+              studentOrFacultyId: userId,
+              borrowerName: borrowerName,
+              equipmentId: item.id,
+              requestGroupId: groupId,
+              requestedBorrowDate: borrowDate,
+              requestedReturnDate: returnDate,
+              durationType: durationType,
+              requestDate: now,
+              status: RequestStatus.pending,
+            );
+          }),
+        );
+        notifyListeners();
+        return;
+      }
+
+      final firestore = _firestore;
+      final batch = firestore.batch();
+      final createdRequestIds = <String>[];
+      for (final item in equipment) {
+        final document = firestore.collection('loans').doc();
+        createdRequestIds.add(document.id);
+        batch.set(document, {
+          'id': document.id,
+          'borrowerUid': userId,
+          'equipmentId': item.id,
+          'name': item.name,
+          'borrower': borrowerName,
+          'start': _dateOnly(borrowDate),
+          'end': _dateOnly(returnDate),
+          'startAt': borrowDate.toIso8601String(),
+          'endAt': returnDate.toIso8601String(),
+          'durationType': durationType.name,
+          'requestGroupId': groupId,
+          'status': 'pending',
+          'returnedOn': null,
+          'updatedAt': now.millisecondsSinceEpoch,
+        });
+      }
+      await batch.commit();
+      for (var index = 0; index < equipment.length; index++) {
+        final item = equipment[index];
+        final requestId = createdRequestIds[index];
+        if (_requests.any((request) => request.id == requestId)) continue;
+        _requests.add(
+          BorrowRequestModel(
+            id: requestId,
+            studentOrFacultyId: userId,
+            borrowerName: borrowerName,
+            equipmentId: item.id,
+            requestGroupId: groupId,
+            requestedBorrowDate: borrowDate,
+            requestedReturnDate: returnDate,
+            durationType: durationType,
+            requestDate: now,
+            status: RequestStatus.pending,
+          ),
+        );
+      }
+      notifyListeners();
+    } finally {
+      _submittingEquipmentIds.removeAll(reservedKeys);
     }
   }
 
@@ -306,13 +444,29 @@ class RequestProvider extends ChangeNotifier {
 
   Future<void> cancelRequest(String requestId) async {
     final request = _requests.firstWhere((r) => r.id == requestId);
+    final group = request.requestGroupId == null
+        ? [request]
+        : _requests
+              .where((r) => r.requestGroupId == request.requestGroupId)
+              .toList();
+    if (group.any((r) => r.status != RequestStatus.pending)) {
+      throw StateError('This request is no longer pending.');
+    }
+
     if (_firestore != null) {
-      await _firestore.collection('loans').doc(requestId).update({
-        'status': 'cancelled',
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      });
+      final batch = _firestore.batch();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (final member in group) {
+        batch.update(_firestore.collection('loans').doc(member.id), {
+          'status': 'cancelled',
+          'updatedAt': now,
+        });
+      }
+      await batch.commit();
     } else {
-      request.status = RequestStatus.cancelled;
+      for (final member in group) {
+        member.status = RequestStatus.cancelled;
+      }
       notifyListeners();
     }
   }
@@ -351,13 +505,22 @@ class RequestProvider extends ChangeNotifier {
       'cancelled' => RequestStatus.cancelled,
       final value => throw FormatException('Unknown loan status: $value'),
     };
+    final durationType = switch (data['durationType']) {
+      'hours' => BorrowDurationType.hours,
+      'days' || null => BorrowDurationType.days,
+      final value => throw FormatException(
+        'Unknown loan duration type: $value',
+      ),
+    };
     return BorrowRequestModel(
       id: document.id,
       studentOrFacultyId: data['borrowerUid'] as String,
       borrowerName: data['borrower'] as String? ?? '',
       equipmentId: data['equipmentId'] as String,
-      requestedBorrowDate: DateTime.parse(data['start'] as String),
-      requestedReturnDate: DateTime.parse(data['end'] as String),
+      requestGroupId: data['requestGroupId'] as String?,
+      requestedBorrowDate: _loanDateTime(data, 'startAt', 'start'),
+      requestedReturnDate: _loanDateTime(data, 'endAt', 'end'),
+      durationType: durationType,
       requestDate: DateTime.fromMillisecondsSinceEpoch(
         data['updatedAt'] as int? ?? 0,
       ),
@@ -390,6 +553,54 @@ class RequestProvider extends ChangeNotifier {
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
+
+  DateTime _loanDateTime(
+    Map<String, dynamic> data,
+    String dateTimeField,
+    String dateField,
+  ) {
+    final dateTime = data[dateTimeField];
+    return DateTime.parse(
+      dateTime is String ? dateTime : data[dateField] as String,
+    );
+  }
+
+  void _validateLoanPeriod({
+    required DateTime borrowDate,
+    required DateTime returnDate,
+    required BorrowDurationType durationType,
+  }) {
+    final borrowDay = DateTime.utc(
+      borrowDate.year,
+      borrowDate.month,
+      borrowDate.day,
+    );
+    final returnDay = DateTime.utc(
+      returnDate.year,
+      returnDate.month,
+      returnDate.day,
+    );
+    final dayCount = returnDay.difference(borrowDay).inDays;
+
+    if (durationType == BorrowDurationType.hours) {
+      if (dayCount != 0 ||
+          !returnDate.isAfter(borrowDate) ||
+          returnDate.difference(borrowDate) > const Duration(days: 1)) {
+        throw ArgumentError(
+          'Hourly requests must start and end on the same date, '
+          'with the return time after the borrow time.',
+        );
+      }
+      return;
+    }
+
+    if (dayCount < 0) {
+      throw ArgumentError('Return date cannot be before the borrow date.');
+    }
+    if (dayCount > 14) {
+      throw ArgumentError('The maximum borrowing period is 14 days.');
+    }
+  }
 
   @override
   void dispose() {

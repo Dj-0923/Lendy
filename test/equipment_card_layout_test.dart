@@ -24,6 +24,32 @@ void main() {
     expect(equipment.details, 'Mechanical keyboard');
   });
 
+  test('long legacy tags use a short category-prefixed display tag', () {
+    final equipment = EquipmentModel(
+      id: 'EQ-014',
+      name: 'Camera',
+      category: EquipmentCategory.camera,
+      location: 'AV Storage',
+      status: EquipmentStatus.available,
+      assetTag: 'LEGACY-ASSET-REFERENCE-2024',
+    );
+
+    expect(equipment.displayTag, 'CM-EQ-0');
+  });
+
+  test('valid short asset tags are preserved', () {
+    final equipment = EquipmentModel(
+      id: 'EQ-014',
+      name: 'Camera',
+      category: EquipmentCategory.camera,
+      location: 'AV Storage',
+      status: EquipmentStatus.available,
+      assetTag: 'CM-QBTO',
+    );
+
+    expect(equipment.displayTag, 'CM-QBTO');
+  });
+
   testWidgets('item image uses a compact card height', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -47,7 +73,15 @@ void main() {
     final locationIcon = tester.widget<Icon>(find.byIcon(Icons.location_on));
     expect(locationIcon.color, AppColors.primaryLight);
     expect(find.text('Tap for details'), findsNothing);
-    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.visibility_outlined), findsNothing);
+    final viewDetailsRect = tester.getRect(
+      find.byKey(const Key('equipment-card-view-details')),
+    );
+    final requestRect = tester.getRect(
+      find.widgetWithText(ElevatedButton, 'Request'),
+    );
+    expect(viewDetailsRect.width, closeTo(requestRect.width, 0.1));
+    expect(viewDetailsRect.height, closeTo(requestRect.height, 0.1));
     expect(tester.getSize(find.byType(Image)).height, 118);
     final codeRect = tester.getRect(find.text('CM-01AB'));
     final locationRect = tester.getRect(find.text('AV Storage'));
@@ -224,6 +258,35 @@ void main() {
     expect(find.byKey(const Key('equipment-details-dialog')), findsNothing);
   });
 
+  testWidgets('selection checkbox invokes the item selection callback', (
+    tester,
+  ) async {
+    var selected = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: EquipmentCard(
+            equipment: EquipmentModel(
+              id: 'EQ-020',
+              name: 'Camera',
+              category: EquipmentCategory.camera,
+              location: 'AV Storage',
+              status: EquipmentStatus.available,
+            ),
+            selectionMode: true,
+            onSelect: () => selected = true,
+            onRequest: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Select Camera'));
+    await tester.pump();
+
+    expect(selected, isTrue);
+  });
+
   testWidgets('tapping item content does not open details', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -337,9 +400,52 @@ void main() {
 
     final code = find.text('CM-01AB');
     final name = find.text('Camera');
+    final category = find.text('CAMERA');
 
     expect(tester.getRect(code).top, greaterThan(tester.getRect(name).bottom));
     expect(tester.getRect(code).left, closeTo(tester.getRect(name).left, 1));
+    expect(
+      tester.getRect(name).top - tester.getRect(category).bottom,
+      closeTo(2, 0.1),
+    );
+  });
+
+  testWidgets('unavailable item details keep a gray disabled Request button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: EquipmentCard(
+            equipment: EquipmentModel(
+              id: 'EQ-018',
+              name: 'Printer',
+              category: EquipmentCategory.laptop,
+              location: 'AV Storage',
+              status: EquipmentStatus.borrowed,
+            ),
+            onRequest: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('equipment-card-view-details')));
+    await tester.pumpAndSettle();
+
+    final requestButton = tester.widget<ElevatedButton>(
+      find.byKey(const Key('equipment-details-request')),
+    );
+    final requestLabel = find.descendant(
+      of: find.byKey(const Key('equipment-details-request')),
+      matching: find.text('Request'),
+    );
+    expect(requestLabel, findsOneWidget);
+    expect(requestButton.onPressed, isNull);
+    expect(
+      requestButton.style?.backgroundColor?.resolve({}),
+      const Color(0xFFE0E0E0),
+    );
   });
 
   testWidgets('requested item shows a disabled Requested button', (
@@ -366,5 +472,41 @@ void main() {
     final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
     expect(find.text('Requested'), findsOneWidget);
     expect(button.onPressed, isNull);
+  });
+
+  testWidgets('unavailable items keep a gray disabled Request button', (
+    tester,
+  ) async {
+    for (final status in [
+      EquipmentStatus.reserved,
+      EquipmentStatus.borrowed,
+      EquipmentStatus.maintenance,
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: EquipmentCard(
+              equipment: EquipmentModel(
+                id: 'EQ-016',
+                name: 'Projector',
+                category: EquipmentCategory.projector,
+                location: 'AV Storage',
+                status: status,
+              ),
+              onRequest: () {},
+            ),
+          ),
+        ),
+      );
+
+      final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      expect(find.text('Request'), findsOneWidget);
+      expect(find.text(status.label.toUpperCase()), findsOneWidget);
+      expect(button.onPressed, isNull);
+      expect(
+        button.style?.backgroundColor?.resolve({}),
+        const Color(0xFFE0E0E0),
+      );
+    }
   });
 }

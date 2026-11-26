@@ -115,7 +115,9 @@ class EquipmentModel {
 
   String get displayTag {
     final tag = assetTag?.trim();
-    if (tag != null && tag.isNotEmpty && tag != id) return tag;
+    if (tag != null && tag.isNotEmpty && tag.length <= 16 && tag != id) {
+      return tag;
+    }
 
     final prefix = switch (displayCategory.trim().toLowerCase()) {
       'computer' || 'computers' => 'LT',

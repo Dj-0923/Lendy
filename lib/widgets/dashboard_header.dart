@@ -71,7 +71,7 @@ class DashboardHeader extends StatelessWidget {
             : DecorationImage(
                 image: AssetImage(background),
                 fit: BoxFit.cover,
-                alignment: Alignment.centerRight,
+                alignment: const Alignment(1, -0.1),
                 filterQuality: FilterQuality.high,
               ),
         borderRadius: roundedBottom

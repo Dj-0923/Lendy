@@ -25,12 +25,18 @@ class EquipmentCard extends StatelessWidget {
   final EquipmentModel equipment;
   final VoidCallback onRequest;
   final bool requested;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback? onSelect;
 
   const EquipmentCard({
     super.key,
     required this.equipment,
     required this.onRequest,
     this.requested = false,
+    this.selectionMode = false,
+    this.selected = false,
+    this.onSelect,
   });
 
   void _showDetails(BuildContext context) {
@@ -52,7 +58,10 @@ class EquipmentCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.fieldBorder),
+        border: Border.all(
+          color: selected ? AppColors.primaryLight : AppColors.fieldBorder,
+          width: selected ? 2 : 1,
+        ),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -96,35 +105,72 @@ class EquipmentCard extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: SizedBox(
-                  height: imageHeight,
-                  width: double.infinity,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (imageBytes != null)
-                        Image.memory(
-                          imageBytes,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                        ),
+              SizedBox(
+                height: imageHeight,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  clipBehavior: Clip.none,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (imageBytes != null)
+                            Image.memory(
+                              imageBytes,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: FittedBox(
+                              alignment: Alignment.topRight,
+                              fit: BoxFit.scaleDown,
+                              child: StatusBadge(
+                                style: equipmentStatusStyle(equipment.status),
+                                uppercase: true,
+                                compact: true,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (selectionMode)
                       Positioned(
-                        top: 8,
-                        right: 8,
-                        child: FittedBox(
-                          alignment: Alignment.topRight,
-                          fit: BoxFit.scaleDown,
-                          child: StatusBadge(
-                            style: equipmentStatusStyle(equipment.status),
-                            uppercase: true,
-                            compact: true,
+                        top: -12,
+                        left: -19,
+                        child: IconButton(
+                          tooltip: selected
+                              ? 'Deselect ${equipment.name}'
+                              : 'Select ${equipment.name}',
+                          onPressed:
+                              equipment.status == EquipmentStatus.available &&
+                                  !requested
+                              ? onSelect
+                              : null,
+                          icon: Icon(
+                            selected
+                                ? Icons.check_circle
+                                : Icons.radio_button_unchecked,
+                            size: 18,
+                          ),
+                          color: selected
+                              ? AppColors.primaryLight
+                              : AppColors.textSecondary,
+                          disabledColor: AppColors.fieldBorder,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 34,
+                            height: 34,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
@@ -139,7 +185,7 @@ class EquipmentCard extends StatelessWidget {
                   letterSpacing: 0.6,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               SizedBox(
                 width: double.infinity,
                 child: Text(
@@ -193,7 +239,6 @@ class EquipmentCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      flex: 8,
                       child: OutlinedButton(
                         key: const Key('equipment-card-view-details'),
                         onPressed: () => _showDetails(context),
@@ -210,28 +255,20 @@ class EquipmentCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        child: FittedBox(
+                        child: const FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.visibility_outlined, size: 16),
-                              const SizedBox(width: 4),
-                              const Text(
-                                'View Details',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            'View Details',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
-                      flex: 6,
                       child: ElevatedButton(
                         onPressed:
                             equipment.status == EquipmentStatus.available &&
@@ -239,8 +276,14 @@ class EquipmentCard extends StatelessWidget {
                             ? onRequest
                             : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryLight,
-                          foregroundColor: Colors.white,
+                          backgroundColor:
+                              equipment.status == EquipmentStatus.available
+                              ? AppColors.primaryLight
+                              : const Color(0xFFE0E0E0),
+                          foregroundColor:
+                              equipment.status == EquipmentStatus.available
+                              ? Colors.white
+                              : const Color(0xFF757575),
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           minimumSize: const Size(0, 38),
@@ -250,13 +293,9 @@ class EquipmentCard extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          requested
-                              ? 'Requested'
-                              : equipment.status == EquipmentStatus.available
-                              ? 'Request'
-                              : equipment.status.label,
+                          requested ? 'Requested' : 'Request',
                           style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -292,11 +331,8 @@ class _EquipmentDetailsDialog extends StatelessWidget {
     final location = equipment.location.trim();
     final canRequest =
         equipment.status == EquipmentStatus.available && !requested;
-    final requestLabel = requested
-        ? 'Requested'
-        : equipment.status == EquipmentStatus.available
-        ? 'Request'
-        : equipment.status.label;
+    final requestLabel = requested ? 'Requested' : 'Request';
+    final isAvailable = equipment.status == EquipmentStatus.available;
     final imageWidth = (MediaQuery.sizeOf(context).width * 0.3)
         .clamp(96.0, 132.0)
         .toDouble();
@@ -467,8 +503,12 @@ class _EquipmentDetailsDialog extends StatelessWidget {
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryLight,
-                    foregroundColor: Colors.white,
+                    backgroundColor: isAvailable
+                        ? AppColors.primaryLight
+                        : const Color(0xFFE0E0E0),
+                    foregroundColor: isAvailable
+                        ? Colors.white
+                        : const Color(0xFF757575),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),

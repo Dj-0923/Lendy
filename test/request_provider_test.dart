@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lendy/models/borrow_request_model.dart';
+import 'package:lendy/models/equipment_model.dart';
 import 'package:lendy/providers/equipment_provider.dart';
 import 'package:lendy/providers/request_provider.dart';
 
@@ -20,12 +21,16 @@ void main() {
     required String userId,
     required DateTime returnDate,
   }) async {
+    final now = DateTime.now();
+    final borrowDate = returnDate.isBefore(now)
+        ? returnDate.subtract(const Duration(days: 4))
+        : now;
     await requests.submitRequest(
       userId: userId,
       equipmentId: 'equipment-1',
       equipmentName: 'Equipment',
       borrowerName: 'Test User',
-      borrowDate: DateTime.now(),
+      borrowDate: borrowDate,
       returnDate: returnDate,
     );
     final id = requests.requestsForUser(userId).last.id;
@@ -75,7 +80,7 @@ void main() {
 
   test('recent borrowings returns only the three latest activities', () async {
     const userId = 'user-2';
-    final returnDate = DateTime.now().add(const Duration(days: 30));
+    final returnDate = DateTime.now().add(const Duration(days: 10));
     final ids = <String>[];
 
     for (var i = 0; i < 4; i++) {
@@ -136,6 +141,99 @@ void main() {
     await submit('equipment-2');
 
     expect(requests.requestsForUser('requester'), hasLength(2));
+  });
+
+  test('day-based loan requests cannot exceed 14 days', () async {
+    final borrowDate = DateTime(2026, 11, 26);
+    await requests.submitRequest(
+      userId: 'two-week-user',
+      equipmentId: 'equipment-14-days',
+      equipmentName: 'Equipment',
+      borrowerName: 'Test User',
+      borrowDate: borrowDate,
+      returnDate: borrowDate.add(const Duration(days: 14)),
+    );
+
+    await expectLater(
+      requests.submitRequest(
+        userId: 'two-week-user',
+        equipmentId: 'equipment-too-long',
+        equipmentName: 'Equipment',
+        borrowerName: 'Test User',
+        borrowDate: borrowDate,
+        returnDate: borrowDate.add(const Duration(days: 15)),
+      ),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(requests.requestsForUser('two-week-user'), hasLength(1));
+  });
+
+  test('hour-based loan requests preserve their selected times', () async {
+    final borrowDate = DateTime(2026, 11, 26, 9);
+    final returnDate = DateTime(2026, 11, 26, 11, 30);
+    await requests.submitRequest(
+      userId: 'hourly-user',
+      equipmentId: 'equipment-hourly',
+      equipmentName: 'Equipment',
+      borrowerName: 'Test User',
+      borrowDate: borrowDate,
+      returnDate: returnDate,
+      durationType: BorrowDurationType.hours,
+    );
+
+    final request = requests.requestsForUser('hourly-user').single;
+    expect(request.durationType, BorrowDurationType.hours);
+    expect(request.requestedBorrowDate, borrowDate);
+    expect(request.requestedReturnDate, returnDate);
+  });
+
+  test('grouped requests share dates and cancel together', () async {
+    const userId = 'grouped-user';
+    final borrowDate = DateTime(2026, 11, 26, 9);
+    final returnDate = DateTime(2026, 11, 27, 9);
+    await requests.submitGroupRequest(
+      userId: userId,
+      borrowerName: 'Test User',
+      equipment: [
+        EquipmentModel(
+          id: 'group-item-1',
+          name: 'Camera',
+          category: EquipmentCategory.camera,
+          location: 'AV Storage',
+          status: EquipmentStatus.available,
+        ),
+        EquipmentModel(
+          id: 'group-item-2',
+          name: 'Tripod',
+          category: EquipmentCategory.accessories,
+          location: 'AV Storage',
+          status: EquipmentStatus.available,
+        ),
+      ],
+      borrowDate: borrowDate,
+      returnDate: returnDate,
+    );
+
+    final group = requests.pendingRequestGroups(userId).single;
+    expect(group, hasLength(2));
+    expect(group.map((request) => request.equipmentId), [
+      'group-item-1',
+      'group-item-2',
+    ]);
+    expect(group.map((request) => request.requestGroupId).toSet(), hasLength(1));
+    expect(group.first.requestGroupId, isNotNull);
+    expect(group.every((request) => request.requestedBorrowDate == borrowDate), isTrue);
+    expect(group.every((request) => request.requestedReturnDate == returnDate), isTrue);
+
+    await requests.cancelRequest(group.first.id);
+
+    expect(requests.pendingRequests(userId), isEmpty);
+    expect(
+      requests.requestsForUser(userId).every(
+        (request) => request.status == RequestStatus.cancelled,
+      ),
+      isTrue,
+    );
   });
 
   test('rejected return count clears when the borrower resubmits', () async {

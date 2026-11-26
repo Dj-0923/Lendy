@@ -13,6 +13,8 @@ enum RequestStatus {
   cancelled,
 }
 
+enum BorrowDurationType { hours, days }
+
 extension RequestStatusX on RequestStatus {
   String get label {
     switch (this) {
@@ -42,8 +44,10 @@ class BorrowRequestModel {
   final String studentOrFacultyId; // the logged-in user's id
   final String borrowerName;
   final String equipmentId;
+  final String? requestGroupId;
   final DateTime requestedBorrowDate;
   final DateTime requestedReturnDate;
+  final BorrowDurationType durationType;
   final DateTime requestDate; // when the request was submitted
   DateTime activityDate;
   DateTime? approvedDate;
@@ -61,8 +65,10 @@ class BorrowRequestModel {
     required this.studentOrFacultyId,
     required this.borrowerName,
     required this.equipmentId,
+    this.requestGroupId,
     required this.requestedBorrowDate,
     required this.requestedReturnDate,
+    this.durationType = BorrowDurationType.days,
     required this.requestDate,
     DateTime? activityDate,
     this.approvedDate,

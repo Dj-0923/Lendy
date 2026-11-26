@@ -32,12 +32,14 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     final userId = auth.currentUser?.id ?? '';
 
     List<BorrowRequestModel> requests;
+    List<List<BorrowRequestModel>> pendingGroups = [];
     switch (_selectedTab) {
       case _RequestTab.active:
         requests = requestProvider.activeRequests(userId);
         break;
       case _RequestTab.pending:
-        requests = requestProvider.pendingRequests(userId);
+        requests = [];
+        pendingGroups = requestProvider.pendingRequestGroups(userId);
         break;
       case _RequestTab.history:
         requests = requestProvider
@@ -110,7 +112,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                   const SizedBox(height: 18),
 
                   // ----- Request list -----
-                  if (requests.isEmpty)
+                  if (requests.isEmpty && pendingGroups.isEmpty)
                     const Padding(
                       padding: EdgeInsets.only(top: 40),
                       child: Center(
@@ -120,6 +122,33 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                         ),
                       ),
                     )
+                  else if (_selectedTab == _RequestTab.pending)
+                    ...pendingGroups.map((group) {
+                      final equipment = group
+                          .map(
+                            (request) => equipmentProvider.findById(
+                              request.equipmentId,
+                            ),
+                          )
+                          .toList();
+                      if (group.length > 1) {
+                        return GroupedRequestCard(
+                          requests: group,
+                          equipments: equipment,
+                          onCancel: () => _runRequestAction(
+                            () => requestProvider.cancelRequest(group.first.id),
+                          ),
+                        );
+                      }
+                      return RequestCard(
+                        request: group.single,
+                        equipment: equipment.single,
+                        actionLabel: 'Cancel',
+                        onAction: () => _runRequestAction(
+                          () => requestProvider.cancelRequest(group.single.id),
+                        ),
+                      );
+                    })
                   else
                     ...requests.map((request) {
                       final equipment = equipmentProvider.findById(

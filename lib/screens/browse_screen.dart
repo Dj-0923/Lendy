@@ -45,6 +45,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
   final _searchController = TextEditingController();
   final _browseScrollController = ScrollController();
   bool _isBrowseScrolled = false;
+  bool _isMultiSelectMode = false;
+  final Set<String> _selectedEquipmentIds = {};
   String? _noticeUserId;
 
   @override
@@ -78,6 +80,37 @@ class _BrowseScreenState extends State<BrowseScreen> {
         _browseScrollController.offset > 0;
     if (isScrolled == _isBrowseScrolled) return;
     setState(() => _isBrowseScrolled = isScrolled);
+  }
+
+  void _toggleMultiSelectMode() {
+    setState(() {
+      _isMultiSelectMode = !_isMultiSelectMode;
+      if (!_isMultiSelectMode) _selectedEquipmentIds.clear();
+    });
+  }
+
+  void _toggleEquipmentSelection(EquipmentModel equipment) {
+    if (equipment.status != EquipmentStatus.available) return;
+    setState(() {
+      if (!_selectedEquipmentIds.add(equipment.id)) {
+        _selectedEquipmentIds.remove(equipment.id);
+      }
+    });
+  }
+
+  Future<void> _openSelectedItemsRequest(
+    List<EquipmentModel> selectedItems,
+  ) async {
+    final submitted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => RequestFormScreen.multi(equipments: selectedItems),
+      ),
+    );
+    if (!mounted || submitted != true) return;
+    setState(() {
+      _isMultiSelectMode = false;
+      _selectedEquipmentIds.clear();
+    });
   }
 
   @override
@@ -169,6 +202,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         key: const Key('browse-search-field'),
         controller: _searchController,
         onChanged: equipmentProvider.setSearchQuery,
+        onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         decoration: InputDecoration(
           hintText: 'Search by name, room or asset code...',
           hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
@@ -373,8 +407,28 @@ class _BrowseScreenState extends State<BrowseScreen> {
     final requestProvider = context.watch<RequestProvider?>();
     final userId = context.watch<AuthProvider>().currentUser?.id;
     final equipmentList = equipmentProvider.filteredEquipment;
-    final listBottomPadding =
-        equipmentList.isNotEmpty && equipmentList.length.isEven
+    final eligibleItems = equipmentProvider.allEquipment.where((equipment) {
+      final hasPendingRequest =
+          requestProvider != null &&
+          userId != null &&
+          requestProvider.hasPendingRequest(userId, equipment.id);
+      return equipment.status == EquipmentStatus.available &&
+          !hasPendingRequest;
+    }).toList();
+    final eligibleIds = eligibleItems.map((equipment) => equipment.id).toSet();
+    final staleSelections = _selectedEquipmentIds.difference(eligibleIds);
+    if (staleSelections.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _selectedEquipmentIds.removeAll(staleSelections));
+      });
+    }
+    final selectedItems = eligibleItems
+        .where((equipment) => _selectedEquipmentIds.contains(equipment.id))
+        .toList();
+    final listBottomPadding = selectedItems.isNotEmpty
+        ? 104.0
+        : equipmentList.isNotEmpty && equipmentList.length.isEven
         ? _assistantButtonSize + _assistantButtonBottomOffset
         : _browseContentBottomPadding;
     final statusBarHeight = MediaQuery.of(context).padding.top;
@@ -554,6 +608,75 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 12),
+                                    if (equipmentList.isNotEmpty ||
+                                        _isMultiSelectMode) ...[
+                                      Center(
+                                        child: OutlinedButton(
+                                          key: const Key(
+                                            'browse-multi-select-toggle',
+                                          ),
+                                          onPressed: _toggleMultiSelectMode,
+                                          style: OutlinedButton.styleFrom(
+                                            backgroundColor: AppColors
+                                                .primaryLight
+                                                .withValues(alpha: 0.10),
+                                            foregroundColor:
+                                                AppColors.primaryLight,
+                                            elevation: 2,
+                                            shadowColor: Colors.black
+                                                .withValues(alpha: 0.14),
+                                            padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                            ),
+                                                minimumSize: const Size(0, 36),
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                            side: BorderSide.none,
+                                            shape: const StadiumBorder(),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                Icons.grid_view_rounded,
+                                                size: 16,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                _isMultiSelectMode
+                                                    ? 'Cancel selection'
+                                                    : 'Select multiple items',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.chevron_right_rounded,
+                                                size: 18,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      if (_isMultiSelectMode)
+                                        const Padding(
+                                          padding: EdgeInsets.only(
+                                            top: 6,
+                                            bottom: 10,
+                                          ),
+                                          child: Text(
+                                            'Tap the checkbox on each available item.',
+                                            style: TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      if (!_isMultiSelectMode)
+                                        const SizedBox(height: 12),
+                                    ],
                                     if (equipmentProvider.isLoading)
                                       const Padding(
                                         padding: EdgeInsets.only(top: 40),
@@ -621,6 +744,18 @@ class _BrowseScreenState extends State<BrowseScreen> {
                                                         width: cardWidth,
                                                         child: EquipmentCard(
                                                           equipment: equipment,
+                                                          selectionMode:
+                                                              _isMultiSelectMode,
+                                                          selected:
+                                                              _selectedEquipmentIds
+                                                                  .contains(
+                                                                    equipment
+                                                                        .id,
+                                                                  ),
+                                                          onSelect: () =>
+                                                              _toggleEquipmentSelection(
+                                                                equipment,
+                                                              ),
                                                           requested:
                                                               requestProvider !=
                                                                   null &&
@@ -664,11 +799,91 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 ),
               ],
             ),
-            Positioned(
-              right: 16,
-              bottom: _assistantButtonBottomOffset,
-              child: _buildAssistantButton(userId),
-            ),
+            if (selectedItems.isEmpty)
+              Positioned(
+                right: 16,
+                bottom: _assistantButtonBottomOffset,
+                child: _buildAssistantButton(userId),
+              ),
+            if (selectedItems.isNotEmpty)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 12,
+                child: SafeArea(
+                  child: Container(
+                    key: const Key('browse-selected-items-bar'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.fieldBorder),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${selectedItems.length} '
+                                '${selectedItems.length == 1 ? 'item' : 'items'} selected',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const Text(
+                                'One request · shared dates',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          key: const Key('browse-request-selected'),
+                          onPressed: () =>
+                              _openSelectedItemsRequest(selectedItems),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryLight,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Request selected',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -805,6 +1020,8 @@ class _BrowseScrollBehavior extends MaterialScrollBehavior {
 /// field never resizes or shifts no matter which choice is picked.
 class _FilterDropdown<T> extends StatelessWidget {
   static const double fieldHeight = 38;
+  static const double _optionHeight = 48;
+  static const int _maxVisibleOptions = 5;
 
   final double width;
   final T value;
@@ -830,6 +1047,10 @@ class _FilterDropdown<T> extends StatelessWidget {
         builder: (context, constraints) => MenuAnchor(
           style: MenuStyle(
             minimumSize: WidgetStatePropertyAll(Size(constraints.maxWidth, 0)),
+            maximumSize: WidgetStatePropertyAll(
+              Size(constraints.maxWidth, _optionHeight * _maxVisibleOptions),
+            ),
+            padding: const WidgetStatePropertyAll(EdgeInsets.zero),
           ),
           menuChildren: options
               .map(
@@ -837,7 +1058,7 @@ class _FilterDropdown<T> extends StatelessWidget {
                   onPressed: () => onChanged(option),
                   child: SizedBox(
                     width: constraints.maxWidth - 32,
-                    height: 48,
+                    height: _optionHeight,
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(

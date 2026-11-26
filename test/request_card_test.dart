@@ -6,6 +6,105 @@ import 'package:lendy/theme/app_colors.dart';
 import 'package:lendy/widgets/request_card.dart';
 
 void main() {
+  testWidgets('grouped pending request presents one cancel action', (
+    tester,
+  ) async {
+    final requestDate = DateTime(2026, 11, 26);
+    final group = [
+      for (final item in ['EQ-014', 'EQ-015'])
+        BorrowRequestModel(
+          id: 'loan-$item',
+          studentOrFacultyId: 'user-1',
+          borrowerName: 'Test User',
+          equipmentId: item,
+          requestGroupId: 'request-group-1',
+          requestedBorrowDate: requestDate,
+          requestedReturnDate: requestDate.add(const Duration(days: 3)),
+          requestDate: requestDate,
+        ),
+    ];
+    var cancelled = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GroupedRequestCard(
+            requests: group,
+            equipments: [
+              EquipmentModel(
+                id: 'EQ-014',
+                name: 'Projector',
+                category: EquipmentCategory.projector,
+                assetTag: 'PJ-014',
+                location: 'AV Storage',
+                status: EquipmentStatus.available,
+              ),
+              EquipmentModel(
+                id: 'EQ-015',
+                name: 'Tripod',
+                category: EquipmentCategory.camera,
+                assetTag: 'CM-015',
+                location: 'AV Storage',
+                status: EquipmentStatus.available,
+              ),
+            ],
+            onCancel: () => cancelled = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('2 items requested'), findsOneWidget);
+    expect(find.text('Projector'), findsOneWidget);
+    expect(find.text('Tripod'), findsOneWidget);
+    expect(find.text('Cancel request'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel request'));
+    expect(cancelled, isTrue);
+  });
+
+  testWidgets('approved hourly loan shows times and borrowing reminders', (
+    tester,
+  ) async {
+    final borrowDate = DateTime(2026, 11, 13, 9);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RequestCard(
+            request: BorrowRequestModel(
+              id: 'loan-hours',
+              studentOrFacultyId: 'user-1',
+              borrowerName: 'Test User',
+              equipmentId: 'EQ-014',
+              requestedBorrowDate: borrowDate,
+              requestedReturnDate: DateTime(2026, 11, 13, 10, 30),
+              durationType: BorrowDurationType.hours,
+              requestDate: borrowDate,
+              status: RequestStatus.approved,
+            ),
+            equipment: EquipmentModel(
+              id: 'EQ-014',
+              name: 'Projector',
+              category: EquipmentCategory.projector,
+              location: 'Storage Room',
+              status: EquipmentStatus.reserved,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Nov 13 · 9:00 AM – Nov 13 · 10:30 AM'), findsOneWidget);
+    expect(find.text('Do not take borrowed items home.'), findsOneWidget);
+    expect(
+      find.text(
+        'Borrowers are responsible for repair or replacement costs for lost '
+        'or damaged items.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('loan card displays a location icon beside the location', (
     tester,
   ) async {
