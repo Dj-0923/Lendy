@@ -102,6 +102,18 @@ void main() {
       const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
     );
     final imageRect = tester.getRect(find.byType(Image));
+    final cardRect = tester.getRect(
+      find.byKey(const ValueKey('equipment-card-EQ-014')),
+    );
+    expect(imageRect.left, closeTo(cardRect.left + 1, 1));
+    expect(imageRect.right, closeTo(cardRect.right - 1, 1));
+    expect(imageRect.top, closeTo(cardRect.top + 1, 1));
+    expect(
+      tester
+          .widget<ClipRRect>(find.byKey(const Key('equipment-card-image-clip')))
+          .borderRadius,
+      const BorderRadius.vertical(top: Radius.circular(13)),
+    );
     final badgeContainerFinder = find.byKey(
       const Key('status-badge-container'),
     );
@@ -265,26 +277,50 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: EquipmentCard(
-            equipment: EquipmentModel(
-              id: 'EQ-020',
-              name: 'Camera',
-              category: EquipmentCategory.camera,
-              location: 'AV Storage',
-              status: EquipmentStatus.available,
+          body: StatefulBuilder(
+            builder: (context, setState) => EquipmentCard(
+              equipment: EquipmentModel(
+                id: 'EQ-020',
+                name: 'Camera',
+                category: EquipmentCategory.camera,
+                location: 'AV Storage',
+                status: EquipmentStatus.available,
+              ),
+              selectionMode: true,
+              selected: selected,
+              onSelect: () => setState(() => selected = !selected),
+              onRequest: () {},
             ),
-            selectionMode: true,
-            onSelect: () => selected = true,
-            onRequest: () {},
           ),
         ),
       ),
     );
 
+    final checkboxRect = tester.getRect(
+      find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Select Camera',
+      ),
+    );
+    final cardRect = tester.getRect(
+      find.byKey(const ValueKey('equipment-card-EQ-020')),
+    );
+    expect(checkboxRect.left, closeTo(cardRect.left - 6, 0.1));
+    expect(checkboxRect.top, closeTo(cardRect.top - 4, 0.1));
+
     await tester.tap(find.byTooltip('Select Camera'));
     await tester.pump();
 
     expect(selected, isTrue);
+    final selectedCheckboxRect = tester.getRect(
+      find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'Deselect Camera',
+      ),
+    );
+    final selectedCardRect = tester.getRect(
+      find.byKey(const ValueKey('equipment-card-EQ-020')),
+    );
+    expect(selectedCheckboxRect.left, closeTo(selectedCardRect.left - 5, 0.1));
+    expect(selectedCheckboxRect.top, closeTo(selectedCardRect.top - 3, 0.1));
   });
 
   testWidgets('tapping item content does not open details', (tester) async {

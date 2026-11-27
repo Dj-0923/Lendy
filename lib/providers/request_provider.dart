@@ -99,10 +99,14 @@ class RequestProvider extends ChangeNotifier {
           .where(
             (r) =>
                 r.status == RequestStatus.approved ||
-                r.status == RequestStatus.borrowed ||
                 r.status == RequestStatus.returnPending,
           )
           .toList();
+
+  List<BorrowRequestModel> readyToReturnRequests(String userId) =>
+      requestsForUser(
+        userId,
+      ).where((r) => r.status == RequestStatus.borrowed).toList();
 
   List<BorrowRequestModel> pendingRequests(String userId) => requestsForUser(
     userId,
@@ -122,9 +126,6 @@ class RequestProvider extends ChangeNotifier {
       requestsForUser(userId)
           .where(
             (r) =>
-                r.status == RequestStatus.approved ||
-                (r.status == RequestStatus.borrowed &&
-                    r.returnVerificationStatus != 'rejected') ||
                 r.status == RequestStatus.rejected ||
                 r.status == RequestStatus.returned ||
                 r.status == RequestStatus.cancelled,

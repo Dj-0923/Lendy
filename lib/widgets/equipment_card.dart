@@ -54,7 +54,6 @@ class EquipmentCard extends StatelessWidget {
     return Container(
       key: ValueKey('equipment-card-${equipment.id}'),
       height: 290,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -65,6 +64,10 @@ class EquipmentCard extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final contentPadding = selected ? 10.0 : 11.0;
+          final contentWidth = (constraints.maxWidth - contentPadding * 2)
+              .clamp(0.0, constraints.maxWidth)
+              .toDouble();
           final textDirection = Directionality.of(context);
           final namePainter = TextPainter(
             text: TextSpan(
@@ -73,7 +76,7 @@ class EquipmentCard extends StatelessWidget {
             ),
             textDirection: textDirection,
             maxLines: 2,
-          )..layout(maxWidth: constraints.maxWidth);
+          )..layout(maxWidth: contentWidth);
           final nameLineCount = namePainter.computeLineMetrics().length;
           namePainter.dispose();
 
@@ -91,8 +94,8 @@ class EquipmentCard extends StatelessWidget {
                   textDirection: textDirection,
                   maxLines: 2,
                 )..layout(
-                  maxWidth: (constraints.maxWidth - 18)
-                      .clamp(0.0, constraints.maxWidth)
+                  maxWidth: (contentWidth - 18)
+                      .clamp(0.0, contentWidth)
                       .toDouble(),
                 );
             locationLineCount = locationPainter.computeLineMetrics().length;
@@ -113,7 +116,10 @@ class EquipmentCard extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      key: const Key('equipment-card-image-clip'),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(selected ? 12 : 13),
+                      ),
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
@@ -142,8 +148,8 @@ class EquipmentCard extends StatelessWidget {
                     ),
                     if (selectionMode)
                       Positioned(
-                        top: -12,
-                        left: -19,
+                        top: -5,
+                        left: -7,
                         child: IconButton(
                           tooltip: selected
                               ? 'Deselect ${equipment.name}'
@@ -173,135 +179,158 @@ class EquipmentCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                equipment.displayCategory.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 0.6,
-                ),
-              ),
-              const SizedBox(height: 2),
-              SizedBox(
-                width: double.infinity,
-                child: Text(
-                  equipment.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    contentPadding,
+                    8,
+                    contentPadding,
+                    7,
                   ),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                equipment.displayTag,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const Spacer(),
-              if (equipment.location.isNotEmpty) ...[
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      size: 14,
-                      color: AppColors.primaryLight,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        equipment.location,
-                        maxLines: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        equipment.displayCategory.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          equipment.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        equipment.displayTag,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 12.5,
                           color: AppColors.textSecondary,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 6),
-              SizedBox(
-                width: double.infinity,
-                height: 38,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        key: const Key('equipment-card-view-details'),
-                        onPressed: () => _showDetails(context),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primaryLight,
-                          side: const BorderSide(
-                            color: AppColors.primaryLight,
-                            width: 1.5,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          minimumSize: const Size(0, 38),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            'View Details',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
+                      const Spacer(),
+                      if (equipment.location.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on,
+                              size: 14,
+                              color: AppColors.primaryLight,
                             ),
-                          ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                equipment.location,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 38,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                key: const Key('equipment-card-view-details'),
+                                onPressed: () => _showDetails(context),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.primaryLight,
+                                  side: const BorderSide(
+                                    color: AppColors.primaryLight,
+                                    width: 1.5,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  minimumSize: const Size(0, 38),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'View Details',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed:
+                                    equipment.status ==
+                                            EquipmentStatus.available &&
+                                        !requested
+                                    ? onRequest
+                                    : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      equipment.status ==
+                                          EquipmentStatus.available
+                                      ? AppColors.primaryLight
+                                      : const Color(0xFFE0E0E0),
+                                  foregroundColor:
+                                      equipment.status ==
+                                          EquipmentStatus.available
+                                      ? Colors.white
+                                      : const Color(0xFF757575),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  minimumSize: const Size(0, 38),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: Text(
+                                  requested ? 'Requested' : 'Request',
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed:
-                            equipment.status == EquipmentStatus.available &&
-                                !requested
-                            ? onRequest
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              equipment.status == EquipmentStatus.available
-                              ? AppColors.primaryLight
-                              : const Color(0xFFE0E0E0),
-                          foregroundColor:
-                              equipment.status == EquipmentStatus.available
-                              ? Colors.white
-                              : const Color(0xFF757575),
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          minimumSize: const Size(0, 38),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          requested ? 'Requested' : 'Request',
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

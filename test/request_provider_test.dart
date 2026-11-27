@@ -110,7 +110,8 @@ void main() {
       final requestId = requests.requestsForUser('borrower-1').single.id;
       await requests.checkOut(requestId);
 
-      expect(requests.activeRequests('borrower-1'), hasLength(1));
+      expect(requests.activeRequests('borrower-1'), isEmpty);
+      expect(requests.readyToReturnRequests('borrower-1'), hasLength(1));
       expect(
         requests.activeRequests('borrower-2'),
         isEmpty,
@@ -220,18 +221,27 @@ void main() {
       'group-item-1',
       'group-item-2',
     ]);
-    expect(group.map((request) => request.requestGroupId).toSet(), hasLength(1));
+    expect(
+      group.map((request) => request.requestGroupId).toSet(),
+      hasLength(1),
+    );
     expect(group.first.requestGroupId, isNotNull);
-    expect(group.every((request) => request.requestedBorrowDate == borrowDate), isTrue);
-    expect(group.every((request) => request.requestedReturnDate == returnDate), isTrue);
+    expect(
+      group.every((request) => request.requestedBorrowDate == borrowDate),
+      isTrue,
+    );
+    expect(
+      group.every((request) => request.requestedReturnDate == returnDate),
+      isTrue,
+    );
 
     await requests.cancelRequest(group.first.id);
 
     expect(requests.pendingRequests(userId), isEmpty);
     expect(
-      requests.requestsForUser(userId).every(
-        (request) => request.status == RequestStatus.cancelled,
-      ),
+      requests
+          .requestsForUser(userId)
+          .every((request) => request.status == RequestStatus.cancelled),
       isTrue,
     );
   });
@@ -279,7 +289,7 @@ void main() {
   });
 
   test(
-    'history excludes unverified and rejected returns until completion',
+    'active, ready-to-return, and history requests stay separate',
     () async {
       const userId = 'history-user';
       final requestIds = <String>[];
@@ -300,15 +310,24 @@ void main() {
       userRequests[1].status = RequestStatus.rejected;
       userRequests[2].status = RequestStatus.borrowed;
       userRequests[3].status = RequestStatus.returned;
-      userRequests[4].status = RequestStatus.pending;
+      userRequests[4].status = RequestStatus.cancelled;
       userRequests[5].status = RequestStatus.returnPending;
       userRequests[6]
         ..status = RequestStatus.borrowed
         ..returnVerificationStatus = 'rejected';
 
+      expect(requests.historyRequests(userId).map((request) => request.id), [
+        requestIds[1],
+        requestIds[3],
+        requestIds[4],
+      ]);
+      expect(requests.activeRequests(userId).map((request) => request.id), [
+        requestIds[0],
+        requestIds[5],
+      ]);
       expect(
-        requests.historyRequests(userId).map((request) => request.id),
-        requestIds.take(4),
+        requests.readyToReturnRequests(userId).map((request) => request.id),
+        [requestIds[2], requestIds[6]],
       );
     },
   );
